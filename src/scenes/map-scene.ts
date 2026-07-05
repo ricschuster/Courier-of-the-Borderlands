@@ -1,12 +1,26 @@
 import Phaser from 'phaser';
-import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, TILE_SIZE, COURIER_SPEED } from '../config/game-config';
+import {
+  GAME_TITLE,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  TILE_SIZE,
+  COURIER_SPEED,
+  FOG_REVEAL_RADIUS,
+  FOG_COLOR,
+} from '../config/game-config';
 import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../data/greybridge-map';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
+import { createFog, revealAround, type Fog } from '../systems/fog-of-war';
 import { Courier } from '../entities/courier';
+
+// Depth layers, from bottom to top.
+const DEPTH_COURIER = 6;
+const DEPTH_FOG = 5;
+const DEPTH_HUD = 10;
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -34,6 +48,8 @@ export class MapScene extends Phaser.Scene {
   private wasd!: WasdKeys;
   private terrainReadout!: Phaser.GameObjects.Text;
   private fordStatus!: Phaser.GameObjects.Text;
+  private fog!: Fog;
+  private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
 
   constructor() {
     super({ key: 'MapScene' });
@@ -60,11 +76,16 @@ export class MapScene extends Phaser.Scene {
     const spawnX = TILE_SIZE * 1.5;
     const spawnY = this.mapOriginY + 5 * TILE_SIZE + TILE_SIZE / 2;
     this.courier = new Courier(this, spawnX, spawnY);
+    this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.impassable);
 
     this.addSignpost();
+    this.addFog();
     this.setupInput();
     this.addHud();
+
+    // Reveal the area around the spawn so the player is not fully blind.
+    this.revealAroundCourier();
   }
 
   update(): void {
@@ -79,6 +100,8 @@ export class MapScene extends Phaser.Scene {
     const modifier = terrainId === undefined ? 1 : getSpeedModifier(terrainId);
     const velocity = computeVelocity(input, COURIER_SPEED * modifier);
     this.courier.setVelocity(velocity.x, velocity.y);
+
+    this.revealAroundCourier();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
     this.terrainReadout.setText(
@@ -146,6 +169,38 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  private addFog(): void {
+    this.fog = createFog(this.map.width, this.map.height);
+    this.fogRects = new Array<Phaser.GameObjects.Rectangle | undefined>(
+      this.map.width * this.map.height,
+    ).fill(undefined);
+    for (let y = 0; y < this.map.height; y++) {
+      for (let x = 0; x < this.map.width; x++) {
+        const center = this.tileCenter(x, y);
+        const rect = this.add
+          .rectangle(center.x, center.y, TILE_SIZE, TILE_SIZE, FOG_COLOR)
+          .setDepth(DEPTH_FOG);
+        this.fogRects[y * this.map.width + x] = rect;
+      }
+    }
+  }
+
+  private revealAroundCourier(): void {
+    const tile = worldToTile(
+      this.courier.sprite.x,
+      this.courier.sprite.y,
+      TILE_SIZE,
+      0,
+      this.mapOriginY,
+    );
+    const revealed = revealAround(this.fog, tile.x, tile.y, FOG_REVEAL_RADIUS);
+    for (const { x, y } of revealed) {
+      const index = y * this.map.width + x;
+      this.fogRects[index]?.destroy();
+      this.fogRects[index] = undefined;
+    }
+  }
+
   private addSignpost(): void {
     const center = this.tileCenter(SIGNPOST_TILE.x, SIGNPOST_TILE.y);
     const signpost = this.add.rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xe8d8b0);
@@ -188,27 +243,35 @@ export class MapScene extends Phaser.Scene {
   }
 
   private addHud(): void {
-    this.add.text(8, 8, GAME_TITLE, {
-      fontFamily: 'monospace',
-      fontSize: '14px',
-      color: '#e8e8e8',
-    });
-    this.terrainReadout = this.add.text(8, 26, 'Terrain: unknown', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#e8e8e8',
-    });
-    this.fordStatus = this.add.text(8, 42, '', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#e8e8e8',
-    });
+    this.add
+      .text(8, 8, GAME_TITLE, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e8e8e8',
+      })
+      .setDepth(DEPTH_HUD);
+    this.terrainReadout = this.add
+      .text(8, 26, 'Terrain: unknown', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e8e8e8',
+      })
+      .setDepth(DEPTH_HUD);
+    this.fordStatus = this.add
+      .text(8, 42, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e8e8e8',
+      })
+      .setDepth(DEPTH_HUD);
     this.refreshFordStatus();
-    this.add.text(8, GAME_HEIGHT - 22, 'Arrow keys or WASD to drive', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#8a8a8a',
-    });
+    this.add
+      .text(8, GAME_HEIGHT - 22, 'Arrow keys or WASD to drive', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#8a8a8a',
+      })
+      .setDepth(DEPTH_HUD);
   }
 
   private refreshFordStatus(): void {
@@ -226,7 +289,8 @@ export class MapScene extends Phaser.Scene {
         backgroundColor: '#00000088',
         padding: { x: 8, y: 4 },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(DEPTH_HUD);
     this.time.delayedCall(2500, () => toast.destroy());
   }
 }

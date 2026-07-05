@@ -19,3 +19,8 @@ export const COURIER_SIZE = 20;
 export const COURIER_COLOR = 0xf2c14e;
 // Base movement speed in pixels per second (before terrain effects).
 export const COURIER_SPEED = 160;
+
+// Fog-of-war: how many tiles around the courier are revealed, and the colour
+// of the fog covering unexplored tiles.
+export const FOG_REVEAL_RADIUS = 2.5;
+export const FOG_COLOR = 0x0d0d0d;
