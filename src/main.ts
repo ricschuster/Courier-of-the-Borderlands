@@ -1,5 +1,22 @@
 // Entry point for Courier of the Borderlands.
-// TODO: scaffold Vite + TypeScript + Phaser 3 here.
-// See CLAUDE.md for build order and coding rules.
+// Boots the Phaser game and mounts it into the #game element.
+import Phaser from 'phaser';
+import { BootScene } from './scenes/boot-scene';
+import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from './config/game-config';
 
-export {};
+const config: Phaser.Types.Core.GameConfig = {
+  type: Phaser.AUTO,
+  title: GAME_TITLE,
+  parent: 'game',
+  width: GAME_WIDTH,
+  height: GAME_HEIGHT,
+  backgroundColor: BACKGROUND_COLOR,
+  pixelArt: true,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  scene: [BootScene],
+};
+
+new Phaser.Game(config);

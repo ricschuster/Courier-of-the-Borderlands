@@ -1,0 +1,11 @@
+// Canonical game constants. Keep magic numbers named and in one place so
+// scenes and systems share the same values.
+
+export const GAME_TITLE = 'Courier of the Borderlands';
+
+// Base render resolution. The Scale manager fits this to the window.
+export const GAME_WIDTH = 960;
+export const GAME_HEIGHT = 540;
+
+// Background colour for empty scenes (dark slate, matches the page).
+export const BACKGROUND_COLOR = '#1a1a1a';
