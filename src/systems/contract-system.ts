@@ -17,6 +17,8 @@ export interface Contract {
   readonly reward: number;
   /** Reputation gained on delivery. */
   readonly reputation: number;
+  /** Minimum total reputation required to accept this contract. */
+  readonly minReputation: number;
   /** Short story flavour for the delivery. */
   readonly note: string;
 }
@@ -28,6 +30,11 @@ export interface ContractProgress {
 
 export function startContract(contract: Contract): ContractProgress {
   return { contractId: contract.id, status: 'accepted' };
+}
+
+/** True when the courier's reputation is high enough to accept the contract. */
+export function canAccept(contract: Contract, reputation: number): boolean {
+  return reputation >= contract.minReputation;
 }
 
 /** True when the courier can collect the cargo at the given settlement. */

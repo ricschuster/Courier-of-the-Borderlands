@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   startContract,
+  canAccept,
   canPickUp,
   canDeliver,
   pickUp,
@@ -17,6 +18,7 @@ const CONTRACT: Contract = {
   destinationId: 'town-b',
   reward: 50,
   reputation: 2,
+  minReputation: 3,
   note: 'note',
 };
 
@@ -24,6 +26,14 @@ describe('contract-system', () => {
   it('starts a contract in the accepted state', () => {
     const progress = startContract(CONTRACT);
     expect(progress).toEqual({ contractId: 'test', status: 'accepted' });
+  });
+
+  it('gates acceptance on minimum reputation', () => {
+    // CONTRACT.minReputation is 3.
+    expect(canAccept(CONTRACT, 2)).toBe(false);
+    expect(canAccept(CONTRACT, 3)).toBe(true);
+    expect(canAccept(CONTRACT, 5)).toBe(true);
+    expect(canAccept({ ...CONTRACT, minReputation: 0 }, 0)).toBe(true);
   });
 
   it('allows pickup only at the pickup settlement while accepted', () => {

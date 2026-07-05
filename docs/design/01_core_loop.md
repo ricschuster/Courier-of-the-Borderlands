@@ -21,7 +21,9 @@ Each step of the loop is implemented and playable.
 
 ### 1. Accept a contract
 
-Three contracts are available in the Greybridge Region (letters, grain, and a rumour). Each has a title, cargo description, pickup settlement, destination settlement, coin reward, and reputation reward. A short delivery note sets the tone of the run.
+Contracts are accepted at the Greywater contract board. The board appears when the courier is in Greywater with no active contract, and lists the remaining contracts. Each has a title, cargo description, pickup settlement, destination settlement, coin reward, and reputation reward, plus a short delivery note that sets the tone.
+
+Better contracts are gated by reputation. A contract can only be accepted once the courier's total reputation meets its minimum, so the player earns access to higher-value runs by completing earlier ones. This is what makes reputation matter: it is the key to the board, not just a score. Locked contracts are shown on the board with the reputation they require.
 
 ### 2. Collect and carry cargo
 

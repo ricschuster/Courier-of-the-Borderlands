@@ -59,4 +59,8 @@ describe('Greybridge contracts', () => {
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
   });
+
+  it('offers at least one contract at zero reputation so the game is startable', () => {
+    expect(CONTRACTS_GREYBRIDGE.some((c) => c.minReputation === 0)).toBe(true);
+  });
 });

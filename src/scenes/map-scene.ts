@@ -22,10 +22,10 @@ import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
+  canAccept,
   canPickUp,
   canDeliver,
   pickUp,
-  deliver,
   isDelivered,
   type Contract,
   type ContractProgress,
@@ -35,6 +35,8 @@ import { Courier } from '../entities/courier';
 // The single starter upgrade lives in Greywater; buying is a one-key action.
 const STARTER_UPGRADE = UPGRADES_GREYBRIDGE[0];
 const UPGRADE_TOWN = 'greywater';
+// The starting town hosts the contract board.
+const BOARD_TOWN = 'greywater';
 
 // Depth layers, from bottom to top.
 const DEPTH_MARKER = 1;
@@ -73,10 +75,12 @@ export class MapScene extends Phaser.Scene {
   private hint!: Phaser.GameObjects.Text;
   private fog!: Fog;
   private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
-  private contractIndex = 0;
-  private contract!: Contract;
-  private progress!: ContractProgress;
+  private activeContract: Contract | undefined;
+  private progress: ContractProgress | undefined;
+  private completed = new Set<string>();
   private objective!: Phaser.GameObjects.Text;
+  private board!: Phaser.GameObjects.Text;
+  private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private visited = new Set<string>();
 
   constructor() {
@@ -87,14 +91,9 @@ export class MapScene extends Phaser.Scene {
     this.state = createGameState();
     this.gatedBlocks = new Map();
     this.visited = new Set();
-
-    const firstContract = CONTRACTS_GREYBRIDGE[0];
-    if (firstContract === undefined) {
-      throw new Error('no contracts defined for Greybridge');
-    }
-    this.contractIndex = 0;
-    this.contract = firstContract;
-    this.progress = startContract(firstContract);
+    this.completed = new Set();
+    this.activeContract = undefined;
+    this.progress = undefined;
 
     this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
     this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
@@ -125,7 +124,7 @@ export class MapScene extends Phaser.Scene {
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
 
-    this.showToast(this.contract.note);
+    this.showToast('Drive into Greywater to accept a contract from the board.');
   }
 
   update(): void {
@@ -145,7 +144,9 @@ export class MapScene extends Phaser.Scene {
     this.revealAroundCourier();
     this.updateDelivery();
     this.checkArrival();
+    this.handleBoardInput();
     this.handlePurchaseInput();
+    this.refreshBoard();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
     this.terrainReadout.setText(
@@ -257,7 +258,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   private updateDelivery(): void {
-    if (isDelivered(this.progress)) {
+    const contract = this.activeContract;
+    const progress = this.progress;
+    if (contract === undefined || progress === undefined || isDelivered(progress)) {
       return;
     }
     const tile = this.courierTile();
@@ -266,37 +269,96 @@ export class MapScene extends Phaser.Scene {
       return;
     }
 
-    if (canPickUp(this.progress, this.contract, settlement.id)) {
-      this.progress = pickUp(this.progress);
-      this.showToast(`Collected ${this.contract.cargo} at ${settlement.name}.`);
+    if (canPickUp(progress, contract, settlement.id)) {
+      this.progress = pickUp(progress);
+      this.showToast(`Collected ${contract.cargo} at ${settlement.name}.`);
       this.refreshObjective();
-    } else if (canDeliver(this.progress, this.contract, settlement.id)) {
-      this.progress = deliver(this.progress);
-      this.grantReward(settlement.id);
-      this.showToast(
-        `Delivered ${this.contract.cargo} to ${settlement.name}. ` +
-          `Reward: ${this.contract.reward} coins, +${this.contract.reputation} reputation.`,
-      );
-      this.advanceContract();
-      this.refreshObjective();
-      this.refreshWallet();
+    } else if (canDeliver(progress, contract, settlement.id)) {
+      this.completeDelivery(contract, settlement.id, settlement.name);
     }
   }
 
-  private grantReward(settlementId: string): void {
-    this.state.ledger = addCoins(this.state.ledger, this.contract.reward);
-    this.state.ledger = addReputation(this.state.ledger, settlementId, this.contract.reputation);
+  private completeDelivery(contract: Contract, settlementId: string, settlementName: string): void {
+    this.completed.add(contract.id);
+    this.state.ledger = addCoins(this.state.ledger, contract.reward);
+    this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
+    this.activeContract = undefined;
+    this.progress = undefined;
+    this.showToast(
+      `Delivered ${contract.cargo} to ${settlementName}. ` +
+        `Reward: ${contract.reward} coins, +${contract.reputation} reputation.`,
+    );
+    this.refreshObjective();
+    this.refreshWallet();
   }
 
-  /** Move to the next contract, if any, and re-accept it (pickup at its town). */
-  private advanceContract(): void {
-    const next = CONTRACTS_GREYBRIDGE[this.contractIndex + 1];
-    if (next === undefined) {
+  /** Contracts not yet delivered, in their canonical order. */
+  private boardContracts(): Contract[] {
+    return CONTRACTS_GREYBRIDGE.filter((c) => !this.completed.has(c.id));
+  }
+
+  private atSettlement(id: string): boolean {
+    const tile = this.courierTile();
+    return settlementAtTile(tile.x, tile.y)?.id === id;
+  }
+
+  private acceptContract(contract: Contract): void {
+    let progress = startContract(contract);
+    // The board is only shown in the pickup town, so collect the cargo at once.
+    const tile = this.courierTile();
+    const here = settlementAtTile(tile.x, tile.y);
+    if (here !== undefined && canPickUp(progress, contract, here.id)) {
+      progress = pickUp(progress);
+    }
+    this.activeContract = contract;
+    this.progress = progress;
+    this.showToast(`Accepted: ${contract.title}. ${contract.note}`);
+    this.refreshObjective();
+  }
+
+  private handleBoardInput(): void {
+    if (this.activeContract !== undefined || !this.atSettlement(BOARD_TOWN)) {
       return;
     }
-    this.contractIndex += 1;
-    this.contract = next;
-    this.progress = startContract(next);
+    const list = this.boardContracts();
+    const reputation = totalReputation(this.state.ledger);
+    for (let i = 0; i < this.numberKeys.length && i < list.length; i++) {
+      const key = this.numberKeys[i];
+      const contract = list[i];
+      if (key === undefined || contract === undefined) {
+        continue;
+      }
+      if (Phaser.Input.Keyboard.JustDown(key)) {
+        if (canAccept(contract, reputation)) {
+          this.acceptContract(contract);
+        } else {
+          this.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
+        }
+      }
+    }
+  }
+
+  private refreshBoard(): void {
+    const show = this.activeContract === undefined && this.atSettlement(BOARD_TOWN);
+    this.board.setVisible(show);
+    if (!show) {
+      return;
+    }
+    const reputation = totalReputation(this.state.ledger);
+    const list = this.boardContracts();
+    const lines = ['GREYWATER BOARD  (press number to accept)'];
+    if (list.length === 0) {
+      lines.push('  No contracts remain. The frontier is quiet, for now.');
+    }
+    list.forEach((contract, i) => {
+      const locked = canAccept(contract, reputation)
+        ? ''
+        : `   [needs ${contract.minReputation} rep]`;
+      lines.push(
+        `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}`,
+      );
+    });
+    this.board.setText(lines.join('\n'));
   }
 
   private handlePurchaseInput(): void {
@@ -389,6 +451,18 @@ export class MapScene extends Phaser.Scene {
     this.cursors = keyboard.createCursorKeys();
     this.wasd = keyboard.addKeys('W,A,S,D') as WasdKeys;
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+
+    const numberCodes = [
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+      Phaser.Input.Keyboard.KeyCodes.FOUR,
+      Phaser.Input.Keyboard.KeyCodes.FIVE,
+      Phaser.Input.Keyboard.KeyCodes.SIX,
+    ];
+    this.numberKeys = numberCodes
+      .slice(0, CONTRACTS_GREYBRIDGE.length)
+      .map((code) => keyboard.addKey(code));
   }
 
   private addHud(): void {
@@ -408,10 +482,23 @@ export class MapScene extends Phaser.Scene {
       .text(8, GAME_HEIGHT - 22, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8a8a8a' })
       .setDepth(DEPTH_HUD);
 
+    this.board = this.add
+      .text(8, 118, '', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bcc',
+        padding: { x: 10, y: 8 },
+        lineSpacing: 4,
+      })
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
     this.refreshWallet();
     this.refreshObjective();
     this.refreshFordStatus();
     this.refreshHint();
+    this.refreshBoard();
   }
 
   private refreshFordStatus(): void {
@@ -421,24 +508,36 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshObjective(): void {
-    const pickup = SETTLEMENTS[this.contract.pickupId];
-    const destination = SETTLEMENTS[this.contract.destinationId];
-    const pickupName = pickup?.name ?? this.contract.pickupId;
-    const destinationName = destination?.name ?? this.contract.destinationId;
+    const contract = this.activeContract;
+    const progress = this.progress;
 
-    let text: string;
-    switch (this.progress.status) {
+    if (contract === undefined || progress === undefined) {
+      if (this.boardContracts().length === 0) {
+        this.objective.setText('All Greybridge contracts delivered. Well driven.');
+      } else if (this.atSettlement(BOARD_TOWN)) {
+        this.objective.setText('Choose a contract from the board.');
+      } else {
+        this.objective.setText('Return to Greywater for a new contract.');
+      }
+      return;
+    }
+
+    const destination = SETTLEMENTS[contract.destinationId];
+    const pickup = SETTLEMENTS[contract.pickupId];
+    const destinationName = destination?.name ?? contract.destinationId;
+    const pickupName = pickup?.name ?? contract.pickupId;
+
+    switch (progress.status) {
       case 'accepted':
-        text = `${this.contract.title}: collect ${this.contract.cargo} at ${pickupName}`;
+        this.objective.setText(`${contract.title}: collect ${contract.cargo} at ${pickupName}`);
         break;
       case 'carrying':
-        text = `${this.contract.title}: deliver to ${destinationName}`;
+        this.objective.setText(`${contract.title}: deliver to ${destinationName}`);
         break;
       case 'delivered':
-        text = `${this.contract.title}: delivered. Well driven.`;
+        this.objective.setText(`${contract.title}: delivered. Well driven.`);
         break;
     }
-    this.objective.setText(text);
   }
 
   private showToast(message: string, y = 60): void {
