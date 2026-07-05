@@ -37,5 +37,50 @@ test('boots and renders the Greybridge map without runtime errors', async ({ pag
   expect(save, 'a save should be written to localStorage').not.toBeNull();
   const parsed = JSON.parse(save ?? '{}');
   expect(parsed.version).toBe(1);
-  expect(parsed.fogWidth).toBe(20);
+  expect(parsed.regionId).toBe('greybridge');
+  expect(parsed.fogByRegion).toBeTruthy();
+  expect(Array.isArray(parsed.fogByRegion.greybridge)).toBe(true);
+});
+
+test('boots the saltreach region from a save without runtime errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      errors.push(`console: ${msg.text()}`);
+    }
+  });
+  page.on('pageerror', (err) => {
+    errors.push(`pageerror: ${err.message}`);
+  });
+
+  // Seed a save pointing at the second region before the game boots.
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'courier-of-the-borderlands/save',
+      JSON.stringify({
+        version: 1,
+        coins: 100,
+        reputation: {},
+        unlocks: [],
+        upgrades: [],
+        completed: [],
+        visited: [],
+        regionId: 'saltreach',
+        fogByRegion: {},
+        activeContractId: null,
+        contractStatus: null,
+        distanceTiles: 0,
+        deliveries: 0,
+        achievements: [],
+      }),
+    );
+  });
+
+  await page.goto('./');
+  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
+
+  expect(errors, `runtime errors in saltreach:\n${errors.join('\n')}`).toEqual([]);
+  const save = await page.evaluate(() => localStorage.getItem('courier-of-the-borderlands/save'));
+  expect(JSON.parse(save ?? '{}').regionId).toBe('saltreach');
 });

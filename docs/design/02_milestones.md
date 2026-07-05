@@ -49,3 +49,16 @@ One full region, three contracts, currency and reputation, one vehicle upgrade, 
 3. Add an upgrade shop at a settlement so the player can spend coins on Reinforced Wheels.
 4. Add one or two short NPC lines at settlements to reinforce the courier premise.
 5. Set up GitHub Pages deployment via GitHub Actions.
+
+## M3: Second region -- IN PROGRESS
+
+Extend the game beyond the Greybridge Region with a region abstraction, a second playable region, and persistent cross-region state.
+
+- [ ] Region abstraction: typed `Region` record containing map, settlements, contracts, spawn tile, and gateway tile (`src/data/region-types.ts`)
+- [ ] Region registry: keyed by id, looked up by MapScene on load (`src/data/region-registry.ts`)
+- [ ] Saltreach region: new 20x11 map with its own settlements, contracts, spawn, and gateway (`src/data/saltreach-*.ts`)
+- [ ] Gateway tile: road tile at map edge; pressing T while on it and not carrying cargo travels to the linked region
+- [ ] Scene restart on travel: MapScene restarts with the new active region id; courier spawns at the destination region's spawn tile
+- [ ] Travel restriction: blocked while carrying cargo; on-screen message explains why
+- [ ] Per-region fog persistence: save stores explored tiles keyed by region id; fog is restored per region on load
+- [ ] Save migration: older single-region saves promoted to greybridge-keyed fog record on load

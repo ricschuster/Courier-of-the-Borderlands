@@ -8,7 +8,6 @@ import {
   FOG_REVEAL_RADIUS,
   FOG_COLOR,
 } from '../config/game-config';
-import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../data/greybridge-map';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
@@ -46,8 +45,13 @@ import {
 import { WEATHERS, weatherByIndex, type Weather } from '../systems/weather';
 import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
 import { buildLegend } from '../systems/legend';
-import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
-import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
+import {
+  getRegion,
+  settlementAtTileIn,
+  totalSettlementCount,
+  DEFAULT_REGION_ID,
+  type Region,
+} from '../systems/region-system';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
@@ -61,10 +65,6 @@ import {
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
 
-// Upgrades are bought at Greywater with the B key (buys the next cheapest).
-const UPGRADE_TOWN = 'greywater';
-// The starting town hosts the contract board.
-const BOARD_TOWN = 'greywater';
 // Minimap layout (pixels per tile in the corner map).
 const MINIMAP_CELL = 6;
 
@@ -82,8 +82,10 @@ interface WasdKeys {
 }
 
 const FORD_UNLOCK = 'ford-crossing';
-// Signpost tile on the west bank; driving onto it opens the ford.
-const SIGNPOST_TILE = { x: 8, y: 8 } as const;
+
+interface MapSceneData {
+  readonly regionId?: string;
+}
 
 // Renders the Greybridge tile map and lets the player drive the courier around
 // it. Roads and the bridge are faster, forest is slower, and water and
@@ -91,6 +93,9 @@ const SIGNPOST_TILE = { x: 8, y: 8 } as const;
 // unlocks it as a shorter southern crossing.
 export class MapScene extends Phaser.Scene {
   private state: GameState = createGameState();
+  private region!: Region;
+  private fogByRegion: Record<string, number[]> = {};
+  private travelKey!: Phaser.Input.Keyboard.Key;
   private map!: TileMap;
   private mapOriginY = 0;
   private courier!: Courier;
@@ -136,14 +141,16 @@ export class MapScene extends Phaser.Scene {
     super({ key: 'MapScene' });
   }
 
-  create(): void {
+  create(data?: MapSceneData): void {
     this.gatedBlocks = new Map();
 
     // Restore a saved game if one exists; otherwise start fresh.
     const snapshot = loadSave();
+    const regionId = data?.regionId ?? snapshot?.regionId ?? DEFAULT_REGION_ID;
+    this.region = getRegion(regionId);
     this.restoreState(snapshot);
 
-    this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
+    this.map = createTileMap(this.region.rows, this.region.legend);
     this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
 
     this.drawTiles();
@@ -157,22 +164,22 @@ export class MapScene extends Phaser.Scene {
       this.map.height * TILE_SIZE,
     );
 
-    // Spawn on the road at the left edge of the bridge row (y = 5).
-    const spawnX = TILE_SIZE * 1.5;
-    const spawnY = this.mapOriginY + 5 * TILE_SIZE + TILE_SIZE / 2;
+    const spawnX = this.region.spawn.x * TILE_SIZE + TILE_SIZE / 2;
+    const spawnY = this.mapOriginY + this.region.spawn.y * TILE_SIZE + TILE_SIZE / 2;
     this.courier = new Courier(this, spawnX, spawnY);
     this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.impassable);
-    this.prevX = this.courier.sprite.x;
-    this.prevY = this.courier.sprite.y;
+    this.prevX = spawnX;
+    this.prevY = spawnY;
 
-    // The signpost only matters while the ford is still locked.
-    if (!isUnlocked(this.state, FORD_UNLOCK)) {
-      this.addSignpost();
+    // The signpost only exists in regions that host the ford-unlock mechanic.
+    if (this.region.signpost !== undefined && !isUnlocked(this.state, FORD_UNLOCK)) {
+      this.addSignpost(this.region.signpost);
     }
     this.addSettlementMarkers();
+    this.addGatewayMarker();
     this.addFog();
-    this.restoreFog(snapshot);
+    this.restoreFog();
     this.setupInput();
     this.addHud();
 
@@ -188,14 +195,13 @@ export class MapScene extends Phaser.Scene {
     this.time.addEvent({ delay: 2000, loop: true, callback: () => this.save() });
     this.save();
 
+    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     this.showToast(
-      snapshot === null
-        ? `Drive into Greywater to accept a contract. ${this.weather.description}`
-        : `Progress restored. ${this.weather.description}`,
+      `${this.region.name}. Reach ${homeName} for contracts. ${this.weather.description}`,
     );
   }
 
-  /** Load state from a snapshot, or reset to a fresh game if snapshot is null. */
+  /** Load global state from a snapshot, or reset to a fresh game if null. */
   private restoreState(snapshot: GameSnapshot | null): void {
     this.state = createGameState();
     this.completed = new Set();
@@ -204,6 +210,7 @@ export class MapScene extends Phaser.Scene {
     this.progress = undefined;
     this.trip = createTripLog();
     this.achievements = new Set();
+    this.fogByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
 
@@ -218,9 +225,13 @@ export class MapScene extends Phaser.Scene {
     this.visited = new Set(snapshot.visited);
     this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
     this.achievements = new Set(snapshot.achievements);
+    for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
+      this.fogByRegion[rid] = [...indices];
+    }
 
+    // Restore the active contract only if it belongs to the current region.
     if (snapshot.activeContractId !== null && snapshot.contractStatus !== null) {
-      const contract = CONTRACTS_GREYBRIDGE.find((c) => c.id === snapshot.activeContractId);
+      const contract = this.region.contracts.find((c) => c.id === snapshot.activeContractId);
       if (contract !== undefined && !this.completed.has(contract.id)) {
         this.activeContract = contract;
         this.progress = { contractId: contract.id, status: snapshot.contractStatus };
@@ -228,16 +239,13 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Re-reveal previously explored tiles from a snapshot (if the map matches). */
-  private restoreFog(snapshot: GameSnapshot | null): void {
-    if (
-      snapshot === null ||
-      snapshot.fogWidth !== this.map.width ||
-      snapshot.fogHeight !== this.map.height
-    ) {
+  /** Re-reveal the active region's previously explored tiles. */
+  private restoreFog(): void {
+    const indices = this.fogByRegion[this.region.id];
+    if (indices === undefined) {
       return;
     }
-    for (const index of snapshot.revealed) {
+    for (const index of indices) {
       if (index < 0 || index >= this.fog.revealed.length) {
         continue;
       }
@@ -248,6 +256,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private save(): void {
+    this.fogByRegion[this.region.id] = revealedIndices(this.fog);
     writeSave({
       coins: this.state.ledger.coins,
       reputation: { ...this.state.ledger.reputation },
@@ -255,9 +264,8 @@ export class MapScene extends Phaser.Scene {
       upgrades: [...this.state.upgrades],
       completed: [...this.completed],
       visited: [...this.visited],
-      fogWidth: this.fog.width,
-      fogHeight: this.fog.height,
-      revealed: revealedIndices(this.fog),
+      regionId: this.region.id,
+      fogByRegion: this.fogByRegion,
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,
@@ -299,6 +307,7 @@ export class MapScene extends Phaser.Scene {
     this.handleBoardInput();
     this.handlePurchaseInput();
     this.handleResetInput();
+    this.handleTravelInput();
     this.handleToggles();
     this.refreshBoard();
     if (this.minimapVisible) {
@@ -341,7 +350,7 @@ export class MapScene extends Phaser.Scene {
     if (contract === undefined || progress === undefined || progress.status !== 'carrying') {
       return null;
     }
-    const destination = SETTLEMENTS[contract.destinationId];
+    const destination = this.region.settlements[contract.destinationId];
     if (destination === undefined) {
       return null;
     }
@@ -438,7 +447,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private addSettlementMarkers(): void {
-    for (const settlement of Object.values(SETTLEMENTS)) {
+    for (const settlement of Object.values(this.region.settlements)) {
       const center = this.tileCenter(settlement.tile.x, settlement.tile.y);
       this.add
         .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xf2efe4)
@@ -462,7 +471,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     const tile = this.courierTile();
-    const settlement = settlementAtTile(tile.x, tile.y);
+    const settlement = settlementAtTileIn(this.region, tile.x, tile.y);
     if (settlement === undefined) {
       return;
     }
@@ -515,19 +524,28 @@ export class MapScene extends Phaser.Scene {
 
   /** Contracts not yet delivered, in their canonical order. */
   private boardContracts(): Contract[] {
-    return CONTRACTS_GREYBRIDGE.filter((c) => !this.completed.has(c.id));
+    return this.region.contracts.filter((c) => !this.completed.has(c.id));
+  }
+
+  /** How many of the active region's contracts are delivered. */
+  private deliveredInRegion(): number {
+    return this.region.contracts.filter((c) => this.completed.has(c.id)).length;
+  }
+
+  private regionCleared(): boolean {
+    return this.region.contracts.length > 0 && this.boardContracts().length === 0;
   }
 
   private atSettlement(id: string): boolean {
     const tile = this.courierTile();
-    return settlementAtTile(tile.x, tile.y)?.id === id;
+    return settlementAtTileIn(this.region, tile.x, tile.y)?.id === id;
   }
 
   private acceptContract(contract: Contract): void {
     let progress = startContract(contract);
     // The board is only shown in the pickup town, so collect the cargo at once.
     const tile = this.courierTile();
-    const here = settlementAtTile(tile.x, tile.y);
+    const here = settlementAtTileIn(this.region, tile.x, tile.y);
     if (here !== undefined && canPickUp(progress, contract, here.id)) {
       progress = pickUp(progress);
     }
@@ -542,7 +560,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private handleBoardInput(): void {
-    if (this.activeContract !== undefined || !this.atSettlement(BOARD_TOWN)) {
+    if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
       return;
     }
     const list = this.boardContracts();
@@ -564,7 +582,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshBoard(): void {
-    const show = this.activeContract === undefined && this.atSettlement(BOARD_TOWN);
+    const show = this.activeContract === undefined && this.atSettlement(this.region.home);
     this.board.setVisible(show);
     if (!show) {
       return;
@@ -591,7 +609,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private handlePurchaseInput(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.buyKey) || !this.atSettlement(UPGRADE_TOWN)) {
+    if (!Phaser.Input.Keyboard.JustDown(this.buyKey) || !this.atSettlement(this.region.home)) {
       return;
     }
     const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
@@ -649,7 +667,14 @@ export class MapScene extends Phaser.Scene {
 
   private refreshHint(): void {
     const base = 'WASD/arrows drive.  M: map  J: journal  L: codex  N: new game.';
-    const target = this.atSettlement(UPGRADE_TOWN)
+    const tile = this.courierTile();
+    const atGateway = tile.x === this.region.gateway.x && tile.y === this.region.gateway.y;
+    if (atGateway && this.activeContract === undefined) {
+      const other = getRegion(this.region.connectsTo).name;
+      this.hint.setText(`${base}  Press T to travel to ${other}.`);
+      return;
+    }
+    const target = this.atSettlement(this.region.home)
       ? cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE)
       : null;
     if (target !== null) {
@@ -663,8 +688,8 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private addSignpost(): void {
-    const center = this.tileCenter(SIGNPOST_TILE.x, SIGNPOST_TILE.y);
+  private addSignpost(tile: { x: number; y: number }): void {
+    const center = this.tileCenter(tile.x, tile.y);
     const signpost = this.add.rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xe8d8b0);
     this.physics.add.existing(signpost, true);
     this.add
@@ -680,6 +705,39 @@ export class MapScene extends Phaser.Scene {
         signpost.destroy();
       }
     });
+  }
+
+  private addGatewayMarker(): void {
+    const center = this.tileCenter(this.region.gateway.x, this.region.gateway.y);
+    this.add
+      .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
+      .setStrokeStyle(2, 0x6fd0e0)
+      .setDepth(DEPTH_MARKER);
+    const destName = getRegion(this.region.connectsTo).name;
+    this.add
+      .text(center.x, center.y - TILE_SIZE * 0.55, `to ${destName}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#6fd0e0',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_MARKER);
+  }
+
+  private handleTravelInput(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.travelKey)) {
+      return;
+    }
+    const tile = this.courierTile();
+    if (tile.x !== this.region.gateway.x || tile.y !== this.region.gateway.y) {
+      return;
+    }
+    if (this.activeContract !== undefined) {
+      this.showToast('Deliver your cargo before leaving the region.');
+      return;
+    }
+    this.save();
+    this.scene.restart({ regionId: this.region.connectsTo } satisfies MapSceneData);
   }
 
   /** Unlock a feature and open any tiles it gated. Returns true if newly unlocked. */
@@ -709,6 +767,7 @@ export class MapScene extends Phaser.Scene {
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
+    this.travelKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -719,7 +778,7 @@ export class MapScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SIX,
     ];
     this.numberKeys = numberCodes
-      .slice(0, CONTRACTS_GREYBRIDGE.length)
+      .slice(0, this.region.contracts.length)
       .map((code) => keyboard.addKey(code));
   }
 
@@ -824,7 +883,7 @@ export class MapScene extends Phaser.Scene {
         return id === undefined ? null : (getTerrain(id)?.color ?? null);
       },
       courier: this.courierTile(),
-      settlements: Object.values(SETTLEMENTS).map((s) => ({ x: s.tile.x, y: s.tile.y })),
+      settlements: Object.values(this.region.settlements).map((s) => ({ x: s.tile.x, y: s.tile.y })),
     });
 
     const cell = MINIMAP_CELL;
@@ -873,10 +932,10 @@ export class MapScene extends Phaser.Scene {
 
   private refreshJournal(): void {
     const model = buildJournal({
-      settlements: Object.values(SETTLEMENTS).map((s) => ({ id: s.id, name: s.name, note: s.note })),
+      settlements: Object.values(this.region.settlements).map((s) => ({ id: s.id, name: s.name, note: s.note })),
       visitedIds: [...this.visited],
-      delivered: this.completed.size,
-      totalContracts: CONTRACTS_GREYBRIDGE.length,
+      delivered: this.deliveredInRegion(),
+      totalContracts: this.region.contracts.length,
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
     });
@@ -904,8 +963,8 @@ export class MapScene extends Phaser.Scene {
       coins: this.state.ledger.coins,
       totalReputation: totalReputation(this.state.ledger),
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-      delivered: this.completed.size,
-      totalContracts: CONTRACTS_GREYBRIDGE.length,
+      delivered: this.deliveredInRegion(),
+      totalContracts: this.region.contracts.length,
       fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
       upgradesOwned: this.state.upgrades.size,
     });
@@ -913,12 +972,14 @@ export class MapScene extends Phaser.Scene {
       this.summaryPanel.setVisible(false);
       return;
     }
+    const otherName = getRegion(this.region.connectsTo).name;
     const lines = [
-      summary.title,
+      `${this.region.name} Cleared`,
       '',
       ...summary.lines,
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
+      `Reach the gateway and press T to travel to ${otherName}.`,
       'Press N for a new run.',
     ];
     this.summaryPanel.setText(lines.join('\n'));
@@ -930,11 +991,11 @@ export class MapScene extends Phaser.Scene {
       deliveries: this.trip.deliveries,
       distanceTiles: this.trip.distanceTiles,
       placesFound: this.visited.size,
-      totalPlaces: Object.keys(SETTLEMENTS).length,
+      totalPlaces: totalSettlementCount(),
       upgradesOwned: this.state.upgrades.size,
       totalUpgrades: UPGRADES_GREYBRIDGE.length,
       fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
-      regionCleared: this.completed.size > 0 && this.boardContracts().length === 0,
+      regionCleared: this.regionCleared(),
     };
   }
 
@@ -962,19 +1023,21 @@ export class MapScene extends Phaser.Scene {
     const contract = this.activeContract;
     const progress = this.progress;
 
+    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     if (contract === undefined || progress === undefined) {
       if (this.boardContracts().length === 0) {
-        this.objective.setText('All Greybridge contracts delivered. Well driven.');
-      } else if (this.atSettlement(BOARD_TOWN)) {
+        const other = getRegion(this.region.connectsTo).name;
+        this.objective.setText(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
+      } else if (this.atSettlement(this.region.home)) {
         this.objective.setText('Choose a contract from the board.');
       } else {
-        this.objective.setText('Return to Greywater for a new contract.');
+        this.objective.setText(`Return to ${homeName} for a new contract.`);
       }
       return;
     }
 
-    const destination = SETTLEMENTS[contract.destinationId];
-    const pickup = SETTLEMENTS[contract.pickupId];
+    const destination = this.region.settlements[contract.destinationId];
+    const pickup = this.region.settlements[contract.pickupId];
     const destinationName = destination?.name ?? contract.destinationId;
     const pickupName = pickup?.name ?? contract.pickupId;
 
@@ -1014,7 +1077,7 @@ export class MapScene extends Phaser.Scene {
   /** On first arrival at a settlement, surface its existing lore note. */
   private checkArrival(): void {
     const tile = this.courierTile();
-    const settlement = settlementAtTile(tile.x, tile.y);
+    const settlement = settlementAtTileIn(this.region, tile.x, tile.y);
     if (settlement === undefined || this.visited.has(settlement.id)) {
       return;
     }

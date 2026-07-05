@@ -13,9 +13,8 @@ const SNAPSHOT: GameSnapshot = {
   upgrades: ['reinforced-wheels'],
   completed: ['letters-to-eastwatch'],
   visited: ['greywater', 'eastwatch'],
-  fogWidth: 20,
-  fogHeight: 11,
-  revealed: [0, 1, 2, 21, 22],
+  regionId: 'greybridge',
+  fogByRegion: { greybridge: [0, 1, 2, 21, 22], saltreach: [5, 6] },
   activeContractId: 'grain-to-southmill',
   contractStatus: 'carrying',
   distanceTiles: 42.5,
@@ -49,7 +48,6 @@ describe('save-system', () => {
       reputation: { eastwatch: 2, bad: 'x' },
       unlocks: ['a', 5, null],
       upgrades: 'not-an-array',
-      revealed: [1, 'two', 3],
       activeContractId: 123,
       contractStatus: 'bogus',
     });
@@ -58,7 +56,8 @@ describe('save-system', () => {
     expect(parsed?.reputation).toEqual({ eastwatch: 2 });
     expect(parsed?.unlocks).toEqual(['a']);
     expect(parsed?.upgrades).toEqual([]);
-    expect(parsed?.revealed).toEqual([1, 3]);
+    expect(parsed?.regionId).toBe('greybridge');
+    expect(parsed?.fogByRegion).toEqual({});
     expect(parsed?.activeContractId).toBeNull();
     expect(parsed?.contractStatus).toBeNull();
   });
@@ -66,5 +65,15 @@ describe('save-system', () => {
   it('keeps a valid contract status', () => {
     const parsed = deserialize({ ...serialize(SNAPSHOT), contractStatus: 'accepted' });
     expect(parsed?.contractStatus).toBe('accepted');
+  });
+
+  it('migrates a pre-region save (single revealed array) to the greybridge fog', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      coins: 10,
+      revealed: [3, 4, 5],
+    });
+    expect(parsed?.regionId).toBe('greybridge');
+    expect(parsed?.fogByRegion).toEqual({ greybridge: [3, 4, 5] });
   });
 });

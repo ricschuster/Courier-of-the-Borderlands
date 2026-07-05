@@ -14,10 +14,10 @@ export interface GameSnapshot {
   readonly upgrades: readonly string[];
   readonly completed: readonly string[];
   readonly visited: readonly string[];
-  readonly fogWidth: number;
-  readonly fogHeight: number;
-  /** Row-major indices of revealed tiles. */
-  readonly revealed: readonly number[];
+  /** Active region id. */
+  readonly regionId: string;
+  /** Revealed tile indices per region id. */
+  readonly fogByRegion: Readonly<Record<string, readonly number[]>>;
   readonly activeContractId: string | null;
   readonly contractStatus: ContractStatus | null;
   readonly distanceTiles: number;
@@ -62,6 +62,25 @@ function toContractStatus(value: unknown): ContractStatus | null {
 }
 
 /**
+ * Parse the per-region fog map. Falls back to the pre-region shape: an older
+ * save with a single `revealed` array is migrated to the greybridge region.
+ */
+function toFogByRegion(data: Record<string, unknown>): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  const raw = data.fogByRegion;
+  if (typeof raw === 'object' && raw !== null) {
+    for (const [regionId, indices] of Object.entries(raw as Record<string, unknown>)) {
+      out[regionId] = toNumberArray(indices);
+    }
+    return out;
+  }
+  if (Array.isArray(data.revealed)) {
+    out.greybridge = toNumberArray(data.revealed);
+  }
+  return out;
+}
+
+/**
  * Validate and parse raw save data. Returns null for anything that is not a
  * current-version save, so a corrupt or outdated save falls back to a new game.
  */
@@ -80,9 +99,8 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     upgrades: toStringArray(data.upgrades),
     completed: toStringArray(data.completed),
     visited: toStringArray(data.visited),
-    fogWidth: isFiniteNumber(data.fogWidth) ? data.fogWidth : 0,
-    fogHeight: isFiniteNumber(data.fogHeight) ? data.fogHeight : 0,
-    revealed: toNumberArray(data.revealed),
+    regionId: typeof data.regionId === 'string' ? data.regionId : 'greybridge',
+    fogByRegion: toFogByRegion(data),
     activeContractId: typeof data.activeContractId === 'string' ? data.activeContractId : null,
     contractStatus: toContractStatus(data.contractStatus),
     distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,
