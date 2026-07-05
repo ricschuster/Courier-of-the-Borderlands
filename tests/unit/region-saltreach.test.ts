@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
+import { CARGO_CATEGORIES } from '../../src/systems/cargo-types';
 import {
   SALTREACH_ROWS,
   SALTREACH_LEGEND,
@@ -164,5 +165,13 @@ describe('Saltreach contracts', () => {
     const sorted = [...SALTREACH_CONTRACTS].sort((a, b) => a.minReputation - b.minReputation);
     expect(sorted[0]?.minReputation).toBe(0);
     expect(sorted[sorted.length - 1]?.minReputation).toBeGreaterThan(0);
+  });
+
+  it('has a known cargoType where set', () => {
+    for (const contract of SALTREACH_CONTRACTS) {
+      if (contract.cargoType !== undefined) {
+        expect(CARGO_CATEGORIES[contract.cargoType], `${contract.id} cargoType`).toBeDefined();
+      }
+    }
   });
 });
