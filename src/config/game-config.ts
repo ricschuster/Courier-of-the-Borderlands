@@ -7,5 +7,9 @@ export const GAME_TITLE = 'Courier of the Borderlands';
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
 
+// Size of one map tile in pixels. The Greybridge map is 20x11 tiles, which
+// fills the render width (20 * 48 = 960) with a small vertical margin.
+export const TILE_SIZE = 48;
+
 // Background colour for empty scenes (dark slate, matches the page).
 export const BACKGROUND_COLOR = '#1a1a1a';
