@@ -521,7 +521,9 @@ export class MapScene extends Phaser.Scene {
     this.activeContract = undefined;
     this.progress = undefined;
 
-    const perkNote = payout > contract.reward ? ` (${perk.label})` : '';
+    // Compare against the cargo-adjusted base so the perk note reflects a
+    // reputation boost, not the cargo pay modifier.
+    const perkNote = payout > baseReward ? ` (${perk.label})` : '';
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
