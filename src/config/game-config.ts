@@ -13,3 +13,9 @@ export const TILE_SIZE = 48;
 
 // Background colour for empty scenes (dark slate, matches the page).
 export const BACKGROUND_COLOR = '#1a1a1a';
+
+// Courier wagon grey-box: a small square that drives around the map.
+export const COURIER_SIZE = 20;
+export const COURIER_COLOR = 0xf2c14e;
+// Base movement speed in pixels per second (before terrain effects).
+export const COURIER_SPEED = 160;
