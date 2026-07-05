@@ -77,6 +77,7 @@ export class MapScene extends Phaser.Scene {
   private contract!: Contract;
   private progress!: ContractProgress;
   private objective!: Phaser.GameObjects.Text;
+  private visited = new Set<string>();
 
   constructor() {
     super({ key: 'MapScene' });
@@ -85,6 +86,7 @@ export class MapScene extends Phaser.Scene {
   create(): void {
     this.state = createGameState();
     this.gatedBlocks = new Map();
+    this.visited = new Set();
 
     const firstContract = CONTRACTS_GREYBRIDGE[0];
     if (firstContract === undefined) {
@@ -142,6 +144,7 @@ export class MapScene extends Phaser.Scene {
 
     this.revealAroundCourier();
     this.updateDelivery();
+    this.checkArrival();
     this.handlePurchaseInput();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
@@ -438,17 +441,30 @@ export class MapScene extends Phaser.Scene {
     this.objective.setText(text);
   }
 
-  private showToast(message: string): void {
+  private showToast(message: string, y = 60): void {
     const toast = this.add
-      .text(GAME_WIDTH / 2, 60, message, {
+      .text(GAME_WIDTH / 2, y, message, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#00000088',
         padding: { x: 8, y: 4 },
+        align: 'center',
+        wordWrap: { width: GAME_WIDTH - 80 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_HUD);
-    this.time.delayedCall(2500, () => toast.destroy());
+    this.time.delayedCall(3500, () => toast.destroy());
+  }
+
+  /** On first arrival at a settlement, surface its existing lore note. */
+  private checkArrival(): void {
+    const tile = this.courierTile();
+    const settlement = settlementAtTile(tile.x, tile.y);
+    if (settlement === undefined || this.visited.has(settlement.id)) {
+      return;
+    }
+    this.visited.add(settlement.id);
+    this.showToast(`${settlement.name}. ${settlement.note}`, 104);
   }
 }
