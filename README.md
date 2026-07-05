@@ -2,9 +2,29 @@
 
 A 2D fantasy courier exploration game for the web. Deliver goods, letters, rumours, and secrets across a dangerous borderland, reveal the map, and build reputation with the people who depend on you.
 
+## Play
+
+Play in your browser: https://ricschuster.github.io/Courier-of-the-Borderlands/
+
+Your progress is saved locally in the browser and resumes when you return.
+
 ## Status
 
-Early prototype. Building toward a playable MVP with one small region (the Greybridge Region), a single courier vehicle, fog-of-war exploration, terrain-based movement, three delivery contracts, reputation, currency, one unlockable route, and one vehicle upgrade.
+Playable and deployed, with grey-box art. Two regions are open (the Greybridge Region and Saltreach), connected by travel. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
+
+Features so far:
+
+- Two regions with travel between them, each with its own map, settlements, and contracts
+- Smooth top-down driving with terrain-based speed (roads and bridges fast, forest slow, water and mountains impassable)
+- Fog-of-war exploration, tracked per region
+- Reputation-gated contract board, with optional bonus objectives for extra pay
+- Currency and reputation that raise your standing (and your delivery rates) across regions
+- Three vehicle upgrades (speed, wider fog reveal, smoother rough terrain), bought at the home town
+- An unlockable ford shortcut across the river
+- Route guidance (distance to destination and a route drawn on the minimap)
+- Minimap, discoveries journal, terrain codex, achievements, and a courier title
+- Ambient weather that nudges speed and visibility each run
+- Save and resume via the browser, with a one-key new game
 
 ## Inspirations
 
@@ -20,7 +40,7 @@ This project borrows the feeling of these games, not their scope.
 - Phaser 3
 - Vite
 - Vitest for unit tests
-- Playwright for later browser smoke tests
+- Playwright for browser smoke tests
 - GitHub for source control
 - GitHub Actions for CI
 - GitHub Pages for deployment
@@ -51,10 +71,29 @@ npm run dev
 
 Then open the URL printed by Vite (typically http://localhost:5173).
 
-Run tests:
+## Controls
+
+- Arrow keys or WASD: drive the courier
+- Number keys (1, 2, 3): accept a contract at the home town board
+- B: buy the next upgrade (at the home town)
+- T: travel to the connected region (on a gateway tile, when not carrying cargo)
+- M: toggle the minimap
+- J: toggle the discoveries journal
+- L: toggle the terrain codex
+- N: start a new game (clears the save)
+
+## Testing
+
+Run the unit tests (Vitest):
 
 ```bash
 npm test
+```
+
+Run the browser smoke tests (Playwright, builds and drives the game in Chromium):
+
+```bash
+npm run test:e2e
 ```
 
 Lint the codebase:
@@ -114,9 +153,10 @@ courier-of-the-borderlands/
 Start with the project brief, then read the core loop and milestones.
 
 - `docs/design/00_project_brief.md`: concept, MVP scope, and definition of done
-- `docs/design/01_core_loop.md`: current gameplay loop (to be written)
-- `docs/design/02_milestones.md`: milestone plan (to be written)
-- `docs/decisions/`: architecture decision records for significant choices
+- `docs/design/01_core_loop.md`: current gameplay loop
+- `docs/design/02_milestones.md`: milestone plan and status
+- `docs/design/03_regions.md`: regions, travel, and per-region state
+- `docs/decisions/`: architecture decision records (systems layering, regions)
 - `docs/handoffs/`: dated session handoff notes
 
 ## Development notes
@@ -149,14 +189,16 @@ Placeholder art is acceptable. A broken core loop is not.
 
 ## Roadmap (high level)
 
-- M0 Walking skeleton: repo live, Phaser boots, empty scene renders, CI green.
-- M1 Playable prototype: core delivery loop works end to end with placeholder art.
-- M2 MVP: one full region, three contracts, unlockable route, one upgrade, basic story text, deployed to GitHub Pages.
+- M0 Walking skeleton: repo live, Phaser boots, empty scene renders, CI green. Done.
+- M1 Playable prototype: core delivery loop end to end with placeholder art. Done.
+- M2 MVP: one full region, three contracts, unlockable route, upgrades, story text, deployed to GitHub Pages. Done.
+- M3 Second region: a Region abstraction and registry, the Saltreach region, travel between regions, per-region fog. Done.
+- Later: more regions, per-region unlocks, audio and juice, and an art pass.
 
 ## Contributing
 
-This is currently a solo project. External contributions are not being accepted at this stage. Feedback and playtesting are welcome once a public build is available.
+This is currently a solo project. External contributions are not being accepted at this stage. Feedback and playtesting are welcome: the build is public (see Play above).
 
 ## Licence
 
-To be decided. Until a licence file is added, all rights are reserved by the project owner.
+Licensed under the GNU General Public License v3.0. See `LICENSE` for the full text.
