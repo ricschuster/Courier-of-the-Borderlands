@@ -412,6 +412,21 @@ Use these defaults unless the project owner changes them:
 9. First progression types: map reveal, reputation, currency, route unlock, vehicle upgrade
 10. First delivery types: goods, letters, rumours, and secrets
 
+## Model and effort defaults
+
+Recommended setup for this project (defaults for effort and fast mode live in
+`.claude/settings.json`; model is chosen per session with `/model`):
+
+1. Orchestrator (the main session): Opus for design, integration, refactors,
+   and tradeoff calls. Drop to Sonnet for light or mechanical turns (doc edits,
+   merging a dependency PR, small changes) to conserve budget.
+2. Sub-agents: use Sonnet for isolated, well-specified pure-module work. It is
+   cheaper and faster and has been reliable for the fan-out batches.
+3. Effort: medium by default; high only for hard integration (cross-cutting
+   refactors, save or data-format changes). Avoid xhigh unless stuck.
+4. Run `npm run setup` to bootstrap a fresh machine (installs deps and the
+   Playwright browser). Node version is pinned in `.nvmrc`.
+
 ## Claude Code operating mode
 
 Act as an autonomous coding agent, but keep the project owner in control of design direction.
