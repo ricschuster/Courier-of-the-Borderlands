@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { GAME_TITLE, GAME_HEIGHT, TILE_SIZE, COURIER_SPEED } from '../config/game-config';
+import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, TILE_SIZE, COURIER_SPEED } from '../config/game-config';
 import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../data/greybridge-map';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
-import { getTerrain, getSpeedModifier, isPassable } from '../systems/terrain-system';
+import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
+import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
 import { Courier } from '../entities/courier';
 
 interface WasdKeys {
@@ -14,33 +15,40 @@ interface WasdKeys {
   readonly D: Phaser.Input.Keyboard.Key;
 }
 
+const FORD_UNLOCK = 'ford-crossing';
+// Signpost tile on the west bank; driving onto it opens the ford.
+const SIGNPOST_TILE = { x: 8, y: 8 } as const;
+
 // Renders the Greybridge tile map and lets the player drive the courier around
 // it. Roads and the bridge are faster, forest is slower, and water and
-// mountains are impassable (blocked by colliders), so the river can only be
-// crossed at the bridge.
+// mountains are impassable. The ford starts blocked; reaching the signpost
+// unlocks it as a shorter southern crossing.
 export class MapScene extends Phaser.Scene {
+  private state: GameState = createGameState();
   private map!: TileMap;
   private mapOriginY = 0;
   private courier!: Courier;
   private impassable!: Phaser.Physics.Arcade.StaticGroup;
+  private gatedBlocks = new Map<string, Phaser.GameObjects.Rectangle[]>();
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private terrainReadout!: Phaser.GameObjects.Text;
+  private fordStatus!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'MapScene' });
   }
 
   create(): void {
-    this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
+    this.state = createGameState();
+    this.gatedBlocks = new Map();
 
-    // Centre the map vertically within the render area.
+    this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
     this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
 
     this.drawTiles();
     this.addImpassableColliders();
 
-    // Keep the courier inside the map area.
     this.physics.world.setBounds(
       0,
       this.mapOriginY,
@@ -54,6 +62,7 @@ export class MapScene extends Phaser.Scene {
     this.courier = new Courier(this, spawnX, spawnY);
     this.physics.add.collider(this.courier.sprite, this.impassable);
 
+    this.addSignpost();
     this.setupInput();
     this.addHud();
   }
@@ -90,6 +99,13 @@ export class MapScene extends Phaser.Scene {
     return getTerrainIdAt(this.map, tile.x, tile.y);
   }
 
+  private tileCenter(tileX: number, tileY: number): { x: number; y: number } {
+    return {
+      x: tileX * TILE_SIZE + TILE_SIZE / 2,
+      y: this.mapOriginY + tileY * TILE_SIZE + TILE_SIZE / 2,
+    };
+  }
+
   private drawTiles(): void {
     const tiles = this.add.graphics();
     for (let y = 0; y < this.map.height; y++) {
@@ -113,18 +129,53 @@ export class MapScene extends Phaser.Scene {
     for (let y = 0; y < this.map.height; y++) {
       for (let x = 0; x < this.map.width; x++) {
         const terrainId = getTerrainIdAt(this.map, x, y);
-        if (terrainId === undefined || isPassable(terrainId)) {
+        if (terrainId === undefined || isPassableWith(terrainId, this.state.unlocks)) {
           continue;
         }
-        const block = this.add.rectangle(
-          x * TILE_SIZE + TILE_SIZE / 2,
-          this.mapOriginY + y * TILE_SIZE + TILE_SIZE / 2,
-          TILE_SIZE,
-          TILE_SIZE,
-        );
+        const center = this.tileCenter(x, y);
+        const block = this.add.rectangle(center.x, center.y, TILE_SIZE, TILE_SIZE);
         this.impassable.add(block);
+
+        const unlockId = getTerrain(terrainId)?.unlockId;
+        if (unlockId !== undefined) {
+          const group = this.gatedBlocks.get(unlockId) ?? [];
+          group.push(block);
+          this.gatedBlocks.set(unlockId, group);
+        }
       }
     }
+  }
+
+  private addSignpost(): void {
+    const center = this.tileCenter(SIGNPOST_TILE.x, SIGNPOST_TILE.y);
+    const signpost = this.add.rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xe8d8b0);
+    this.physics.add.existing(signpost, true);
+    this.add
+      .text(center.x, center.y - TILE_SIZE * 0.6, 'ford key', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#e8d8b0',
+      })
+      .setOrigin(0.5);
+
+    this.physics.add.overlap(this.courier.sprite, signpost, () => {
+      if (this.unlockFeature(FORD_UNLOCK)) {
+        signpost.destroy();
+      }
+    });
+  }
+
+  /** Unlock a feature and open any tiles it gated. Returns true if newly unlocked. */
+  private unlockFeature(id: string): boolean {
+    if (!unlock(this.state, id)) {
+      return false;
+    }
+    const blocks = this.gatedBlocks.get(id);
+    blocks?.forEach((block) => block.destroy());
+    this.gatedBlocks.delete(id);
+    this.refreshFordStatus();
+    this.showToast('Shortcut unlocked: the ford is open.');
+    return true;
   }
 
   private setupInput(): void {
@@ -147,10 +198,35 @@ export class MapScene extends Phaser.Scene {
       fontSize: '12px',
       color: '#e8e8e8',
     });
+    this.fordStatus = this.add.text(8, 42, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#e8e8e8',
+    });
+    this.refreshFordStatus();
     this.add.text(8, GAME_HEIGHT - 22, 'Arrow keys or WASD to drive', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#8a8a8a',
     });
+  }
+
+  private refreshFordStatus(): void {
+    const open = isUnlocked(this.state, FORD_UNLOCK);
+    this.fordStatus.setText(`Ford: ${open ? 'OPEN' : 'locked'}`);
+    this.fordStatus.setColor(open ? '#8fd18f' : '#d18f8f');
+  }
+
+  private showToast(message: string): void {
+    const toast = this.add
+      .text(GAME_WIDTH / 2, 60, message, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffffff',
+        backgroundColor: '#00000088',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5);
+    this.time.delayedCall(2500, () => toast.destroy());
   }
 }

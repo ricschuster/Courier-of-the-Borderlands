@@ -13,6 +13,22 @@ export function isPassable(terrainId: string): boolean {
 }
 
 /**
+ * Passability accounting for unlock state. Terrain gated behind an unlock id is
+ * passable only when that id is in the unlock set; otherwise its base
+ * passability applies. Unknown terrain is always blocked.
+ */
+export function isPassableWith(terrainId: string, unlocks: ReadonlySet<string>): boolean {
+  const terrain = getTerrain(terrainId);
+  if (terrain === undefined) {
+    return false;
+  }
+  if (terrain.unlockId !== undefined) {
+    return unlocks.has(terrain.unlockId);
+  }
+  return terrain.passable;
+}
+
+/**
  * Speed multiplier for the given terrain. Unknown or impassable terrain
  * returns 0, so callers that read this without a passability check still get a
  * safe stop rather than movement onto invalid ground.

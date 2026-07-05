@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getTerrain, isPassable, getSpeedModifier } from '../../src/systems/terrain-system';
+import {
+  getTerrain,
+  isPassable,
+  isPassableWith,
+  getSpeedModifier,
+} from '../../src/systems/terrain-system';
 
 describe('terrain-system', () => {
   it('returns terrain definitions by id', () => {
@@ -26,5 +31,21 @@ describe('terrain-system', () => {
     expect(getSpeedModifier('water')).toBe(0);
     expect(getSpeedModifier('mountain')).toBe(0);
     expect(getSpeedModifier('nope')).toBe(0);
+  });
+
+  describe('isPassableWith', () => {
+    it('ignores unlocks for ungated terrain', () => {
+      expect(isPassableWith('plains', new Set())).toBe(true);
+      expect(isPassableWith('water', new Set(['ford-crossing']))).toBe(false);
+    });
+
+    it('gates the ford behind its unlock id', () => {
+      expect(isPassableWith('ford', new Set())).toBe(false);
+      expect(isPassableWith('ford', new Set(['ford-crossing']))).toBe(true);
+    });
+
+    it('treats unknown terrain as blocked', () => {
+      expect(isPassableWith('nope', new Set(['ford-crossing']))).toBe(false);
+    });
   });
 });

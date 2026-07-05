@@ -16,6 +16,11 @@ export interface TerrainType {
    * is 0; movement onto it is blocked by collision rather than by speed.
    */
   readonly speedModifier: number;
+  /**
+   * If set, the tile is passable only when this unlock id is active. Used for
+   * routes that start blocked and open later (for example the ford crossing).
+   */
+  readonly unlockId?: string;
 }
 
 export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
@@ -25,4 +30,14 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   bridge: { id: 'bridge', name: 'Bridge', color: 0x8a6a3a, passable: true, speedModifier: 1.4 },
   water: { id: 'water', name: 'Water', color: 0x2f5fa0, passable: false, speedModifier: 0 },
   mountain: { id: 'mountain', name: 'Mountain', color: 0x6b6b6b, passable: false, speedModifier: 0 },
+  // Ford: a shallow crossing that starts blocked and opens as an unlockable
+  // shortcut. Slower than the bridge, but a shorter route across the south.
+  ford: {
+    id: 'ford',
+    name: 'Ford',
+    color: 0x3a6a8a,
+    passable: false,
+    speedModifier: 0.7,
+    unlockId: 'ford-crossing',
+  },
 };

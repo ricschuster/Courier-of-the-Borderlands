@@ -7,7 +7,11 @@
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain
+//   b bridge    ~ water    ^ mountain    x ford (locked shortcut)
+//
+// The bridge on row 5 is the only initial crossing. The ford on row 8 is a
+// second crossing that starts blocked and opens once unlocked, giving a
+// shorter southern route.
 //
 // Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols.
 
@@ -18,6 +22,7 @@ export const GREYBRIDGE_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
+  x: 'ford',
 };
 
 export const GREYBRIDGE_ROWS: readonly string[] = [
@@ -29,7 +34,7 @@ export const GREYBRIDGE_ROWS: readonly string[] = [
   '#########bb#########',
   '.........~~.........',
   '....f....~~...ff....',
-  '...ff....~~..fff....',
+  '...ff....xx..fff....',
   '..^^.....~~.fff.....',
   '.^^^.....~~ff.......',
 ];

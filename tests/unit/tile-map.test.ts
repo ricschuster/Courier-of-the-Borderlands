@@ -71,4 +71,10 @@ describe('Greybridge map data', () => {
     expect(getTerrainIdAt(map, 9, 5)).toBe('bridge');
     expect(getTerrainIdAt(map, 10, 5)).toBe('bridge');
   });
+
+  it('has a ford as a second crossing on the south row', () => {
+    const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
+    expect(getTerrainIdAt(map, 9, 8)).toBe('ford');
+    expect(getTerrainIdAt(map, 10, 8)).toBe('ford');
+  });
 });
