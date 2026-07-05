@@ -23,10 +23,20 @@ import {
   canAfford,
   revealRadius,
   cheapestUnpurchased,
+  terrainSpeedFactor,
 } from '../systems/upgrade-system';
 import { computeRunSummary } from '../systems/run-summary';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournal } from '../systems/journal';
+import { findPath, type PathResult } from '../systems/pathfinding';
+import { perkFor, applyRewardBonus } from '../systems/reputation-perks';
+import {
+  createTripLog,
+  addDistance,
+  recordDelivery,
+  formatDistance,
+  type TripLog,
+} from '../systems/trip-log';
 import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
@@ -99,6 +109,10 @@ export class MapScene extends Phaser.Scene {
   private minimapVisible = false;
   private journalPanel!: Phaser.GameObjects.Text;
   private summaryPanel!: Phaser.GameObjects.Text;
+  private trip: TripLog = createTripLog();
+  private prevX = 0;
+  private prevY = 0;
+  private currentPath: PathResult | null = null;
   private visited = new Set<string>();
 
   constructor() {
@@ -132,6 +146,8 @@ export class MapScene extends Phaser.Scene {
     this.courier = new Courier(this, spawnX, spawnY);
     this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.impassable);
+    this.prevX = this.courier.sprite.x;
+    this.prevY = this.courier.sprite.y;
 
     // The signpost only matters while the ford is still locked.
     if (!isUnlocked(this.state, FORD_UNLOCK)) {
@@ -164,6 +180,7 @@ export class MapScene extends Phaser.Scene {
     this.visited = new Set();
     this.activeContract = undefined;
     this.progress = undefined;
+    this.trip = createTripLog();
 
     if (snapshot === null) {
       return;
@@ -174,6 +191,7 @@ export class MapScene extends Phaser.Scene {
     this.state.ledger = ledgerFrom(snapshot.coins, snapshot.reputation);
     this.completed = new Set(snapshot.completed);
     this.visited = new Set(snapshot.visited);
+    this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
 
     if (snapshot.activeContractId !== null && snapshot.contractStatus !== null) {
       const contract = CONTRACTS_GREYBRIDGE.find((c) => c.id === snapshot.activeContractId);
@@ -216,6 +234,8 @@ export class MapScene extends Phaser.Scene {
       revealed: revealedIndices(this.fog),
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
+      distanceTiles: this.trip.distanceTiles,
+      deliveries: this.trip.deliveries,
     });
   }
 
@@ -228,11 +248,18 @@ export class MapScene extends Phaser.Scene {
     };
 
     const terrainId = this.terrainUnderCourier();
-    const terrainModifier = terrainId === undefined ? 1 : getSpeedModifier(terrainId);
+    const rawTerrainModifier = terrainId === undefined ? 1 : getSpeedModifier(terrainId);
+    const terrainModifier = terrainSpeedFactor(
+      rawTerrainModifier,
+      this.state.upgrades,
+      UPGRADES_GREYBRIDGE,
+    );
     const upgradeModifier = speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE);
     const velocity = computeVelocity(input, COURIER_SPEED * terrainModifier * upgradeModifier);
     this.courier.setVelocity(velocity.x, velocity.y);
 
+    this.trackDistance();
+    this.currentPath = this.destinationPath();
     this.revealAroundCourier();
     this.updateDelivery();
     this.checkArrival();
@@ -251,11 +278,47 @@ export class MapScene extends Phaser.Scene {
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`,
     );
+    this.refreshObjective();
     this.refreshHint();
   }
 
   private courierTile(): { x: number; y: number } {
     return worldToTile(this.courier.sprite.x, this.courier.sprite.y, TILE_SIZE, 0, this.mapOriginY);
+  }
+
+  /** Accumulate distance driven since the previous frame, in tiles. */
+  private trackDistance(): void {
+    const dx = this.courier.sprite.x - this.prevX;
+    const dy = this.courier.sprite.y - this.prevY;
+    this.prevX = this.courier.sprite.x;
+    this.prevY = this.courier.sprite.y;
+    const tiles = Math.hypot(dx, dy) / TILE_SIZE;
+    if (tiles > 0) {
+      this.trip = addDistance(this.trip, tiles);
+    }
+  }
+
+  /** Shortest passable route from the courier to the active destination. */
+  private destinationPath(): PathResult | null {
+    const contract = this.activeContract;
+    const progress = this.progress;
+    if (contract === undefined || progress === undefined || progress.status !== 'carrying') {
+      return null;
+    }
+    const destination = SETTLEMENTS[contract.destinationId];
+    if (destination === undefined) {
+      return null;
+    }
+    return findPath({
+      width: this.map.width,
+      height: this.map.height,
+      isPassable: (x, y) => {
+        const id = getTerrainIdAt(this.map, x, y);
+        return id !== undefined && isPassableWith(id, this.state.unlocks);
+      },
+      start: this.courierTile(),
+      goal: { x: destination.tile.x, y: destination.tile.y },
+    });
   }
 
   private terrainUnderCourier(): string | undefined {
@@ -378,14 +441,22 @@ export class MapScene extends Phaser.Scene {
   }
 
   private completeDelivery(contract: Contract, settlementId: string, settlementName: string): void {
+    // Higher standing pays better; the reward scales with total reputation.
+    const reputation = totalReputation(this.state.ledger);
+    const payout = applyRewardBonus(contract.reward, reputation);
+    const perk = perkFor(reputation);
+
     this.completed.add(contract.id);
-    this.state.ledger = addCoins(this.state.ledger, contract.reward);
+    this.state.ledger = addCoins(this.state.ledger, payout);
     this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
+    this.trip = recordDelivery(this.trip);
     this.activeContract = undefined;
     this.progress = undefined;
+
+    const bonusNote = payout > contract.reward ? ` (${perk.label})` : '';
     this.showToast(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${contract.reward} coins, +${contract.reputation} reputation.`,
+        `Reward: ${payout} coins${bonusNote}, +${contract.reputation} reputation.`,
     );
     this.refreshObjective();
     this.refreshWallet();
@@ -702,6 +773,19 @@ export class MapScene extends Phaser.Scene {
         g.fillRect(px, py, cell - 1, cell - 1);
       }
     }
+
+    // Overlay the route to the active destination on the intermediate tiles.
+    const path = this.currentPath;
+    if (path !== null && path.reachable && path.path.length > 2) {
+      g.fillStyle(0x6fd0e0, 0.9);
+      for (let k = 1; k < path.path.length - 1; k++) {
+        const node = path.path[k];
+        if (node === undefined) {
+          continue;
+        }
+        g.fillRect(originX + node.x * cell + 2, originY + node.y * cell + 2, cell - 4, cell - 4);
+      }
+    }
   }
 
   private refreshJournal(): void {
@@ -713,7 +797,13 @@ export class MapScene extends Phaser.Scene {
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
     });
-    const lines = ['DISCOVERIES JOURNAL   (J to close)', ...model.summaryLines, '', 'Places:'];
+    const lines = [
+      'DISCOVERIES JOURNAL   (J to close)',
+      ...model.summaryLines,
+      `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
+      '',
+      'Places:',
+    ];
     for (const place of model.places) {
       lines.push(`  ${place.name} - ${place.note}`);
     }
@@ -734,7 +824,15 @@ export class MapScene extends Phaser.Scene {
       this.summaryPanel.setVisible(false);
       return;
     }
-    this.summaryPanel.setText([summary.title, '', ...summary.lines, '', 'Press N for a new run.'].join('\n'));
+    const lines = [
+      summary.title,
+      '',
+      ...summary.lines,
+      `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
+      '',
+      'Press N for a new run.',
+    ];
+    this.summaryPanel.setText(lines.join('\n'));
     this.summaryPanel.setVisible(true);
   }
 
@@ -768,9 +866,13 @@ export class MapScene extends Phaser.Scene {
       case 'accepted':
         this.objective.setText(`${contract.title}: collect ${contract.cargo} at ${pickupName}`);
         break;
-      case 'carrying':
-        this.objective.setText(`${contract.title}: deliver to ${destinationName}`);
+      case 'carrying': {
+        const path = this.currentPath;
+        const via =
+          path === null ? '' : path.reachable ? ` (${path.distance} tiles)` : ' (no route yet)';
+        this.objective.setText(`${contract.title}: deliver to ${destinationName}${via}`);
         break;
+      }
       case 'delivered':
         this.objective.setText(`${contract.title}: delivered. Well driven.`);
         break;

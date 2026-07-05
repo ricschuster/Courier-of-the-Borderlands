@@ -8,6 +8,7 @@ export interface Upgrade {
   readonly cost: number;        // coins
   readonly speedBonus: number;  // fraction, e.g. 0.25 means +25% speed
   readonly revealBonus?: number; // extra fog reveal radius in tiles; absent means 0
+  readonly roughnessRelief?: number; // 0..1; lifts slow terrain toward normal speed; absent means 0
 }
 
 /**
@@ -82,6 +83,31 @@ export function cheapestUnpurchased(
     }
   }
   return best;
+}
+
+/**
+ * Returns the effective terrain speed factor after applying roughness relief from purchased upgrades.
+ * If baseTerrainModifier >= 1 (roads or normal terrain), it is returned unchanged.
+ * Otherwise, relief is the sum of roughnessRelief of all purchased upgrades, clamped to 0..1.
+ * Result: baseTerrainModifier + (1 - baseTerrainModifier) * relief.
+ * relief 0 leaves the modifier unchanged; relief 1 lifts it to 1.0.
+ */
+export function terrainSpeedFactor(
+  baseTerrainModifier: number,
+  purchasedIds: ReadonlySet<string>,
+  upgrades: readonly Upgrade[],
+): number {
+  if (baseTerrainModifier >= 1) {
+    return baseTerrainModifier;
+  }
+  let rawRelief = 0;
+  for (const upgrade of upgrades) {
+    if (purchasedIds.has(upgrade.id)) {
+      rawRelief += upgrade.roughnessRelief ?? 0;
+    }
+  }
+  const relief = Math.min(Math.max(rawRelief, 0), 1);
+  return baseTerrainModifier + (1 - baseTerrainModifier) * relief;
 }
 
 /**

@@ -18,6 +18,8 @@ const SNAPSHOT: GameSnapshot = {
   revealed: [0, 1, 2, 21, 22],
   activeContractId: 'grain-to-southmill',
   contractStatus: 'carrying',
+  distanceTiles: 42.5,
+  deliveries: 1,
 };
 
 describe('save-system', () => {

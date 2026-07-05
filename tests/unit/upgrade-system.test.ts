@@ -6,6 +6,7 @@ import {
   purchase,
   revealRadius,
   cheapestUnpurchased,
+  terrainSpeedFactor,
 } from '../../src/systems/upgrade-system';
 import type { Upgrade } from '../../src/systems/upgrade-system';
 
@@ -218,5 +219,66 @@ describe('cheapestUnpurchased', () => {
 
   it('returns null for an empty upgrades array', () => {
     expect(cheapestUnpurchased(new Set(), [])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// terrainSpeedFactor
+// ---------------------------------------------------------------------------
+describe('terrainSpeedFactor', () => {
+  // Local fixture: an upgrade that grants 50% roughness relief.
+  const SPRUNG: Upgrade = {
+    id: 'sprung-axle',
+    name: 'Sprung Axle',
+    description: 'Eases the slog through rough terrain.',
+    cost: 60,
+    speedBonus: 0,
+    roughnessRelief: 0.5,
+  };
+
+  // A second relief upgrade used for the clamping test.
+  const CUSHION: Upgrade = {
+    id: 'cushion-mounts',
+    name: 'Cushion Mounts',
+    description: 'Extra cushioning for rough terrain.',
+    cost: 50,
+    speedBonus: 0,
+    roughnessRelief: 0.8,
+  };
+
+  const RELIEF_UPGRADES: readonly Upgrade[] = [SPRUNG, CUSHION];
+
+  it('returns baseTerrainModifier unchanged when it is exactly 1', () => {
+    expect(terrainSpeedFactor(1, new Set(['sprung-axle']), RELIEF_UPGRADES)).toBe(1);
+  });
+
+  it('returns baseTerrainModifier unchanged when it exceeds 1 (e.g. road bonus)', () => {
+    expect(terrainSpeedFactor(1.2, new Set(['sprung-axle']), RELIEF_UPGRADES)).toBe(1.2);
+  });
+
+  it('lifts a slow modifier (0.5) correctly when the relief upgrade is purchased', () => {
+    // relief = 0.5; result = 0.5 + (1 - 0.5) * 0.5 = 0.75
+    expect(
+      terrainSpeedFactor(0.5, new Set(['sprung-axle']), RELIEF_UPGRADES),
+    ).toBeCloseTo(0.75);
+  });
+
+  it('leaves a slow modifier unchanged when no relief upgrade is purchased', () => {
+    expect(terrainSpeedFactor(0.5, new Set(), RELIEF_UPGRADES)).toBeCloseTo(0.5);
+  });
+
+  it('leaves a slow modifier unchanged when a non-relief upgrade is purchased', () => {
+    // WHEEL_UPGRADE has no roughnessRelief field.
+    const upgrades: readonly Upgrade[] = [WHEEL_UPGRADE, SPRUNG];
+    expect(
+      terrainSpeedFactor(0.4, new Set(['reinforced-wheels']), upgrades),
+    ).toBeCloseTo(0.4);
+  });
+
+  it('clamps combined relief to 1 so output never exceeds 1.0 for a slow input', () => {
+    // SPRUNG (0.5) + CUSHION (0.8) = 1.3, clamped to 1.0
+    // result = 0.5 + (1 - 0.5) * 1.0 = 1.0
+    const purchased = new Set(['sprung-axle', 'cushion-mounts']);
+    expect(terrainSpeedFactor(0.5, purchased, RELIEF_UPGRADES)).toBeCloseTo(1.0);
   });
 });

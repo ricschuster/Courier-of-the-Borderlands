@@ -20,6 +20,8 @@ export interface GameSnapshot {
   readonly revealed: readonly number[];
   readonly activeContractId: string | null;
   readonly contractStatus: ContractStatus | null;
+  readonly distanceTiles: number;
+  readonly deliveries: number;
 }
 
 export interface SaveData extends GameSnapshot {
@@ -82,6 +84,8 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     revealed: toNumberArray(data.revealed),
     activeContractId: typeof data.activeContractId === 'string' ? data.activeContractId : null,
     contractStatus: toContractStatus(data.contractStatus),
+    distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,
+    deliveries: isFiniteNumber(data.deliveries) ? data.deliveries : 0,
   };
 }
 

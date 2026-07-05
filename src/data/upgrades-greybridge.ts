@@ -19,4 +19,12 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
     speedBonus: 0,
     revealBonus: 1.5,
   },
+  {
+    id: 'sprung-axle',
+    name: 'Sprung Axle',
+    description: 'A sprung axle smooths rough ground, easing the slog through forest.',
+    cost: 60,
+    speedBonus: 0,
+    roughnessRelief: 0.5,
+  },
 ];
