@@ -81,8 +81,6 @@ interface WasdKeys {
   readonly D: Phaser.Input.Keyboard.Key;
 }
 
-const FORD_UNLOCK = 'ford-crossing';
-
 interface MapSceneData {
   readonly regionId?: string;
 }
@@ -173,8 +171,12 @@ export class MapScene extends Phaser.Scene {
     this.prevY = spawnY;
 
     // The signpost only exists in regions that host the ford-unlock mechanic.
-    if (this.region.signpost !== undefined && !isUnlocked(this.state, FORD_UNLOCK)) {
-      this.addSignpost(this.region.signpost);
+    if (
+      this.region.signpost !== undefined &&
+      this.region.fordUnlockId !== undefined &&
+      !isUnlocked(this.state, this.region.fordUnlockId)
+    ) {
+      this.addSignpost(this.region.signpost, this.region.fordUnlockId);
     }
     this.addSettlementMarkers();
     this.addGatewayMarker();
@@ -294,8 +296,14 @@ export class MapScene extends Phaser.Scene {
     const velocity = computeVelocity(input, speed);
     this.courier.setVelocity(velocity.x, velocity.y);
 
-    // Track the ford crossing for the via-ford bonus.
-    if (this.progress?.status === 'carrying' && terrainId === 'ford') {
+    // Track the ford crossing for the via-ford bonus. Compare unlock ids
+    // rather than terrain ids so each region only matches its own ford.
+    if (
+      this.progress?.status === 'carrying' &&
+      terrainId !== undefined &&
+      this.region.fordUnlockId !== undefined &&
+      getTerrain(terrainId)?.unlockId === this.region.fordUnlockId
+    ) {
       this.usedFordThisContract = true;
     }
 
@@ -688,7 +696,7 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private addSignpost(tile: { x: number; y: number }): void {
+  private addSignpost(tile: { x: number; y: number }, fordUnlockId: string): void {
     const center = this.tileCenter(tile.x, tile.y);
     const signpost = this.add.rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xe8d8b0);
     this.physics.add.existing(signpost, true);
@@ -701,7 +709,7 @@ export class MapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.physics.add.overlap(this.courier.sprite, signpost, () => {
-      if (this.unlockFeature(FORD_UNLOCK)) {
+      if (this.unlockFeature(fordUnlockId)) {
         signpost.destroy();
       }
     });
@@ -937,7 +945,7 @@ export class MapScene extends Phaser.Scene {
       delivered: this.deliveredInRegion(),
       totalContracts: this.region.contracts.length,
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+      fordUnlocked: this.regionFordUnlocked(),
     });
     const lines = [
       'DISCOVERIES JOURNAL   (J to close)',
@@ -965,7 +973,7 @@ export class MapScene extends Phaser.Scene {
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       delivered: this.deliveredInRegion(),
       totalContracts: this.region.contracts.length,
-      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+      fordUnlocked: this.regionFordUnlocked(),
       upgradesOwned: this.state.upgrades.size,
     });
     if (!summary.complete) {
@@ -994,9 +1002,14 @@ export class MapScene extends Phaser.Scene {
       totalPlaces: totalSettlementCount(),
       upgradesOwned: this.state.upgrades.size,
       totalUpgrades: UPGRADES_GREYBRIDGE.length,
-      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+      fordUnlocked: this.regionFordUnlocked(),
       regionCleared: this.regionCleared(),
     };
+  }
+
+  /** Whether the active region's own ford is unlocked (false if it has none). */
+  private regionFordUnlocked(): boolean {
+    return this.region.fordUnlockId !== undefined && isUnlocked(this.state, this.region.fordUnlockId);
   }
 
   /** Recompute earned achievements; toast newly earned ones when announce is true. */
@@ -1014,7 +1027,12 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshFordStatus(): void {
-    const open = isUnlocked(this.state, FORD_UNLOCK);
+    const fordUnlockId = this.region.fordUnlockId;
+    if (fordUnlockId === undefined) {
+      this.fordStatus.setText('');
+      return;
+    }
+    const open = isUnlocked(this.state, fordUnlockId);
     this.fordStatus.setText(`Ford: ${open ? 'OPEN' : 'locked'}`);
     this.fordStatus.setColor(open ? '#8fd18f' : '#d18f8f');
   }

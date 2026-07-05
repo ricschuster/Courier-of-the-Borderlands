@@ -36,6 +36,8 @@ export interface Region {
   readonly connectsTo: string;
   /** Optional signpost tile that unlocks the ford (only where the mechanic lives). */
   readonly signpost?: TileCoord;
+  /** Unlock id for this region's own ford crossing, if it has one. */
+  readonly fordUnlockId?: string;
 }
 
 export const GREYBRIDGE_REGION: Region = {
@@ -50,6 +52,7 @@ export const GREYBRIDGE_REGION: Region = {
   gateway: { x: 19, y: 5 },
   connectsTo: 'saltreach',
   signpost: { x: 8, y: 8 },
+  fordUnlockId: 'ford-crossing-greybridge',
 };
 
 export const SALTREACH_REGION: Region = {
@@ -63,6 +66,8 @@ export const SALTREACH_REGION: Region = {
   spawn: SALTREACH_SPAWN,
   gateway: SALTREACH_GATEWAY,
   connectsTo: 'greybridge',
+  signpost: { x: 6, y: 6 },
+  fordUnlockId: 'ford-crossing-saltreach',
 };
 
 export const REGIONS: Readonly<Record<string, Region>> = {

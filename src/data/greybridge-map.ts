@@ -22,7 +22,7 @@ export const GREYBRIDGE_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
-  x: 'ford',
+  x: 'ford-greybridge',
 };
 
 export const GREYBRIDGE_ROWS: readonly string[] = [

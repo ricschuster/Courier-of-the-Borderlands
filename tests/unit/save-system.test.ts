@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   serialize,
   deserialize,
+  migrateUnlocks,
   SAVE_VERSION,
   type GameSnapshot,
 } from '../../src/systems/save-system';
@@ -9,7 +10,7 @@ import {
 const SNAPSHOT: GameSnapshot = {
   coins: 120,
   reputation: { eastwatch: 2, southmill: 3 },
-  unlocks: ['ford-crossing'],
+  unlocks: ['ford-crossing-greybridge'],
   upgrades: ['reinforced-wheels'],
   completed: ['letters-to-eastwatch'],
   visited: ['greywater', 'eastwatch'],
@@ -75,5 +76,35 @@ describe('save-system', () => {
     });
     expect(parsed?.regionId).toBe('greybridge');
     expect(parsed?.fogByRegion).toEqual({ greybridge: [3, 4, 5] });
+  });
+
+  it('migrates the legacy global ford unlock id to the greybridge ford', () => {
+    expect(migrateUnlocks(['ford-crossing'])).toEqual(['ford-crossing-greybridge']);
+    expect(migrateUnlocks(['ford-crossing', 'reinforced-wheels'])).toEqual([
+      'ford-crossing-greybridge',
+      'reinforced-wheels',
+    ]);
+  });
+
+  it('dedupes when a save already has both the legacy id and the new id', () => {
+    expect(migrateUnlocks(['ford-crossing', 'ford-crossing-greybridge'])).toEqual([
+      'ford-crossing-greybridge',
+    ]);
+  });
+
+  it('passes through unrelated unlock ids unchanged', () => {
+    expect(migrateUnlocks(['ford-crossing-saltreach', 'some-other-unlock'])).toEqual([
+      'ford-crossing-saltreach',
+      'some-other-unlock',
+    ]);
+  });
+
+  it('deserializes a save with the legacy ford unlock id as an open Greybridge ford', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      coins: 10,
+      unlocks: ['ford-crossing'],
+    });
+    expect(parsed?.unlocks).toEqual(['ford-crossing-greybridge']);
   });
 });
