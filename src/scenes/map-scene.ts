@@ -14,10 +14,19 @@ import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../sys
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
-import { createFog, revealAround, revealedIndices, type Fog } from '../systems/fog-of-war';
+import { createFog, revealAround, revealedIndices, isRevealed, type Fog } from '../systems/fog-of-war';
 import { addCoins, addReputation, ledgerFrom, totalReputation, tierFor } from '../systems/economy';
 import { loadSave, writeSave, clearSave, type GameSnapshot } from '../systems/save-system';
-import { speedMultiplier, purchase, isPurchased, canAfford } from '../systems/upgrade-system';
+import {
+  speedMultiplier,
+  purchase,
+  canAfford,
+  revealRadius,
+  cheapestUnpurchased,
+} from '../systems/upgrade-system';
+import { computeRunSummary } from '../systems/run-summary';
+import { buildMinimap } from '../systems/minimap';
+import { buildJournal } from '../systems/journal';
 import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
@@ -33,11 +42,12 @@ import {
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
 
-// The single starter upgrade lives in Greywater; buying is a one-key action.
-const STARTER_UPGRADE = UPGRADES_GREYBRIDGE[0];
+// Upgrades are bought at Greywater with the B key (buys the next cheapest).
 const UPGRADE_TOWN = 'greywater';
 // The starting town hosts the contract board.
 const BOARD_TOWN = 'greywater';
+// Minimap layout (pixels per tile in the corner map).
+const MINIMAP_CELL = 6;
 
 // Depth layers, from bottom to top.
 const DEPTH_MARKER = 1;
@@ -83,6 +93,12 @@ export class MapScene extends Phaser.Scene {
   private board!: Phaser.GameObjects.Text;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private newGameKey!: Phaser.Input.Keyboard.Key;
+  private mapKey!: Phaser.Input.Keyboard.Key;
+  private journalKey!: Phaser.Input.Keyboard.Key;
+  private minimapGfx!: Phaser.GameObjects.Graphics;
+  private minimapVisible = false;
+  private journalPanel!: Phaser.GameObjects.Text;
+  private summaryPanel!: Phaser.GameObjects.Text;
   private visited = new Set<string>();
 
   constructor() {
@@ -223,7 +239,11 @@ export class MapScene extends Phaser.Scene {
     this.handleBoardInput();
     this.handlePurchaseInput();
     this.handleResetInput();
+    this.handleToggles();
     this.refreshBoard();
+    if (this.minimapVisible) {
+      this.redrawMinimap();
+    }
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
     this.terrainReadout.setText(
@@ -308,7 +328,8 @@ export class MapScene extends Phaser.Scene {
 
   private revealAroundCourier(): void {
     const tile = this.courierTile();
-    const revealed = revealAround(this.fog, tile.x, tile.y, FOG_REVEAL_RADIUS);
+    const radius = revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS);
+    const revealed = revealAround(this.fog, tile.x, tile.y, radius);
     for (const { x, y } of revealed) {
       const index = y * this.map.width + x;
       this.fogRects[index]?.destroy();
@@ -368,6 +389,7 @@ export class MapScene extends Phaser.Scene {
     );
     this.refreshObjective();
     this.refreshWallet();
+    this.refreshSummary();
     this.save();
   }
 
@@ -442,27 +464,41 @@ export class MapScene extends Phaser.Scene {
   }
 
   private handlePurchaseInput(): void {
-    if (STARTER_UPGRADE === undefined || !Phaser.Input.Keyboard.JustDown(this.buyKey)) {
+    if (!Phaser.Input.Keyboard.JustDown(this.buyKey) || !this.atSettlement(UPGRADE_TOWN)) {
       return;
     }
-    const tile = this.courierTile();
-    if (settlementAtTile(tile.x, tile.y)?.id !== UPGRADE_TOWN) {
+    const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
+    if (target === null) {
+      this.showToast('Every upgrade is already fitted.');
       return;
     }
-    if (isPurchased(this.state.upgrades, STARTER_UPGRADE.id)) {
-      this.showToast(`The ${STARTER_UPGRADE.name} are already fitted.`);
-      return;
-    }
-    const result = purchase(this.state.upgrades, this.state.ledger.coins, STARTER_UPGRADE);
+    const result = purchase(this.state.upgrades, this.state.ledger.coins, target);
     if (!result.ok) {
-      this.showToast(`Not enough coins for ${STARTER_UPGRADE.name} (${STARTER_UPGRADE.cost}).`);
+      this.showToast(`Not enough coins for ${target.name} (${target.cost}).`);
       return;
     }
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
-    this.showToast(`Fitted ${STARTER_UPGRADE.name}. The wagon feels quicker.`);
+    this.showToast(`Fitted ${target.name}. ${target.description}`);
     this.refreshWallet();
     this.save();
+  }
+
+  private handleToggles(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.mapKey)) {
+      this.minimapVisible = !this.minimapVisible;
+      this.minimapGfx.setVisible(this.minimapVisible);
+      if (this.minimapVisible) {
+        this.redrawMinimap();
+      }
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.journalKey)) {
+      const show = !this.journalPanel.visible;
+      this.journalPanel.setVisible(show);
+      if (show) {
+        this.refreshJournal();
+      }
+    }
   }
 
   private handleResetInput(): void {
@@ -481,17 +517,14 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshHint(): void {
-    const base = 'Arrow keys or WASD to drive.  N: new game.';
-    if (STARTER_UPGRADE === undefined) {
-      this.hint.setText(base);
-      return;
-    }
-    const tile = this.courierTile();
-    const atTown = settlementAtTile(tile.x, tile.y)?.id === UPGRADE_TOWN;
-    if (atTown && !isPurchased(this.state.upgrades, STARTER_UPGRADE.id)) {
-      const affordable = canAfford(this.state.ledger.coins, STARTER_UPGRADE);
+    const base = 'WASD/arrows drive.  M: map  J: journal  N: new game.';
+    const target = this.atSettlement(UPGRADE_TOWN)
+      ? cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE)
+      : null;
+    if (target !== null) {
+      const affordable = canAfford(this.state.ledger.coins, target);
       this.hint.setText(
-        `${base}  Press B to buy ${STARTER_UPGRADE.name} (${STARTER_UPGRADE.cost} coins)` +
+        `${base}  Press B: ${target.name} (${target.cost}c)` +
           (affordable ? '' : ' - need more coins'),
       );
     } else {
@@ -541,6 +574,8 @@ export class MapScene extends Phaser.Scene {
     this.wasd = keyboard.addKeys('W,A,S,D') as WasdKeys;
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
+    this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -584,11 +619,123 @@ export class MapScene extends Phaser.Scene {
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
+    // Journal panel (toggled with J), centred near the top.
+    this.journalPanel = this.add
+      .text(GAME_WIDTH / 2, 40, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bdd',
+        padding: { x: 12, y: 10 },
+        lineSpacing: 4,
+        align: 'left',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
+    // Run summary panel, shown when the region is cleared.
+    this.summaryPanel = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bee',
+        padding: { x: 16, y: 14 },
+        lineSpacing: 6,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
+    // Minimap graphics (toggled with M), drawn in redrawMinimap.
+    this.minimapGfx = this.add.graphics().setDepth(DEPTH_HUD).setVisible(false);
+
     this.refreshWallet();
     this.refreshObjective();
     this.refreshFordStatus();
     this.refreshHint();
     this.refreshBoard();
+    this.refreshSummary();
+  }
+
+  private redrawMinimap(): void {
+    const model = buildMinimap({
+      width: this.map.width,
+      height: this.map.height,
+      isRevealed: (x, y) => isRevealed(this.fog, x, y),
+      terrainColorAt: (x, y) => {
+        const id = getTerrainIdAt(this.map, x, y);
+        return id === undefined ? null : (getTerrain(id)?.color ?? null);
+      },
+      courier: this.courierTile(),
+      settlements: Object.values(SETTLEMENTS).map((s) => ({ x: s.tile.x, y: s.tile.y })),
+    });
+
+    const cell = MINIMAP_CELL;
+    const originX = GAME_WIDTH - model.width * cell - 12;
+    const originY = GAME_HEIGHT - model.height * cell - 12;
+
+    const g = this.minimapGfx;
+    g.clear();
+    g.fillStyle(0x0b0b0b, 0.85);
+    g.fillRect(originX - 4, originY - 4, model.width * cell + 8, model.height * cell + 8);
+
+    for (let i = 0; i < model.cells.length; i++) {
+      const c = model.cells[i];
+      if (c === undefined) {
+        continue;
+      }
+      const x = i % model.width;
+      const y = Math.floor(i / model.width);
+      const px = originX + x * cell;
+      const py = originY + y * cell;
+      const fill = c.revealed ? (c.color ?? 0x5a8f4a) : 0x1c1c1c;
+      g.fillStyle(fill, 1);
+      g.fillRect(px, py, cell - 1, cell - 1);
+      if (c.marker === 'settlement') {
+        g.fillStyle(0xf2efe4, 1);
+        g.fillRect(px + 1, py + 1, cell - 3, cell - 3);
+      } else if (c.marker === 'courier') {
+        g.fillStyle(0xf2c14e, 1);
+        g.fillRect(px, py, cell - 1, cell - 1);
+      }
+    }
+  }
+
+  private refreshJournal(): void {
+    const model = buildJournal({
+      settlements: Object.values(SETTLEMENTS).map((s) => ({ id: s.id, name: s.name, note: s.note })),
+      visitedIds: [...this.visited],
+      delivered: this.completed.size,
+      totalContracts: CONTRACTS_GREYBRIDGE.length,
+      reputationTier: tierFor(totalReputation(this.state.ledger)).name,
+      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+    });
+    const lines = ['DISCOVERIES JOURNAL   (J to close)', ...model.summaryLines, '', 'Places:'];
+    for (const place of model.places) {
+      lines.push(`  ${place.name} - ${place.note}`);
+    }
+    this.journalPanel.setText(lines.join('\n'));
+  }
+
+  private refreshSummary(): void {
+    const summary = computeRunSummary({
+      coins: this.state.ledger.coins,
+      totalReputation: totalReputation(this.state.ledger),
+      reputationTier: tierFor(totalReputation(this.state.ledger)).name,
+      delivered: this.completed.size,
+      totalContracts: CONTRACTS_GREYBRIDGE.length,
+      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+      upgradesOwned: this.state.upgrades.size,
+    });
+    if (!summary.complete) {
+      this.summaryPanel.setVisible(false);
+      return;
+    }
+    this.summaryPanel.setText([summary.title, '', ...summary.lines, '', 'Press N for a new run.'].join('\n'));
+    this.summaryPanel.setVisible(true);
   }
 
   private refreshFordStatus(): void {

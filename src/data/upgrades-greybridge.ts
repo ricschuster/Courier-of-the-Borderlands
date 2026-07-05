@@ -11,4 +11,12 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
     cost: 50,
     speedBonus: 0.25,
   },
+  {
+    id: 'far-lantern',
+    name: 'Far Lantern',
+    description: 'A brighter lantern reveals more of the road ahead.',
+    cost: 40,
+    speedBonus: 0,
+    revealBonus: 1.5,
+  },
 ];

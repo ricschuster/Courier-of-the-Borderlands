@@ -5,8 +5,9 @@ export interface Upgrade {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  readonly cost: number;       // coins
-  readonly speedBonus: number; // fraction, e.g. 0.25 means +25% speed
+  readonly cost: number;        // coins
+  readonly speedBonus: number;  // fraction, e.g. 0.25 means +25% speed
+  readonly revealBonus?: number; // extra fog reveal radius in tiles; absent means 0
 }
 
 /**
@@ -42,6 +43,45 @@ export interface PurchaseResult {
   readonly ok: boolean;
   readonly coins: number;
   readonly purchased: ReadonlySet<string>;
+}
+
+/**
+ * Returns the effective fog reveal radius in tiles.
+ * Sums the revealBonus of all purchased upgrades (absent treated as 0) on top of baseRadius.
+ * Unknown ids in purchasedIds are silently ignored.
+ */
+export function revealRadius(
+  purchasedIds: ReadonlySet<string>,
+  upgrades: readonly Upgrade[],
+  baseRadius: number,
+): number {
+  let bonus = 0;
+  for (const upgrade of upgrades) {
+    if (purchasedIds.has(upgrade.id)) {
+      bonus += upgrade.revealBonus ?? 0;
+    }
+  }
+  return baseRadius + bonus;
+}
+
+/**
+ * Returns the cheapest not-yet-purchased upgrade, or null if all are owned.
+ * Ties are broken by array order (first occurrence wins).
+ */
+export function cheapestUnpurchased(
+  purchasedIds: ReadonlySet<string>,
+  upgrades: readonly Upgrade[],
+): Upgrade | null {
+  let best: Upgrade | null = null;
+  for (const upgrade of upgrades) {
+    if (purchasedIds.has(upgrade.id)) {
+      continue;
+    }
+    if (best === null || upgrade.cost < best.cost) {
+      best = upgrade;
+    }
+  }
+  return best;
 }
 
 /**
