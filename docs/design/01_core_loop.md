@@ -25,6 +25,8 @@ Contracts are accepted at the Greywater contract board. The board appears when t
 
 Better contracts are gated by reputation. A contract can only be accepted once the courier's total reputation meets its minimum, so the player earns access to higher-value runs by completing earlier ones. This is what makes reputation matter: it is the key to the board, not just a score. Locked contracts are shown on the board with the reputation they require.
 
+Each contract carries a cargo type: letters, goods, rumours, or secrets. The type is shown as a tag on the board and applies a small pay modifier at delivery (goods pay the baseline, secrets pay the most). The cargo modifier is applied to the base reward before the reputation bonus, so the two stack.
+
 ### 2. Collect and carry cargo
 
 The contract state machine runs: `accepted -> carrying -> delivered`. The courier must reach the pickup settlement before cargo transfers. Arriving at the destination without cargo does nothing.
@@ -55,7 +57,7 @@ Arriving at the destination settlement while carrying cargo completes the contra
 
 ### 6. Unlock progression
 
-Reaching a signpost near the southern crossing unlocks the ford. That second crossing opens a shorter route to Southmill, making repeat runs faster. Coins can be spent on the Reinforced Wheels upgrade, which adds 25 percent speed across all terrain.
+Reaching a signpost near the southern crossing unlocks the ford. That second crossing opens a shorter route to Southmill, making repeat runs faster. Each region that has a ford unlocks it separately, through its own signpost, so opening one region's ford does not open another's. Coins can be spent on the Reinforced Wheels upgrade, which adds 25 percent speed across all terrain.
 
 ## How the design pillars show up
 
