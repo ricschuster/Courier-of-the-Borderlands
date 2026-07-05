@@ -26,6 +26,13 @@ describe('Greybridge settlements', () => {
     }
     expect(settlementAtTile(-1, -1)).toBeUndefined();
   });
+
+  it('contains all four expected settlements', () => {
+    expect(SETTLEMENTS.greywater).toBeDefined();
+    expect(SETTLEMENTS.eastwatch).toBeDefined();
+    expect(SETTLEMENTS.southmill).toBeDefined();
+    expect(SETTLEMENTS.ironhollow).toBeDefined();
+  });
 });
 
 describe('Greybridge contracts', () => {
@@ -41,5 +48,15 @@ describe('Greybridge contracts', () => {
       expect(contract.reward).toBeGreaterThan(0);
       expect(contract.reputation).toBeGreaterThan(0);
     }
+  });
+
+  it('has at least three contracts', () => {
+    expect(CONTRACTS_GREYBRIDGE.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('has unique contract ids', () => {
+    const ids = CONTRACTS_GREYBRIDGE.map((c) => c.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(ids.length);
   });
 });

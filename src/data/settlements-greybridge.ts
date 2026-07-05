@@ -2,13 +2,9 @@
 // to JSON later. Tile coordinates index into the Greybridge tile map.
 
 export interface Settlement {
-  /** Stable id referenced by contracts. */
   readonly id: string;
-  /** Human-readable name shown in the HUD and delivery text. */
   readonly name: string;
-  /** Tile coordinate of the settlement on the map. */
   readonly tile: { readonly x: number; readonly y: number };
-  /** Short story flavour, surfaced on arrival. */
   readonly note: string;
 }
 
@@ -25,9 +21,20 @@ export const SETTLEMENTS: Readonly<Record<string, Settlement>> = {
     tile: { x: 17, y: 5 },
     note: 'A watchtower across the bridge that is always listening.',
   },
+  southmill: {
+    id: 'southmill',
+    name: 'Southmill',
+    tile: { x: 13, y: 10 },
+    note: 'A grain mill among the southern reeds, half its wheels long stopped.',
+  },
+  ironhollow: {
+    id: 'ironhollow',
+    name: 'Ironhollow',
+    tile: { x: 4, y: 10 },
+    note: 'A mining hollow beneath the western peaks, wary of outsiders.',
+  },
 };
 
-/** Settlement whose tile matches the given coordinate, if any. */
 export function settlementAtTile(x: number, y: number): Settlement | undefined {
   return Object.values(SETTLEMENTS).find((s) => s.tile.x === x && s.tile.y === y);
 }

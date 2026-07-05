@@ -1,5 +1,3 @@
-// Delivery contracts for the Greybridge Region. Typed module for now; easy to
-// migrate to JSON later. Additional contracts arrive in a later build step.
 import type { Contract } from '../systems/contract-system';
 
 export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
@@ -12,5 +10,25 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     reward: 50,
     reputation: 2,
     note: 'The Greywater postmaster presses a bundle of sealed letters into your hands. Eastwatch has gone quiet, and quiet is rarely good.',
+  },
+  {
+    id: 'grain-to-southmill',
+    title: 'Grain for Southmill',
+    cargo: 'sacks of grain',
+    pickupId: 'greywater',
+    destinationId: 'southmill',
+    reward: 70,
+    reputation: 3,
+    note: 'Southmill has not answered for a season. Take them grain, and see why the wheels have stopped.',
+  },
+  {
+    id: 'rumours-to-ironhollow',
+    title: 'A Rumour for Ironhollow',
+    cargo: 'a whispered rumour',
+    pickupId: 'greywater',
+    destinationId: 'ironhollow',
+    reward: 60,
+    reputation: 2,
+    note: 'A hooded traveller pays you to carry a single sentence to Ironhollow. Do not read it, they say. You already have.',
   },
 ];

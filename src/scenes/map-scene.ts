@@ -15,8 +15,11 @@ import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
 import { createFog, revealAround, type Fog } from '../systems/fog-of-war';
+import { addCoins, addReputation, totalReputation, tierFor } from '../systems/economy';
+import { speedMultiplier, purchase, isPurchased, canAfford } from '../systems/upgrade-system';
 import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
+import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
   canPickUp,
@@ -28,6 +31,10 @@ import {
   type ContractProgress,
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
+
+// The single starter upgrade lives in Greywater; buying is a one-key action.
+const STARTER_UPGRADE = UPGRADES_GREYBRIDGE[0];
+const UPGRADE_TOWN = 'greywater';
 
 // Depth layers, from bottom to top.
 const DEPTH_MARKER = 1;
@@ -59,10 +66,14 @@ export class MapScene extends Phaser.Scene {
   private gatedBlocks = new Map<string, Phaser.GameObjects.Rectangle[]>();
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
+  private buyKey!: Phaser.Input.Keyboard.Key;
   private terrainReadout!: Phaser.GameObjects.Text;
   private fordStatus!: Phaser.GameObjects.Text;
+  private wallet!: Phaser.GameObjects.Text;
+  private hint!: Phaser.GameObjects.Text;
   private fog!: Fog;
   private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
+  private contractIndex = 0;
   private contract!: Contract;
   private progress!: ContractProgress;
   private objective!: Phaser.GameObjects.Text;
@@ -79,6 +90,7 @@ export class MapScene extends Phaser.Scene {
     if (firstContract === undefined) {
       throw new Error('no contracts defined for Greybridge');
     }
+    this.contractIndex = 0;
     this.contract = firstContract;
     this.progress = startContract(firstContract);
 
@@ -123,12 +135,14 @@ export class MapScene extends Phaser.Scene {
     };
 
     const terrainId = this.terrainUnderCourier();
-    const modifier = terrainId === undefined ? 1 : getSpeedModifier(terrainId);
-    const velocity = computeVelocity(input, COURIER_SPEED * modifier);
+    const terrainModifier = terrainId === undefined ? 1 : getSpeedModifier(terrainId);
+    const upgradeModifier = speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE);
+    const velocity = computeVelocity(input, COURIER_SPEED * terrainModifier * upgradeModifier);
     this.courier.setVelocity(velocity.x, velocity.y);
 
     this.revealAroundCourier();
     this.updateDelivery();
+    this.handlePurchaseInput();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
     this.terrainReadout.setText(
@@ -136,6 +150,7 @@ export class MapScene extends Phaser.Scene {
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`,
     );
+    this.refreshHint();
   }
 
   private courierTile(): { x: number; y: number } {
@@ -254,11 +269,80 @@ export class MapScene extends Phaser.Scene {
       this.refreshObjective();
     } else if (canDeliver(this.progress, this.contract, settlement.id)) {
       this.progress = deliver(this.progress);
+      this.grantReward(settlement.id);
       this.showToast(
         `Delivered ${this.contract.cargo} to ${settlement.name}. ` +
           `Reward: ${this.contract.reward} coins, +${this.contract.reputation} reputation.`,
       );
+      this.advanceContract();
       this.refreshObjective();
+      this.refreshWallet();
+    }
+  }
+
+  private grantReward(settlementId: string): void {
+    this.state.ledger = addCoins(this.state.ledger, this.contract.reward);
+    this.state.ledger = addReputation(this.state.ledger, settlementId, this.contract.reputation);
+  }
+
+  /** Move to the next contract, if any, and re-accept it (pickup at its town). */
+  private advanceContract(): void {
+    const next = CONTRACTS_GREYBRIDGE[this.contractIndex + 1];
+    if (next === undefined) {
+      return;
+    }
+    this.contractIndex += 1;
+    this.contract = next;
+    this.progress = startContract(next);
+  }
+
+  private handlePurchaseInput(): void {
+    if (STARTER_UPGRADE === undefined || !Phaser.Input.Keyboard.JustDown(this.buyKey)) {
+      return;
+    }
+    const tile = this.courierTile();
+    if (settlementAtTile(tile.x, tile.y)?.id !== UPGRADE_TOWN) {
+      return;
+    }
+    if (isPurchased(this.state.upgrades, STARTER_UPGRADE.id)) {
+      this.showToast(`The ${STARTER_UPGRADE.name} are already fitted.`);
+      return;
+    }
+    const result = purchase(this.state.upgrades, this.state.ledger.coins, STARTER_UPGRADE);
+    if (!result.ok) {
+      this.showToast(`Not enough coins for ${STARTER_UPGRADE.name} (${STARTER_UPGRADE.cost}).`);
+      return;
+    }
+    this.state.upgrades = new Set(result.purchased);
+    this.state.ledger = { ...this.state.ledger, coins: result.coins };
+    this.showToast(`Fitted ${STARTER_UPGRADE.name}. The wagon feels quicker.`);
+    this.refreshWallet();
+  }
+
+  private refreshWallet(): void {
+    const reputation = totalReputation(this.state.ledger);
+    const tier = tierFor(reputation);
+    this.wallet.setText(
+      `Coins: ${this.state.ledger.coins}   Reputation: ${reputation} (${tier.name})`,
+    );
+  }
+
+  private refreshHint(): void {
+    const base = 'Arrow keys or WASD to drive.';
+    if (STARTER_UPGRADE === undefined) {
+      this.hint.setText(base);
+      return;
+    }
+    const tile = this.courierTile();
+    const atTown = settlementAtTile(tile.x, tile.y)?.id === UPGRADE_TOWN;
+    if (atTown && !isPurchased(this.state.upgrades, STARTER_UPGRADE.id)) {
+      const affordable = canAfford(this.state.ledger.coins, STARTER_UPGRADE);
+      this.hint.setText(
+        `${base}  Press B to buy ${STARTER_UPGRADE.name} (${STARTER_UPGRADE.cost} coins)` +
+          (affordable ? '' : ' - need more coins'),
+      );
+    } else {
+      this.hint.setText(base);
     }
   }
 
@@ -301,46 +385,30 @@ export class MapScene extends Phaser.Scene {
     }
     this.cursors = keyboard.createCursorKeys();
     this.wasd = keyboard.addKeys('W,A,S,D') as WasdKeys;
+    this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
   }
 
   private addHud(): void {
+    const line = (y: number, color: string): Phaser.GameObjects.Text =>
+      this.add
+        .text(8, y, '', { fontFamily: 'monospace', fontSize: '12px', color })
+        .setDepth(DEPTH_HUD);
+
     this.add
-      .text(8, 8, GAME_TITLE, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#e8e8e8',
-      })
+      .text(8, 8, GAME_TITLE, { fontFamily: 'monospace', fontSize: '14px', color: '#e8e8e8' })
       .setDepth(DEPTH_HUD);
-    this.terrainReadout = this.add
-      .text(8, 26, 'Terrain: unknown', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e8e8e8',
-      })
+    this.wallet = line(28, '#e8e8e8');
+    this.objective = line(46, '#f2d98f');
+    this.terrainReadout = line(64, '#e8e8e8');
+    this.fordStatus = line(82, '#e8e8e8');
+    this.hint = this.add
+      .text(8, GAME_HEIGHT - 22, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8a8a8a' })
       .setDepth(DEPTH_HUD);
-    this.fordStatus = this.add
-      .text(8, 42, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e8e8e8',
-      })
-      .setDepth(DEPTH_HUD);
-    this.refreshFordStatus();
-    this.objective = this.add
-      .text(8, 58, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#f2d98f',
-      })
-      .setDepth(DEPTH_HUD);
+
+    this.refreshWallet();
     this.refreshObjective();
-    this.add
-      .text(8, GAME_HEIGHT - 22, 'Arrow keys or WASD to drive', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#8a8a8a',
-      })
-      .setDepth(DEPTH_HUD);
+    this.refreshFordStatus();
+    this.refreshHint();
   }
 
   private refreshFordStatus(): void {

@@ -1,19 +1,51 @@
 # Milestones
 
-To be written.
+## M0: Walking skeleton -- DONE
 
-Planned milestones:
+Repo live, Phaser boots, and CI is green.
 
-## M0 Walking skeleton
+- [x] Git repo created and pushed to GitHub
+- [x] Vite + TypeScript + Phaser 3 scaffold
+- [x] BootScene hands off to MapScene
+- [x] ESLint and Vitest configured
+- [x] GitHub Actions CI: lint, typecheck, test, build all pass
+- [x] Basic Phaser scene renders in the browser
 
-Repo live, Phaser boots, empty scene renders, CI green, deploy pipeline in place.
+## M1: Playable prototype -- DONE
 
-## M1 Playable prototype
+Core delivery loop works end to end with placeholder art.
 
-Core delivery loop works end to end with placeholder art. One pickup, one destination, terrain speed modifiers, fog-of-war, delivery completion feedback.
+- [x] Data-driven tile map of the Greybridge Region (20x11 tiles, `src/data/greybridge-map.ts`)
+- [x] Six terrain types with colour coding (`src/data/terrain-types.ts`)
+- [x] Drivable courier wagon (arcade physics, arrow keys and WASD, `src/systems/movement.ts`)
+- [x] Terrain speed modifiers: road and bridge fast, forest slow
+- [x] Impassable water and mountain tiles (river only crossable at the bridge)
+- [x] Fog-of-war: map starts hidden, reveals in a radius as you drive (`src/systems/fog-of-war.ts`)
+- [x] Settlement data for Greybridge Region (`src/data/settlements-greybridge.ts`)
+- [x] Pure contract state machine: accepted -> carrying -> delivered (`src/systems/contract-system.ts`)
+- [x] Pickup and delivery trigger on arrival with on-screen feedback
+- [x] Active objective line shown during a run
+- [x] Unlockable ford shortcut: second river crossing, blocked until the courier reaches a signpost (`src/systems/game-state.ts`)
 
-## M2 MVP
+## M2: MVP -- IN PROGRESS
 
-One full region (Greybridge), three contracts, reputation, currency, one unlockable route, one vehicle upgrade, short story text, deployed to GitHub Pages.
+One full region, three contracts, currency and reputation, one vehicle upgrade, short story text, deployed to GitHub Pages.
 
-Update this document as milestones are completed or refined.
+- [x] Three delivery contracts with story flavour notes (`src/data/contracts-greybridge.ts`)
+- [x] Pure economy system: coins and per-settlement reputation, immutable ledger (`src/systems/economy.ts`)
+- [x] Reputation tiers (`src/data/reputation-tiers.ts`)
+- [x] Unlockable ford shortcut (done in M1, counts here)
+- [x] Vehicle upgrade system: pure logic for purchase and speed calculation (`src/systems/upgrade-system.ts`)
+- [x] Reinforced Wheels upgrade defined in data (`src/data/upgrades-greybridge.ts`)
+- [ ] Currency and reputation HUD visible during play
+- [ ] Upgrade purchase UI at a settlement
+- [ ] Additional NPC and delivery text to establish story tone
+- [ ] GitHub Pages deployment
+
+## Remaining for MVP
+
+1. Wire economy rewards into the delivery completion flow so coins and reputation update on screen.
+2. Add a HUD showing current coins and settlement reputation.
+3. Add an upgrade shop at a settlement so the player can spend coins on Reinforced Wheels.
+4. Add one or two short NPC lines at settlements to reinforce the courier premise.
+5. Set up GitHub Pages deployment via GitHub Actions.

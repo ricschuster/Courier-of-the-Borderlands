@@ -7,6 +7,12 @@ describe('game-state', () => {
     expect(isUnlocked(state, 'ford-crossing')).toBe(false);
   });
 
+  it('starts with an empty wallet and no upgrades', () => {
+    const state = createGameState();
+    expect(state.ledger.coins).toBe(0);
+    expect(state.upgrades.size).toBe(0);
+  });
+
   it('unlocks a feature and reports the change', () => {
     const state = createGameState();
     expect(unlock(state, 'ford-crossing')).toBe(true);
