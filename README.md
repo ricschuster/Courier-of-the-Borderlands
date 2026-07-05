@@ -1,5 +1,7 @@
 # Courier of the Borderlands
 
+[![CI](https://github.com/ricschuster/Courier-of-the-Borderlands/actions/workflows/ci.yml/badge.svg)](https://github.com/ricschuster/Courier-of-the-Borderlands/actions/workflows/ci.yml)
+
 A 2D fantasy courier exploration game for the web. Deliver goods, letters, rumours, and secrets across a dangerous borderland, reveal the map, and build reputation with the people who depend on you.
 
 ## Play

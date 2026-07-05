@@ -1,7 +1,10 @@
 name: Deploy
 
+# Deploy only after CI succeeds on main, so an untested build never publishes.
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -15,13 +18,17 @@ concurrency:
 
 jobs:
   deploy:
+    # Manual runs always deploy; automatic runs only when CI passed.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: '.nvmrc'
           cache: npm
 
       - run: npm ci
@@ -29,10 +36,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Publish the built site to the gh-pages branch. GitHub Pages serves this
-      # branch directly. .nojekyll keeps Pages from running Jekyll over it.
-      # This avoids the actions/deploy-pages pipeline, which was failing with an
-      # opaque "Deployment failed, try again later" at the publish step.
+      # Publish the built site to the gh-pages branch, served directly by Pages.
       - name: Publish dist to gh-pages
         run: |
           cd dist

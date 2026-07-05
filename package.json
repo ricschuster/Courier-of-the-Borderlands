@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "A 2D fantasy courier exploration game for the web.",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@11.16.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
