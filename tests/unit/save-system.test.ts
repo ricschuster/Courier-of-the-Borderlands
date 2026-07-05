@@ -20,6 +20,7 @@ const SNAPSHOT: GameSnapshot = {
   contractStatus: 'carrying',
   distanceTiles: 42.5,
   deliveries: 1,
+  achievements: ['first-delivery', 'ford-finder'],
 };
 
 describe('save-system', () => {

@@ -37,6 +37,15 @@ import {
   formatDistance,
   type TripLog,
 } from '../systems/trip-log';
+import {
+  ACHIEVEMENTS,
+  earnedAchievements,
+  courierTitle,
+  type AchievementStat,
+} from '../systems/achievements';
+import { WEATHERS, weatherByIndex, type Weather } from '../systems/weather';
+import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
+import { buildLegend } from '../systems/legend';
 import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
@@ -114,6 +123,14 @@ export class MapScene extends Phaser.Scene {
   private prevY = 0;
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
+  private achievements = new Set<string>();
+  private weather: Weather = weatherByIndex(0);
+  private legendKey!: Phaser.Input.Keyboard.Key;
+  private legendPanel!: Phaser.GameObjects.Text;
+  private weatherLine!: Phaser.GameObjects.Text;
+  // Per-contract bonus tracking (reset when a contract is accepted).
+  private tilesSinceAccept = 0;
+  private usedFordThisContract = false;
 
   constructor() {
     super({ key: 'MapScene' });
@@ -159,8 +176,13 @@ export class MapScene extends Phaser.Scene {
     this.setupInput();
     this.addHud();
 
+    // Pick an ambient road condition for this run.
+    this.weather = weatherByIndex(Math.floor(Math.random() * WEATHERS.length));
+    this.weatherLine.setText(`Weather: ${this.weather.label}`);
+
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
+    this.refreshAchievements(false);
 
     // Autosave periodically so exploration progress persists.
     this.time.addEvent({ delay: 2000, loop: true, callback: () => this.save() });
@@ -168,8 +190,8 @@ export class MapScene extends Phaser.Scene {
 
     this.showToast(
       snapshot === null
-        ? 'Drive into Greywater to accept a contract from the board.'
-        : 'Progress restored. Press N for a new game.',
+        ? `Drive into Greywater to accept a contract. ${this.weather.description}`
+        : `Progress restored. ${this.weather.description}`,
     );
   }
 
@@ -181,6 +203,9 @@ export class MapScene extends Phaser.Scene {
     this.activeContract = undefined;
     this.progress = undefined;
     this.trip = createTripLog();
+    this.achievements = new Set();
+    this.tilesSinceAccept = 0;
+    this.usedFordThisContract = false;
 
     if (snapshot === null) {
       return;
@@ -192,6 +217,7 @@ export class MapScene extends Phaser.Scene {
     this.completed = new Set(snapshot.completed);
     this.visited = new Set(snapshot.visited);
     this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
+    this.achievements = new Set(snapshot.achievements);
 
     if (snapshot.activeContractId !== null && snapshot.contractStatus !== null) {
       const contract = CONTRACTS_GREYBRIDGE.find((c) => c.id === snapshot.activeContractId);
@@ -236,6 +262,7 @@ export class MapScene extends Phaser.Scene {
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,
       deliveries: this.trip.deliveries,
+      achievements: [...this.achievements],
     });
   }
 
@@ -255,8 +282,14 @@ export class MapScene extends Phaser.Scene {
       UPGRADES_GREYBRIDGE,
     );
     const upgradeModifier = speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE);
-    const velocity = computeVelocity(input, COURIER_SPEED * terrainModifier * upgradeModifier);
+    const speed = COURIER_SPEED * terrainModifier * upgradeModifier * this.weather.speedMultiplier;
+    const velocity = computeVelocity(input, speed);
     this.courier.setVelocity(velocity.x, velocity.y);
+
+    // Track the ford crossing for the via-ford bonus.
+    if (this.progress?.status === 'carrying' && terrainId === 'ford') {
+      this.usedFordThisContract = true;
+    }
 
     this.trackDistance();
     this.currentPath = this.destinationPath();
@@ -295,6 +328,9 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(dx, dy) / TILE_SIZE;
     if (tiles > 0) {
       this.trip = addDistance(this.trip, tiles);
+      if (this.progress?.status === 'carrying') {
+        this.tilesSinceAccept += tiles;
+      }
     }
   }
 
@@ -391,7 +427,8 @@ export class MapScene extends Phaser.Scene {
 
   private revealAroundCourier(): void {
     const tile = this.courierTile();
-    const radius = revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS);
+    const base = revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS);
+    const radius = Math.max(1, base + this.weather.revealBonus);
     const revealed = revealAround(this.fog, tile.x, tile.y, radius);
     for (const { x, y } of revealed) {
       const index = y * this.map.width + x;
@@ -446,21 +483,33 @@ export class MapScene extends Phaser.Scene {
     const payout = applyRewardBonus(contract.reward, reputation);
     const perk = perkFor(reputation);
 
+    // Optional bonus objective for this contract.
+    const bonus = bonusFor(contract.id);
+    const bonusEarned =
+      bonus !== undefined &&
+      bonusAchieved(bonus, {
+        usedFord: this.usedFordThisContract,
+        tilesDriven: this.tilesSinceAccept,
+      });
+    const bonusCoins = bonusEarned && bonus !== undefined ? bonus.reward : 0;
+
     this.completed.add(contract.id);
-    this.state.ledger = addCoins(this.state.ledger, payout);
+    this.state.ledger = addCoins(this.state.ledger, payout + bonusCoins);
     this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
     this.trip = recordDelivery(this.trip);
     this.activeContract = undefined;
     this.progress = undefined;
 
-    const bonusNote = payout > contract.reward ? ` (${perk.label})` : '';
+    const perkNote = payout > contract.reward ? ` (${perk.label})` : '';
+    const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     this.showToast(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${payout} coins${bonusNote}, +${contract.reputation} reputation.`,
+        `Reward: ${payout} coins${perkNote}, +${contract.reputation} reputation.${bonusNote}`,
     );
     this.refreshObjective();
     this.refreshWallet();
     this.refreshSummary();
+    this.refreshAchievements(true);
     this.save();
   }
 
@@ -484,6 +533,9 @@ export class MapScene extends Phaser.Scene {
     }
     this.activeContract = contract;
     this.progress = progress;
+    // Reset per-contract bonus tracking.
+    this.tilesSinceAccept = 0;
+    this.usedFordThisContract = false;
     this.showToast(`Accepted: ${contract.title}. ${contract.note}`);
     this.refreshObjective();
     this.save();
@@ -530,6 +582,10 @@ export class MapScene extends Phaser.Scene {
       lines.push(
         `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}`,
       );
+      const bonus = bonusFor(contract.id);
+      if (bonus !== undefined) {
+        lines.push(`      ${describeBonus(bonus)}`);
+      }
     });
     this.board.setText(lines.join('\n'));
   }
@@ -552,6 +608,7 @@ export class MapScene extends Phaser.Scene {
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     this.showToast(`Fitted ${target.name}. ${target.description}`);
     this.refreshWallet();
+    this.refreshAchievements(true);
     this.save();
   }
 
@@ -569,6 +626,9 @@ export class MapScene extends Phaser.Scene {
       if (show) {
         this.refreshJournal();
       }
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
+      this.legendPanel.setVisible(!this.legendPanel.visible);
     }
   }
 
@@ -588,7 +648,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshHint(): void {
-    const base = 'WASD/arrows drive.  M: map  J: journal  N: new game.';
+    const base = 'WASD/arrows drive.  M: map  J: journal  L: codex  N: new game.';
     const target = this.atSettlement(UPGRADE_TOWN)
       ? cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE)
       : null;
@@ -632,6 +692,7 @@ export class MapScene extends Phaser.Scene {
     this.gatedBlocks.delete(id);
     this.refreshFordStatus();
     this.showToast('Shortcut unlocked: the ford is open.');
+    this.refreshAchievements(true);
     this.save();
     return true;
   }
@@ -647,6 +708,7 @@ export class MapScene extends Phaser.Scene {
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+    this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -674,6 +736,7 @@ export class MapScene extends Phaser.Scene {
     this.objective = line(46, '#f2d98f');
     this.terrainReadout = line(64, '#e8e8e8');
     this.fordStatus = line(82, '#e8e8e8');
+    this.weatherLine = line(100, '#a9c7e8');
     this.hint = this.add
       .text(8, GAME_HEIGHT - 22, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8a8a8a' })
       .setDepth(DEPTH_HUD);
@@ -722,6 +785,26 @@ export class MapScene extends Phaser.Scene {
 
     // Minimap graphics (toggled with M), drawn in redrawMinimap.
     this.minimapGfx = this.add.graphics().setDepth(DEPTH_HUD).setVisible(false);
+
+    // Terrain codex (toggled with L); static content from terrain data.
+    const legend = buildLegend(Object.values(TERRAIN_TYPES));
+    const legendLines = ['TERRAIN CODEX   (L to close)'];
+    for (const entry of legend) {
+      legendLines.push(`  ${entry.name}: ${entry.speedLabel}${entry.passable ? '' : ' (impassable)'}`);
+    }
+    this.legendPanel = this.add
+      .text(GAME_WIDTH - 8, 40, legendLines.join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bdd',
+        padding: { x: 12, y: 10 },
+        lineSpacing: 4,
+        align: 'left',
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
 
     this.refreshWallet();
     this.refreshObjective();
@@ -799,6 +882,7 @@ export class MapScene extends Phaser.Scene {
     });
     const lines = [
       'DISCOVERIES JOURNAL   (J to close)',
+      `Title: ${courierTitle(this.achievementStat())}`,
       ...model.summaryLines,
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
@@ -806,6 +890,11 @@ export class MapScene extends Phaser.Scene {
     ];
     for (const place of model.places) {
       lines.push(`  ${place.name} - ${place.note}`);
+    }
+    lines.push('', 'Achievements:');
+    for (const achievement of ACHIEVEMENTS) {
+      const got = this.achievements.has(achievement.id);
+      lines.push(`  ${got ? '[x]' : '[ ]'} ${achievement.name}`);
     }
     this.journalPanel.setText(lines.join('\n'));
   }
@@ -834,6 +923,33 @@ export class MapScene extends Phaser.Scene {
     ];
     this.summaryPanel.setText(lines.join('\n'));
     this.summaryPanel.setVisible(true);
+  }
+
+  private achievementStat(): AchievementStat {
+    return {
+      deliveries: this.trip.deliveries,
+      distanceTiles: this.trip.distanceTiles,
+      placesFound: this.visited.size,
+      totalPlaces: Object.keys(SETTLEMENTS).length,
+      upgradesOwned: this.state.upgrades.size,
+      totalUpgrades: UPGRADES_GREYBRIDGE.length,
+      fordUnlocked: isUnlocked(this.state, FORD_UNLOCK),
+      regionCleared: this.completed.size > 0 && this.boardContracts().length === 0,
+    };
+  }
+
+  /** Recompute earned achievements; toast newly earned ones when announce is true. */
+  private refreshAchievements(announce: boolean): void {
+    for (const id of earnedAchievements(this.achievementStat())) {
+      if (this.achievements.has(id)) {
+        continue;
+      }
+      this.achievements.add(id);
+      if (announce) {
+        const def = ACHIEVEMENTS.find((a) => a.id === id);
+        this.showToast(`Achievement unlocked: ${def?.name ?? id}`, 140);
+      }
+    }
   }
 
   private refreshFordStatus(): void {
@@ -904,6 +1020,7 @@ export class MapScene extends Phaser.Scene {
     }
     this.visited.add(settlement.id);
     this.showToast(`${settlement.name}. ${settlement.note}`, 104);
+    this.refreshAchievements(true);
     this.save();
   }
 }

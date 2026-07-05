@@ -22,6 +22,7 @@ export interface GameSnapshot {
   readonly contractStatus: ContractStatus | null;
   readonly distanceTiles: number;
   readonly deliveries: number;
+  readonly achievements: readonly string[];
 }
 
 export interface SaveData extends GameSnapshot {
@@ -86,6 +87,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     contractStatus: toContractStatus(data.contractStatus),
     distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,
     deliveries: isFiniteNumber(data.deliveries) ? data.deliveries : 0,
+    achievements: toStringArray(data.achievements),
   };
 }
 
