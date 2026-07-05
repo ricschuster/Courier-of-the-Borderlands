@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
+import { createTileMap, getTerrainIdAt, worldToTile } from '../../src/systems/tile-map';
 import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../../src/data/greybridge-map';
 import { TERRAIN_TYPES } from '../../src/data/terrain-types';
 
@@ -39,6 +39,16 @@ describe('getTerrainIdAt', () => {
     expect(getTerrainIdAt(map, -1, 0)).toBeUndefined();
     expect(getTerrainIdAt(map, 3, 0)).toBeUndefined();
     expect(getTerrainIdAt(map, 0, 2)).toBeUndefined();
+  });
+});
+
+describe('worldToTile', () => {
+  it('maps pixel positions to tile coordinates with an origin offset', () => {
+    // tile size 48, origin y = 6
+    expect(worldToTile(0, 6, 48, 0, 6)).toEqual({ x: 0, y: 0 });
+    expect(worldToTile(47, 53, 48, 0, 6)).toEqual({ x: 0, y: 0 });
+    expect(worldToTile(48, 54, 48, 0, 6)).toEqual({ x: 1, y: 1 });
+    expect(worldToTile(960, 534, 48, 0, 6)).toEqual({ x: 20, y: 11 });
   });
 });
 

@@ -53,3 +53,20 @@ export function getTerrainIdAt(map: TileMap, x: number, y: number): string | und
   }
   return map.tiles[y * map.width + x];
 }
+
+/**
+ * Convert a world pixel position to tile coordinates, given the tile size and
+ * the pixel origin of the map's top-left corner.
+ */
+export function worldToTile(
+  worldX: number,
+  worldY: number,
+  tileSize: number,
+  originX: number,
+  originY: number,
+): { x: number; y: number } {
+  return {
+    x: Math.floor((worldX - originX) / tileSize),
+    y: Math.floor((worldY - originY) / tileSize),
+  };
+}
