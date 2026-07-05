@@ -15,9 +15,22 @@ import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
 import { createFog, revealAround, type Fog } from '../systems/fog-of-war';
+import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
+import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
+import {
+  startContract,
+  canPickUp,
+  canDeliver,
+  pickUp,
+  deliver,
+  isDelivered,
+  type Contract,
+  type ContractProgress,
+} from '../systems/contract-system';
 import { Courier } from '../entities/courier';
 
 // Depth layers, from bottom to top.
+const DEPTH_MARKER = 1;
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
 const DEPTH_HUD = 10;
@@ -50,6 +63,9 @@ export class MapScene extends Phaser.Scene {
   private fordStatus!: Phaser.GameObjects.Text;
   private fog!: Fog;
   private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
+  private contract!: Contract;
+  private progress!: ContractProgress;
+  private objective!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'MapScene' });
@@ -58,6 +74,13 @@ export class MapScene extends Phaser.Scene {
   create(): void {
     this.state = createGameState();
     this.gatedBlocks = new Map();
+
+    const firstContract = CONTRACTS_GREYBRIDGE[0];
+    if (firstContract === undefined) {
+      throw new Error('no contracts defined for Greybridge');
+    }
+    this.contract = firstContract;
+    this.progress = startContract(firstContract);
 
     this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
     this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
@@ -80,12 +103,15 @@ export class MapScene extends Phaser.Scene {
     this.physics.add.collider(this.courier.sprite, this.impassable);
 
     this.addSignpost();
+    this.addSettlementMarkers();
     this.addFog();
     this.setupInput();
     this.addHud();
 
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
+
+    this.showToast(this.contract.note);
   }
 
   update(): void {
@@ -102,6 +128,7 @@ export class MapScene extends Phaser.Scene {
     this.courier.setVelocity(velocity.x, velocity.y);
 
     this.revealAroundCourier();
+    this.updateDelivery();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
     this.terrainReadout.setText(
@@ -111,14 +138,12 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
+  private courierTile(): { x: number; y: number } {
+    return worldToTile(this.courier.sprite.x, this.courier.sprite.y, TILE_SIZE, 0, this.mapOriginY);
+  }
+
   private terrainUnderCourier(): string | undefined {
-    const tile = worldToTile(
-      this.courier.sprite.x,
-      this.courier.sprite.y,
-      TILE_SIZE,
-      0,
-      this.mapOriginY,
-    );
+    const tile = this.courierTile();
     return getTerrainIdAt(this.map, tile.x, tile.y);
   }
 
@@ -186,18 +211,54 @@ export class MapScene extends Phaser.Scene {
   }
 
   private revealAroundCourier(): void {
-    const tile = worldToTile(
-      this.courier.sprite.x,
-      this.courier.sprite.y,
-      TILE_SIZE,
-      0,
-      this.mapOriginY,
-    );
+    const tile = this.courierTile();
     const revealed = revealAround(this.fog, tile.x, tile.y, FOG_REVEAL_RADIUS);
     for (const { x, y } of revealed) {
       const index = y * this.map.width + x;
       this.fogRects[index]?.destroy();
       this.fogRects[index] = undefined;
+    }
+  }
+
+  private addSettlementMarkers(): void {
+    for (const settlement of Object.values(SETTLEMENTS)) {
+      const center = this.tileCenter(settlement.tile.x, settlement.tile.y);
+      this.add
+        .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xf2efe4)
+        .setStrokeStyle(2, 0x1a1a1a)
+        .setDepth(DEPTH_MARKER);
+      this.add
+        .text(center.x, center.y + TILE_SIZE * 0.5, settlement.name, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#f2efe4',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_MARKER);
+    }
+  }
+
+  private updateDelivery(): void {
+    if (isDelivered(this.progress)) {
+      return;
+    }
+    const tile = this.courierTile();
+    const settlement = settlementAtTile(tile.x, tile.y);
+    if (settlement === undefined) {
+      return;
+    }
+
+    if (canPickUp(this.progress, this.contract, settlement.id)) {
+      this.progress = pickUp(this.progress);
+      this.showToast(`Collected ${this.contract.cargo} at ${settlement.name}.`);
+      this.refreshObjective();
+    } else if (canDeliver(this.progress, this.contract, settlement.id)) {
+      this.progress = deliver(this.progress);
+      this.showToast(
+        `Delivered ${this.contract.cargo} to ${settlement.name}. ` +
+          `Reward: ${this.contract.reward} coins, +${this.contract.reputation} reputation.`,
+      );
+      this.refreshObjective();
     }
   }
 
@@ -265,6 +326,14 @@ export class MapScene extends Phaser.Scene {
       })
       .setDepth(DEPTH_HUD);
     this.refreshFordStatus();
+    this.objective = this.add
+      .text(8, 58, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#f2d98f',
+      })
+      .setDepth(DEPTH_HUD);
+    this.refreshObjective();
     this.add
       .text(8, GAME_HEIGHT - 22, 'Arrow keys or WASD to drive', {
         fontFamily: 'monospace',
@@ -278,6 +347,27 @@ export class MapScene extends Phaser.Scene {
     const open = isUnlocked(this.state, FORD_UNLOCK);
     this.fordStatus.setText(`Ford: ${open ? 'OPEN' : 'locked'}`);
     this.fordStatus.setColor(open ? '#8fd18f' : '#d18f8f');
+  }
+
+  private refreshObjective(): void {
+    const pickup = SETTLEMENTS[this.contract.pickupId];
+    const destination = SETTLEMENTS[this.contract.destinationId];
+    const pickupName = pickup?.name ?? this.contract.pickupId;
+    const destinationName = destination?.name ?? this.contract.destinationId;
+
+    let text: string;
+    switch (this.progress.status) {
+      case 'accepted':
+        text = `${this.contract.title}: collect ${this.contract.cargo} at ${pickupName}`;
+        break;
+      case 'carrying':
+        text = `${this.contract.title}: deliver to ${destinationName}`;
+        break;
+      case 'delivered':
+        text = `${this.contract.title}: delivered. Well driven.`;
+        break;
+    }
+    this.objective.setText(text);
   }
 
   private showToast(message: string): void {
