@@ -66,7 +66,7 @@ export const SALTREACH_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
-  x: 'ford',
+  x: 'ford-saltreach',
 };
 
 // ---------------------------------------------------------------------------

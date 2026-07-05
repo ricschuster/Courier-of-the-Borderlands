@@ -40,12 +40,17 @@ describe('terrain-system', () => {
     });
 
     it('gates the ford behind its unlock id', () => {
-      expect(isPassableWith('ford', new Set())).toBe(false);
-      expect(isPassableWith('ford', new Set(['ford-crossing']))).toBe(true);
+      expect(isPassableWith('ford-greybridge', new Set())).toBe(false);
+      expect(isPassableWith('ford-greybridge', new Set(['ford-crossing-greybridge']))).toBe(true);
     });
 
     it('treats unknown terrain as blocked', () => {
-      expect(isPassableWith('nope', new Set(['ford-crossing']))).toBe(false);
+      expect(isPassableWith('nope', new Set(['ford-crossing-greybridge']))).toBe(false);
+    });
+
+    it('keeps each region ford independent', () => {
+      expect(isPassableWith('ford-saltreach', new Set(['ford-crossing-greybridge']))).toBe(false);
+      expect(isPassableWith('ford-saltreach', new Set(['ford-crossing-saltreach']))).toBe(true);
     });
   });
 });

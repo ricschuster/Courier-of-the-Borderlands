@@ -81,6 +81,28 @@ function toFogByRegion(data: Record<string, unknown>): Record<string, number[]> 
 }
 
 /**
+ * Legacy unlock id from when the ford was a single global unlock shared by
+ * every region. The ford terrain was later split per region (see
+ * terrain-types.ts), so this id no longer matches any terrain's unlockId.
+ */
+const LEGACY_FORD_UNLOCK = 'ford-crossing';
+
+/** Unlock id the legacy global ford unlock maps to (Greybridge stays open). */
+const MIGRATED_FORD_UNLOCK = 'ford-crossing-greybridge';
+
+/**
+ * Migrate unlock ids from older saves. A save made before the ford unlock
+ * was split per region may still contain the legacy 'ford-crossing' id; map
+ * it to Greybridge's ford so an existing player keeps their unlocked ford
+ * rather than finding it locked again. Saltreach's ford was never reachable
+ * under the old id, so it is not granted here.
+ */
+export function migrateUnlocks(ids: readonly string[]): string[] {
+  const migrated = ids.map((id) => (id === LEGACY_FORD_UNLOCK ? MIGRATED_FORD_UNLOCK : id));
+  return [...new Set(migrated)];
+}
+
+/**
  * Validate and parse raw save data. Returns null for anything that is not a
  * current-version save, so a corrupt or outdated save falls back to a new game.
  */
@@ -95,7 +117,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
   return {
     coins: isFiniteNumber(data.coins) ? data.coins : 0,
     reputation: toReputation(data.reputation),
-    unlocks: toStringArray(data.unlocks),
+    unlocks: migrateUnlocks(toStringArray(data.unlocks)),
     upgrades: toStringArray(data.upgrades),
     completed: toStringArray(data.completed),
     visited: toStringArray(data.visited),

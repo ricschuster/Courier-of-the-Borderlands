@@ -5,6 +5,7 @@ import {
   settlementAtTileIn,
   totalSettlementCount,
   GREYBRIDGE_REGION,
+  SALTREACH_REGION,
 } from '../../src/systems/region-system';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
@@ -66,5 +67,16 @@ describe('region-system', () => {
       0,
     );
     expect(totalSettlementCount()).toBe(expected);
+  });
+
+  it('each region has its own ford unlock id, so unlocking one does not unlock the other', () => {
+    expect(GREYBRIDGE_REGION.fordUnlockId).toBeDefined();
+    expect(SALTREACH_REGION.fordUnlockId).toBeDefined();
+    expect(GREYBRIDGE_REGION.fordUnlockId).not.toBe(SALTREACH_REGION.fordUnlockId);
+  });
+
+  it('saltreach has its own signpost for its ford unlock', () => {
+    expect(SALTREACH_REGION.signpost).toBeDefined();
+    expect(GREYBRIDGE_REGION.signpost).toBeDefined();
   });
 });

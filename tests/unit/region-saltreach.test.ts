@@ -31,7 +31,7 @@ describe('Saltreach map', () => {
 
   it('has at least one ford', () => {
     const map = createTileMap(SALTREACH_ROWS, SALTREACH_LEGEND);
-    expect(map.tiles.some((t) => t === 'ford')).toBe(true);
+    expect(map.tiles.some((t) => t === 'ford-saltreach')).toBe(true);
   });
 });
 

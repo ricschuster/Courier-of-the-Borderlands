@@ -32,12 +32,22 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   mountain: { id: 'mountain', name: 'Mountain', color: 0x6b6b6b, passable: false, speedModifier: 0 },
   // Ford: a shallow crossing that starts blocked and opens as an unlockable
   // shortcut. Slower than the bridge, but a shorter route across the south.
-  ford: {
-    id: 'ford',
+  // Each region has its own ford terrain and unlock id so opening one
+  // region's ford does not open another region's ford.
+  'ford-greybridge': {
+    id: 'ford-greybridge',
     name: 'Ford',
     color: 0x3a6a8a,
     passable: false,
     speedModifier: 0.7,
-    unlockId: 'ford-crossing',
+    unlockId: 'ford-crossing-greybridge',
+  },
+  'ford-saltreach': {
+    id: 'ford-saltreach',
+    name: 'Ford',
+    color: 0x3a6a8a,
+    passable: false,
+    speedModifier: 0.7,
+    unlockId: 'ford-crossing-saltreach',
   },
 };
