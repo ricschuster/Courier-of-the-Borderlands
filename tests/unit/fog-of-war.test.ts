@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { createFog, isRevealed, revealAround } from '../../src/systems/fog-of-war';
+import {
+  createFog,
+  isRevealed,
+  revealAround,
+  revealedIndices,
+  fogFromRevealed,
+} from '../../src/systems/fog-of-war';
 
 describe('fog-of-war', () => {
   it('starts fully hidden', () => {
@@ -37,6 +43,24 @@ describe('fog-of-war', () => {
     const keys = moved.map((t) => `${t.x},${t.y}`);
     expect(keys).toContain('3,1');
     expect(keys).not.toContain('2,1');
+  });
+
+  it('round-trips through revealed indices for saving', () => {
+    const fog = createFog(6, 3);
+    revealAround(fog, 1, 1, 1);
+    const indices = revealedIndices(fog);
+    const restored = fogFromRevealed(6, 3, indices);
+    expect(restored.revealed).toEqual(fog.revealed);
+    // Spot-check a revealed and an unrevealed tile survived the round trip.
+    expect(isRevealed(restored, 1, 1)).toBe(true);
+    expect(isRevealed(restored, 5, 2)).toBe(false);
+  });
+
+  it('ignores out-of-range indices when rebuilding', () => {
+    const fog = fogFromRevealed(3, 3, [0, 8, -1, 99]);
+    expect(isRevealed(fog, 0, 0)).toBe(true);
+    expect(isRevealed(fog, 2, 2)).toBe(true);
+    expect(revealedIndices(fog)).toEqual([0, 8]);
   });
 
   it('clamps to map bounds without error', () => {

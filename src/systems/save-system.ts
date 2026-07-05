@@ -1,0 +1,132 @@
+// Save/resume for the game. The serialize/deserialize functions are pure and
+// unit tested. The read/write helpers are a thin, guarded wrapper over
+// localStorage so the game keeps running even where storage is unavailable.
+import type { ContractStatus } from './contract-system';
+
+export const SAVE_VERSION = 1;
+export const SAVE_KEY = 'courier-of-the-borderlands/save';
+
+/** Plain, JSON-serializable snapshot of everything worth persisting. */
+export interface GameSnapshot {
+  readonly coins: number;
+  readonly reputation: Record<string, number>;
+  readonly unlocks: readonly string[];
+  readonly upgrades: readonly string[];
+  readonly completed: readonly string[];
+  readonly visited: readonly string[];
+  readonly fogWidth: number;
+  readonly fogHeight: number;
+  /** Row-major indices of revealed tiles. */
+  readonly revealed: readonly number[];
+  readonly activeContractId: string | null;
+  readonly contractStatus: ContractStatus | null;
+}
+
+export interface SaveData extends GameSnapshot {
+  readonly version: number;
+}
+
+export function serialize(snapshot: GameSnapshot): SaveData {
+  return { version: SAVE_VERSION, ...snapshot };
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function toNumberArray(value: unknown): number[] {
+  return Array.isArray(value) ? value.filter(isFiniteNumber) : [];
+}
+
+function toReputation(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof value === 'object' && value !== null) {
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      if (isFiniteNumber(val)) {
+        out[key] = val;
+      }
+    }
+  }
+  return out;
+}
+
+function toContractStatus(value: unknown): ContractStatus | null {
+  return value === 'accepted' || value === 'carrying' || value === 'delivered' ? value : null;
+}
+
+/**
+ * Validate and parse raw save data. Returns null for anything that is not a
+ * current-version save, so a corrupt or outdated save falls back to a new game.
+ */
+export function deserialize(raw: unknown): GameSnapshot | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const data = raw as Record<string, unknown>;
+  if (data.version !== SAVE_VERSION) {
+    return null;
+  }
+  return {
+    coins: isFiniteNumber(data.coins) ? data.coins : 0,
+    reputation: toReputation(data.reputation),
+    unlocks: toStringArray(data.unlocks),
+    upgrades: toStringArray(data.upgrades),
+    completed: toStringArray(data.completed),
+    visited: toStringArray(data.visited),
+    fogWidth: isFiniteNumber(data.fogWidth) ? data.fogWidth : 0,
+    fogHeight: isFiniteNumber(data.fogHeight) ? data.fogHeight : 0,
+    revealed: toNumberArray(data.revealed),
+    activeContractId: typeof data.activeContractId === 'string' ? data.activeContractId : null,
+    contractStatus: toContractStatus(data.contractStatus),
+  };
+}
+
+function storage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    // Accessing localStorage can throw (for example in some privacy modes).
+    return null;
+  }
+}
+
+export function writeSave(snapshot: GameSnapshot): void {
+  const store = storage();
+  if (store === null) {
+    return;
+  }
+  try {
+    store.setItem(SAVE_KEY, JSON.stringify(serialize(snapshot)));
+  } catch {
+    // Ignore quota or serialization failures; the game keeps running.
+  }
+}
+
+export function loadSave(): GameSnapshot | null {
+  const store = storage();
+  if (store === null) {
+    return null;
+  }
+  try {
+    const raw = store.getItem(SAVE_KEY);
+    return raw === null ? null : deserialize(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function clearSave(): void {
+  const store = storage();
+  if (store === null) {
+    return;
+  }
+  try {
+    store.removeItem(SAVE_KEY);
+  } catch {
+    // Ignore.
+  }
+}

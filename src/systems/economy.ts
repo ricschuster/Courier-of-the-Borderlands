@@ -12,6 +12,11 @@ export function createLedger(startingCoins: number = 0): Ledger {
   return { coins: Math.max(0, startingCoins), reputation: {} };
 }
 
+/** Rebuild a ledger from saved values (coins clamped to >= 0; reputation copied). */
+export function ledgerFrom(coins: number, reputation: Readonly<Record<string, number>>): Ledger {
+  return { coins: Math.max(0, coins), reputation: { ...reputation } };
+}
+
 /** Return a new ledger with coins adjusted by amount. Result is clamped to >= 0. */
 export function addCoins(ledger: Ledger, amount: number): Ledger {
   return { ...ledger, coins: Math.max(0, ledger.coins + amount) };

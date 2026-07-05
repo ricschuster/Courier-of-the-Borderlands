@@ -29,4 +29,13 @@ test('boots and renders the Greybridge map without runtime errors', async ({ pag
   await page.waitForTimeout(1500);
 
   expect(errors, `runtime errors detected:\n${errors.join('\n')}`).toEqual([]);
+
+  // The game writes a versioned save to localStorage on boot.
+  const save = await page.evaluate(() =>
+    localStorage.getItem('courier-of-the-borderlands/save'),
+  );
+  expect(save, 'a save should be written to localStorage').not.toBeNull();
+  const parsed = JSON.parse(save ?? '{}');
+  expect(parsed.version).toBe(1);
+  expect(parsed.fogWidth).toBe(20);
 });

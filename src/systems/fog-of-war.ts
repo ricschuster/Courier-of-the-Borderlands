@@ -25,6 +25,28 @@ export function isRevealed(fog: Fog, x: number, y: number): boolean {
   return fog.revealed[y * fog.width + x] === true;
 }
 
+/** Row-major indices of every revealed tile. Compact form for saving. */
+export function revealedIndices(fog: Fog): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < fog.revealed.length; i++) {
+    if (fog.revealed[i] === true) {
+      indices.push(i);
+    }
+  }
+  return indices;
+}
+
+/** Rebuild a fog of the given size with the listed indices already revealed. */
+export function fogFromRevealed(width: number, height: number, indices: readonly number[]): Fog {
+  const fog = createFog(width, height);
+  for (const index of indices) {
+    if (index >= 0 && index < fog.revealed.length) {
+      fog.revealed[index] = true;
+    }
+  }
+  return fog;
+}
+
 /**
  * Reveal every tile within `radius` (Euclidean, in tiles) of the centre.
  * Mutates the fog and returns the tiles revealed by this call, so callers can

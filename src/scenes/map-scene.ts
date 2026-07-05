@@ -14,8 +14,9 @@ import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../sys
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
-import { createFog, revealAround, type Fog } from '../systems/fog-of-war';
-import { addCoins, addReputation, totalReputation, tierFor } from '../systems/economy';
+import { createFog, revealAround, revealedIndices, type Fog } from '../systems/fog-of-war';
+import { addCoins, addReputation, ledgerFrom, totalReputation, tierFor } from '../systems/economy';
+import { loadSave, writeSave, clearSave, type GameSnapshot } from '../systems/save-system';
 import { speedMultiplier, purchase, isPurchased, canAfford } from '../systems/upgrade-system';
 import { SETTLEMENTS, settlementAtTile } from '../data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../data/contracts-greybridge';
@@ -81,6 +82,7 @@ export class MapScene extends Phaser.Scene {
   private objective!: Phaser.GameObjects.Text;
   private board!: Phaser.GameObjects.Text;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
+  private newGameKey!: Phaser.Input.Keyboard.Key;
   private visited = new Set<string>();
 
   constructor() {
@@ -88,17 +90,17 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.state = createGameState();
     this.gatedBlocks = new Map();
-    this.visited = new Set();
-    this.completed = new Set();
-    this.activeContract = undefined;
-    this.progress = undefined;
+
+    // Restore a saved game if one exists; otherwise start fresh.
+    const snapshot = loadSave();
+    this.restoreState(snapshot);
 
     this.map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
     this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
 
     this.drawTiles();
+    // Colliders read the restored unlock set, so an unlocked ford stays open.
     this.addImpassableColliders();
 
     this.physics.world.setBounds(
@@ -115,16 +117,90 @@ export class MapScene extends Phaser.Scene {
     this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.impassable);
 
-    this.addSignpost();
+    // The signpost only matters while the ford is still locked.
+    if (!isUnlocked(this.state, FORD_UNLOCK)) {
+      this.addSignpost();
+    }
     this.addSettlementMarkers();
     this.addFog();
+    this.restoreFog(snapshot);
     this.setupInput();
     this.addHud();
 
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
 
-    this.showToast('Drive into Greywater to accept a contract from the board.');
+    // Autosave periodically so exploration progress persists.
+    this.time.addEvent({ delay: 2000, loop: true, callback: () => this.save() });
+    this.save();
+
+    this.showToast(
+      snapshot === null
+        ? 'Drive into Greywater to accept a contract from the board.'
+        : 'Progress restored. Press N for a new game.',
+    );
+  }
+
+  /** Load state from a snapshot, or reset to a fresh game if snapshot is null. */
+  private restoreState(snapshot: GameSnapshot | null): void {
+    this.state = createGameState();
+    this.completed = new Set();
+    this.visited = new Set();
+    this.activeContract = undefined;
+    this.progress = undefined;
+
+    if (snapshot === null) {
+      return;
+    }
+
+    snapshot.unlocks.forEach((id) => this.state.unlocks.add(id));
+    this.state.upgrades = new Set(snapshot.upgrades);
+    this.state.ledger = ledgerFrom(snapshot.coins, snapshot.reputation);
+    this.completed = new Set(snapshot.completed);
+    this.visited = new Set(snapshot.visited);
+
+    if (snapshot.activeContractId !== null && snapshot.contractStatus !== null) {
+      const contract = CONTRACTS_GREYBRIDGE.find((c) => c.id === snapshot.activeContractId);
+      if (contract !== undefined && !this.completed.has(contract.id)) {
+        this.activeContract = contract;
+        this.progress = { contractId: contract.id, status: snapshot.contractStatus };
+      }
+    }
+  }
+
+  /** Re-reveal previously explored tiles from a snapshot (if the map matches). */
+  private restoreFog(snapshot: GameSnapshot | null): void {
+    if (
+      snapshot === null ||
+      snapshot.fogWidth !== this.map.width ||
+      snapshot.fogHeight !== this.map.height
+    ) {
+      return;
+    }
+    for (const index of snapshot.revealed) {
+      if (index < 0 || index >= this.fog.revealed.length) {
+        continue;
+      }
+      this.fog.revealed[index] = true;
+      this.fogRects[index]?.destroy();
+      this.fogRects[index] = undefined;
+    }
+  }
+
+  private save(): void {
+    writeSave({
+      coins: this.state.ledger.coins,
+      reputation: { ...this.state.ledger.reputation },
+      unlocks: [...this.state.unlocks],
+      upgrades: [...this.state.upgrades],
+      completed: [...this.completed],
+      visited: [...this.visited],
+      fogWidth: this.fog.width,
+      fogHeight: this.fog.height,
+      revealed: revealedIndices(this.fog),
+      activeContractId: this.activeContract?.id ?? null,
+      contractStatus: this.progress?.status ?? null,
+    });
   }
 
   update(): void {
@@ -146,6 +222,7 @@ export class MapScene extends Phaser.Scene {
     this.checkArrival();
     this.handleBoardInput();
     this.handlePurchaseInput();
+    this.handleResetInput();
     this.refreshBoard();
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
@@ -273,6 +350,7 @@ export class MapScene extends Phaser.Scene {
       this.progress = pickUp(progress);
       this.showToast(`Collected ${contract.cargo} at ${settlement.name}.`);
       this.refreshObjective();
+      this.save();
     } else if (canDeliver(progress, contract, settlement.id)) {
       this.completeDelivery(contract, settlement.id, settlement.name);
     }
@@ -290,6 +368,7 @@ export class MapScene extends Phaser.Scene {
     );
     this.refreshObjective();
     this.refreshWallet();
+    this.save();
   }
 
   /** Contracts not yet delivered, in their canonical order. */
@@ -314,6 +393,7 @@ export class MapScene extends Phaser.Scene {
     this.progress = progress;
     this.showToast(`Accepted: ${contract.title}. ${contract.note}`);
     this.refreshObjective();
+    this.save();
   }
 
   private handleBoardInput(): void {
@@ -382,6 +462,14 @@ export class MapScene extends Phaser.Scene {
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     this.showToast(`Fitted ${STARTER_UPGRADE.name}. The wagon feels quicker.`);
     this.refreshWallet();
+    this.save();
+  }
+
+  private handleResetInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.newGameKey)) {
+      clearSave();
+      this.scene.restart();
+    }
   }
 
   private refreshWallet(): void {
@@ -393,7 +481,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshHint(): void {
-    const base = 'Arrow keys or WASD to drive.';
+    const base = 'Arrow keys or WASD to drive.  N: new game.';
     if (STARTER_UPGRADE === undefined) {
       this.hint.setText(base);
       return;
@@ -440,6 +528,7 @@ export class MapScene extends Phaser.Scene {
     this.gatedBlocks.delete(id);
     this.refreshFordStatus();
     this.showToast('Shortcut unlocked: the ford is open.');
+    this.save();
     return true;
   }
 
@@ -451,6 +540,7 @@ export class MapScene extends Phaser.Scene {
     this.cursors = keyboard.createCursorKeys();
     this.wasd = keyboard.addKeys('W,A,S,D') as WasdKeys;
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+    this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -565,5 +655,6 @@ export class MapScene extends Phaser.Scene {
     }
     this.visited.add(settlement.id);
     this.showToast(`${settlement.name}. ${settlement.note}`, 104);
+    this.save();
   }
 }

@@ -1,12 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import {
   createLedger,
+  ledgerFrom,
   addCoins,
   addReputation,
   reputationWith,
   totalReputation,
   tierFor,
 } from '../../src/systems/economy';
+
+describe('ledgerFrom', () => {
+  it('rebuilds a ledger, clamps coins, and copies reputation', () => {
+    const reputation = { eastwatch: 2 };
+    const ledger = ledgerFrom(-5, reputation);
+    expect(ledger.coins).toBe(0);
+    expect(ledger.reputation).toEqual({ eastwatch: 2 });
+    // Must be a copy, not the same reference.
+    expect(ledger.reputation).not.toBe(reputation);
+  });
+});
 
 describe('createLedger', () => {
   it('defaults to 0 coins and empty reputation', () => {
