@@ -115,6 +115,7 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     reputation: 2,
     minReputation: 0,
     note: 'The harbormaster presses a bundle of wax-sealed parcels on you. What is in them is not your concern, and the reed-cutters will not ask.',
+    cargoType: 'goods',
   },
   {
     id: 'saltreach-tide-to-keep',
@@ -126,6 +127,7 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 3,
     note: 'The garrison has not received its monthly accounts. No one at Tidewatch will say why the last courier did not return.',
+    cargoType: 'goods',
   },
   {
     id: 'saltreach-tide-to-cormorant',
@@ -137,6 +139,7 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 6,
     note: 'The letter has no seal, no name, and no return address. The person who gave it to you was already gone before you could ask a single question.',
+    cargoType: 'secrets',
   },
 ];
 

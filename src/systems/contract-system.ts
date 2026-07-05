@@ -3,6 +3,8 @@
 // A delivery moves through three states: the courier accepts a contract, picks
 // up the cargo at its pickup settlement, then delivers it at its destination.
 
+import type { CargoCategoryId } from './cargo-types';
+
 export type ContractStatus = 'accepted' | 'carrying' | 'delivered';
 
 export interface Contract {
@@ -21,6 +23,8 @@ export interface Contract {
   readonly minReputation: number;
   /** Short story flavour for the delivery. */
   readonly note: string;
+  /** Cargo category driving the pay modifier. Falls back to the default when omitted. */
+  readonly cargoType?: CargoCategoryId;
 }
 
 export interface ContractProgress {

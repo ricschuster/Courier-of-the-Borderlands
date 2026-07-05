@@ -29,6 +29,7 @@ import { buildMinimap } from '../systems/minimap';
 import { buildJournal } from '../systems/journal';
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor, applyRewardBonus } from '../systems/reputation-perks';
+import { getCargoCategory, cargoPayout } from '../systems/cargo-types';
 import {
   createTripLog,
   addDistance,
@@ -495,9 +496,12 @@ export class MapScene extends Phaser.Scene {
   }
 
   private completeDelivery(contract: Contract, settlementId: string, settlementName: string): void {
+    // Cargo type scales the base reward before reputation is applied.
+    const cargoCategory = getCargoCategory(contract.cargoType);
+    const baseReward = cargoPayout(contract.reward, contract.cargoType);
     // Higher standing pays better; the reward scales with total reputation.
     const reputation = totalReputation(this.state.ledger);
-    const payout = applyRewardBonus(contract.reward, reputation);
+    const payout = applyRewardBonus(baseReward, reputation);
     const perk = perkFor(reputation);
 
     // Optional bonus objective for this contract.
@@ -517,11 +521,15 @@ export class MapScene extends Phaser.Scene {
     this.activeContract = undefined;
     this.progress = undefined;
 
-    const perkNote = payout > contract.reward ? ` (${perk.label})` : '';
+    // Compare against the cargo-adjusted base so the perk note reflects a
+    // reputation boost, not the cargo pay modifier.
+    const perkNote = payout > baseReward ? ` (${perk.label})` : '';
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
+    const cargoNote =
+      cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
     this.showToast(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${payout} coins${perkNote}, +${contract.reputation} reputation.${bonusNote}`,
+        `Reward: ${payout} coins${perkNote}, +${contract.reputation} reputation.${bonusNote}${cargoNote}`,
     );
     this.refreshObjective();
     this.refreshWallet();
@@ -605,8 +613,9 @@ export class MapScene extends Phaser.Scene {
       const locked = canAccept(contract, reputation)
         ? ''
         : `   [needs ${contract.minReputation} rep]`;
+      const cargoTag = getCargoCategory(contract.cargoType).tag;
       lines.push(
-        `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}`,
+        `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>`,
       );
       const bonus = bonusFor(contract.id);
       if (bonus !== undefined) {

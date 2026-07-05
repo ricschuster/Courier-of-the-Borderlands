@@ -4,6 +4,7 @@ import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../../src/data/greybridge-ma
 import { SETTLEMENTS, settlementAtTile } from '../../src/data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../../src/data/contracts-greybridge';
 import { isPassable } from '../../src/systems/terrain-system';
+import { CARGO_CATEGORIES } from '../../src/systems/cargo-types';
 
 const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
 
@@ -62,5 +63,13 @@ describe('Greybridge contracts', () => {
 
   it('offers at least one contract at zero reputation so the game is startable', () => {
     expect(CONTRACTS_GREYBRIDGE.some((c) => c.minReputation === 0)).toBe(true);
+  });
+
+  it('has a known cargoType where set', () => {
+    for (const contract of CONTRACTS_GREYBRIDGE) {
+      if (contract.cargoType !== undefined) {
+        expect(CARGO_CATEGORIES[contract.cargoType], `${contract.id} cargoType`).toBeDefined();
+      }
+    }
   });
 });
