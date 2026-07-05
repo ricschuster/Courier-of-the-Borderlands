@@ -52,6 +52,7 @@ import {
   totalSettlementCount,
   DEFAULT_REGION_ID,
   type Region,
+  type RegionGateway,
 } from '../systems/region-system';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
@@ -180,7 +181,7 @@ export class MapScene extends Phaser.Scene {
       this.addSignpost(this.region.signpost, this.region.fordUnlockId);
     }
     this.addSettlementMarkers();
-    this.addGatewayMarker();
+    this.addGatewayMarkers();
     this.addFog();
     this.restoreFog();
     this.setupInput();
@@ -685,9 +686,9 @@ export class MapScene extends Phaser.Scene {
   private refreshHint(): void {
     const base = 'WASD/arrows drive.  M: map  J: journal  L: codex  N: new game.';
     const tile = this.courierTile();
-    const atGateway = tile.x === this.region.gateway.x && tile.y === this.region.gateway.y;
-    if (atGateway && this.activeContract === undefined) {
-      const other = getRegion(this.region.connectsTo).name;
+    const gateway = this.gatewayAtTile(tile);
+    if (gateway !== undefined && this.activeContract === undefined) {
+      const other = getRegion(gateway.to).name;
       this.hint.setText(`${base}  Press T to travel to ${other}.`);
       return;
     }
@@ -724,21 +725,33 @@ export class MapScene extends Phaser.Scene {
     });
   }
 
-  private addGatewayMarker(): void {
-    const center = this.tileCenter(this.region.gateway.x, this.region.gateway.y);
-    this.add
-      .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-      .setStrokeStyle(2, 0x6fd0e0)
-      .setDepth(DEPTH_MARKER);
-    const destName = getRegion(this.region.connectsTo).name;
-    this.add
-      .text(center.x, center.y - TILE_SIZE * 0.55, `to ${destName}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#6fd0e0',
-      })
-      .setOrigin(0.5)
-      .setDepth(DEPTH_MARKER);
+  private addGatewayMarkers(): void {
+    for (const gateway of this.region.gateways) {
+      const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
+      this.add
+        .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
+        .setStrokeStyle(2, 0x6fd0e0)
+        .setDepth(DEPTH_MARKER);
+      const destName = getRegion(gateway.to).name;
+      this.add
+        .text(center.x, center.y - TILE_SIZE * 0.55, `to ${destName}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#6fd0e0',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_MARKER);
+    }
+  }
+
+  /** Gateway at the given tile, if the courier is standing on one. */
+  private gatewayAtTile(tile: { x: number; y: number }): RegionGateway | undefined {
+    return this.region.gateways.find((g) => g.tile.x === tile.x && g.tile.y === tile.y);
+  }
+
+  /** Names of every region reachable from this one, for hint and summary text. */
+  private gatewayDestinationNames(): string {
+    return this.region.gateways.map((g) => getRegion(g.to).name).join(' or ');
   }
 
   private handleTravelInput(): void {
@@ -746,7 +759,8 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     const tile = this.courierTile();
-    if (tile.x !== this.region.gateway.x || tile.y !== this.region.gateway.y) {
+    const gateway = this.gatewayAtTile(tile);
+    if (gateway === undefined) {
       return;
     }
     if (this.activeContract !== undefined) {
@@ -754,7 +768,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.save();
-    this.scene.restart({ regionId: this.region.connectsTo } satisfies MapSceneData);
+    this.scene.restart({ regionId: gateway.to } satisfies MapSceneData);
   }
 
   /** Unlock a feature and open any tiles it gated. Returns true if newly unlocked. */
@@ -989,14 +1003,14 @@ export class MapScene extends Phaser.Scene {
       this.summaryPanel.setVisible(false);
       return;
     }
-    const otherName = getRegion(this.region.connectsTo).name;
+    const otherNames = this.gatewayDestinationNames();
     const lines = [
       `${this.region.name} Cleared`,
       '',
       ...summary.lines,
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
-      `Reach the gateway and press T to travel to ${otherName}.`,
+      `Reach the gateway and press T to travel to ${otherNames}.`,
       'Press N for a new run.',
     ];
     this.summaryPanel.setText(lines.join('\n'));
@@ -1053,7 +1067,7 @@ export class MapScene extends Phaser.Scene {
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     if (contract === undefined || progress === undefined) {
       if (this.boardContracts().length === 0) {
-        const other = getRegion(this.region.connectsTo).name;
+        const other = this.gatewayDestinationNames();
         this.objective.setText(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
       } else if (this.atSettlement(this.region.home)) {
         this.objective.setText('Choose a contract from the board.');

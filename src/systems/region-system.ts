@@ -1,6 +1,6 @@
 // Regions as data. Each region bundles its map, settlements, contracts, spawn,
-// and a gateway tile that links to another region. The scene loads the active
-// region from this registry and rebuilds itself from it.
+// and a list of gateway tiles that link to other regions. The scene loads the
+// active region from this registry and rebuilds itself from it.
 import type { Settlement } from '../data/settlements-greybridge';
 import type { Contract } from './contract-system';
 import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../data/greybridge-map';
@@ -12,12 +12,25 @@ import {
   SALTREACH_SETTLEMENTS,
   SALTREACH_CONTRACTS,
   SALTREACH_SPAWN,
-  SALTREACH_GATEWAY,
 } from '../data/region-saltreach';
+import {
+  FENMARCH_ROWS,
+  FENMARCH_LEGEND,
+  FENMARCH_SETTLEMENTS,
+  FENMARCH_CONTRACTS,
+  FENMARCH_SPAWN,
+  FENMARCH_HOME,
+} from '../data/region-fenmarch';
 
 export interface TileCoord {
   readonly x: number;
   readonly y: number;
+}
+
+/** A tile that travels to another region, and the region id it leads to. */
+export interface RegionGateway {
+  readonly tile: TileCoord;
+  readonly to: string;
 }
 
 export interface Region {
@@ -30,10 +43,8 @@ export interface Region {
   /** Settlement id that hosts the contract board and upgrade shop. */
   readonly home: string;
   readonly spawn: TileCoord;
-  /** Tile that travels to the connected region when reached. */
-  readonly gateway: TileCoord;
-  /** Region id reachable through the gateway. */
-  readonly connectsTo: string;
+  /** Tiles that travel to a connected region when reached. A region may have more than one. */
+  readonly gateways: readonly RegionGateway[];
   /** Optional signpost tile that unlocks the ford (only where the mechanic lives). */
   readonly signpost?: TileCoord;
   /** Unlock id for this region's own ford crossing, if it has one. */
@@ -49,8 +60,7 @@ export const GREYBRIDGE_REGION: Region = {
   contracts: CONTRACTS_GREYBRIDGE,
   home: 'greywater',
   spawn: { x: 1, y: 5 },
-  gateway: { x: 19, y: 5 },
-  connectsTo: 'saltreach',
+  gateways: [{ tile: { x: 19, y: 5 }, to: 'saltreach' }],
   signpost: { x: 8, y: 8 },
   fordUnlockId: 'ford-crossing-greybridge',
 };
@@ -64,15 +74,30 @@ export const SALTREACH_REGION: Region = {
   contracts: SALTREACH_CONTRACTS,
   home: 'tidewatch',
   spawn: SALTREACH_SPAWN,
-  gateway: SALTREACH_GATEWAY,
-  connectsTo: 'greybridge',
+  gateways: [
+    { tile: { x: 0, y: 5 }, to: 'greybridge' },
+    { tile: { x: 19, y: 5 }, to: 'fenmarch' },
+  ],
   signpost: { x: 6, y: 6 },
   fordUnlockId: 'ford-crossing-saltreach',
+};
+
+export const FENMARCH_REGION: Region = {
+  id: 'fenmarch',
+  name: 'Fenmarch',
+  rows: FENMARCH_ROWS,
+  legend: FENMARCH_LEGEND,
+  settlements: FENMARCH_SETTLEMENTS,
+  contracts: FENMARCH_CONTRACTS,
+  home: FENMARCH_HOME,
+  spawn: FENMARCH_SPAWN,
+  gateways: [{ tile: { x: 0, y: 5 }, to: 'saltreach' }],
 };
 
 export const REGIONS: Readonly<Record<string, Region>> = {
   greybridge: GREYBRIDGE_REGION,
   saltreach: SALTREACH_REGION,
+  fenmarch: FENMARCH_REGION,
 };
 
 export const DEFAULT_REGION_ID = 'greybridge';

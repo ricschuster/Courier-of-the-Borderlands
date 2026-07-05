@@ -11,8 +11,8 @@ import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
 
 describe('region-system', () => {
-  it('registers greybridge and saltreach', () => {
-    expect(Object.keys(REGIONS).sort()).toEqual(['greybridge', 'saltreach']);
+  it('registers greybridge, saltreach, and fenmarch', () => {
+    expect(Object.keys(REGIONS).sort()).toEqual(['fenmarch', 'greybridge', 'saltreach']);
   });
 
   it('getRegion falls back to greybridge for unknown ids', () => {
@@ -20,19 +20,39 @@ describe('region-system', () => {
     expect(getRegion('saltreach').id).toBe('saltreach');
   });
 
-  it('every region has a valid map, passable spawn and gateway, and links back', () => {
+  it('every region has a valid map, passable spawn and gateways, and links back', () => {
     for (const region of Object.values(REGIONS)) {
       const map = createTileMap(region.rows, region.legend);
-      for (const tile of [region.spawn, region.gateway]) {
+      const tiles = [region.spawn, ...region.gateways.map((g) => g.tile)];
+      for (const tile of tiles) {
         const terrainId = getTerrainIdAt(map, tile.x, tile.y);
         expect(terrainId, `${region.id} tile off map`).toBeDefined();
         expect(isPassable(terrainId as string), `${region.id} tile impassable`).toBe(true);
       }
-      // The connected region exists and links back to this one.
-      const other = REGIONS[region.connectsTo];
-      expect(other, `${region.id} connectsTo missing`).toBeDefined();
-      expect(other?.connectsTo).toBe(region.id);
+      // Every gateway's destination region exists and links back to this one.
+      for (const gateway of region.gateways) {
+        const other = REGIONS[gateway.to];
+        expect(other, `${region.id} gateway to '${gateway.to}' missing`).toBeDefined();
+        const linksBack = other?.gateways.some((g) => g.to === region.id) ?? false;
+        expect(linksBack, `${gateway.to} does not link back to ${region.id}`).toBe(true);
+      }
     }
+  });
+
+  it('forms the expected chain: greybridge <-> saltreach <-> fenmarch', () => {
+    const greybridge = REGIONS.greybridge;
+    const saltreach = REGIONS.saltreach;
+    const fenmarch = REGIONS.fenmarch;
+    expect(greybridge?.gateways.map((g) => g.to)).toEqual(['saltreach']);
+    expect(saltreach?.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'greybridge']);
+    expect(fenmarch?.gateways.map((g) => g.to)).toEqual(['saltreach']);
+  });
+
+  it('saltreach has two gateways, one to greybridge and one to fenmarch', () => {
+    const saltreach = REGIONS.saltreach;
+    expect(saltreach?.gateways).toHaveLength(2);
+    expect(saltreach?.gateways.some((g) => g.to === 'greybridge')).toBe(true);
+    expect(saltreach?.gateways.some((g) => g.to === 'fenmarch')).toBe(true);
   });
 
   it('settlements sit on passable tiles and look up by tile', () => {
