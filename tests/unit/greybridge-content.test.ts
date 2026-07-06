@@ -28,11 +28,13 @@ describe('Greybridge settlements', () => {
     expect(settlementAtTile(-1, -1)).toBeUndefined();
   });
 
-  it('contains all four expected settlements', () => {
+  it('contains all six expected settlements', () => {
     expect(SETTLEMENTS.greywater).toBeDefined();
+    expect(SETTLEMENTS.northcairn).toBeDefined();
     expect(SETTLEMENTS.eastwatch).toBeDefined();
     expect(SETTLEMENTS.southmill).toBeDefined();
     expect(SETTLEMENTS.ironhollow).toBeDefined();
+    expect(SETTLEMENTS.mirewatch).toBeDefined();
   });
 });
 

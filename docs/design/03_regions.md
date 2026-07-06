@@ -13,7 +13,9 @@ Each region is a typed data record with these fields:
 - `gateways` -- a list of gateway tiles, each pairing a tile at the map edge with the region id it leads to. A region may link to more than one neighbor.
 - `fordUnlockId` (optional) -- the unlock id for this region's own ford crossing, if it has one. Each ford is a separate unlock, so opening one region's ford does not open another's.
 
-All current maps are 20 columns by 11 rows. All regions reuse the shared terrain types defined in `src/data/terrain-types.ts`. Region-specific content (settlements, contracts, map layout) lives in separate data modules under `src/data/`.
+Greybridge, the hub, is 30 columns by 22 rows (about three viewport-screens); the two spokes are 20 columns by 11 rows. Maps larger than the 20x11 viewport scroll with a following camera (see the camera notes in the handoffs). All regions reuse the shared terrain types defined in `src/data/terrain-types.ts`. Region-specific content (settlements, contracts, map layout) lives in separate data modules under `src/data/`.
+
+Greybridge holds six settlements (Greywater the home town, Northcairn on the northern moor, Eastwatch across the river, Southmill and Mirewatch in the south-east, and Ironhollow in the south-west mountains) and five contracts. A river splits the region top to bottom, crossed by an open northern bridge, the main central bridge, and a southern ford that starts locked and opens as an unlockable shortcut toward the south-east. Terrain variety was added for the larger map: `hills` (northern moor, slower than plains) and `marsh` (south-east reeds, the slowest passable terrain).
 
 ## Region registry
 
@@ -68,3 +70,5 @@ Each region has its own map, so its own fog grid. The save file stores a record 
 Saves created before multi-region support contain a single flat fog record. On load, if no active region id is present, the save is migrated: the active region is set to `greybridge` and the existing fog data is moved into the per-region record under the `greybridge` key.
 
 A second migration handles the ford unlock. Older saves used a single global `ford-crossing` unlock id. On load, that id is mapped to `ford-crossing-greybridge`, so an existing player keeps Greybridge's ford open. The save format version is unchanged because the snapshot shape is the same; both migrations run inside `deserialize`.
+
+A third mechanism handles map resizes. Fog is saved as row-major revealed tile indices, which only mean the same tile on a same-sized map, so the save also records each region's map dimensions (`fogDimsByRegion`). On load, a region whose stored dimensions do not match its current map (or a save made before dimensions were tracked) has its fog discarded, and exploration starts fresh there; the rest of the save (coins, reputation, unlocks, upgrades) is preserved. This is what lets Greybridge grow from 20x11 to 30x22 without an existing save revealing the wrong tiles. `fogDimsByRegion` is an optional field, so the save format version is unchanged.

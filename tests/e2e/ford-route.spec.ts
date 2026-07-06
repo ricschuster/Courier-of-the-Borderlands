@@ -36,13 +36,16 @@ test('unlocked ford shortens the pathfinding route and is drivable', async ({ pa
   );
   expect(fordBlocked, 'ford should be impassable before the unlock').toBe(false);
 
-  // Drive to a plains tile just west of the signpost, still on the west bank.
-  // This does not touch the signpost, so the ford stays locked.
-  await driveToTile(page, held, 7, 8);
+  // Drive to a west-bank tile on the ford's row, two tiles clear of the
+  // signpost so this leg does not trip the unlock and the ford stays locked.
+  const westStartX = signpost.tileX - 2;
+  const westStartY = signpost.tileY;
+  await driveToTile(page, held, westStartX, westStartY);
 
-  // Goal on the east bank, forest tile aligned with the ford's row.
-  const eastGoalX = 14;
-  const eastGoalY = 8;
+  // Goal on the east bank of the ford, just past the two-tile crossing and on
+  // the ford's row, so the ford is the short way there and the bridge the long.
+  const eastGoalX = signpost.tileX + 3;
+  const eastGoalY = signpost.tileY;
 
   // Pre-unlock route must detour north to the row-5 bridge, since the ford is
   // still blocked and it is the only other crossing.

@@ -53,11 +53,11 @@ describe('worldToTile', () => {
 });
 
 describe('Greybridge map data', () => {
-  it('is a valid 20x11 map', () => {
+  it('is a valid 30x22 map', () => {
     const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
-    expect(map.width).toBe(20);
-    expect(map.height).toBe(11);
-    expect(map.tiles).toHaveLength(20 * 11);
+    expect(map.width).toBe(30);
+    expect(map.height).toBe(22);
+    expect(map.tiles).toHaveLength(30 * 22);
   });
 
   it('maps every legend symbol to a defined terrain type', () => {
@@ -66,15 +66,15 @@ describe('Greybridge map data', () => {
     }
   });
 
-  it('has a bridge crossing the river on the road row', () => {
+  it('has the main bridge crossing the river on the central road row', () => {
     const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
-    expect(getTerrainIdAt(map, 9, 5)).toBe('bridge');
-    expect(getTerrainIdAt(map, 10, 5)).toBe('bridge');
+    expect(getTerrainIdAt(map, 14, 8)).toBe('bridge');
+    expect(getTerrainIdAt(map, 15, 8)).toBe('bridge');
   });
 
-  it('has a ford as a second crossing on the south row', () => {
+  it('has a ford as a southern crossing on the south road row', () => {
     const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
-    expect(getTerrainIdAt(map, 9, 8)).toBe('ford-greybridge');
-    expect(getTerrainIdAt(map, 10, 8)).toBe('ford-greybridge');
+    expect(getTerrainIdAt(map, 14, 14)).toBe('ford-greybridge');
+    expect(getTerrainIdAt(map, 15, 14)).toBe('ford-greybridge');
   });
 });
