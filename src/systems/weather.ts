@@ -1,6 +1,8 @@
 // Ambient road conditions that mildly colour each run's movement and visibility.
 // Pure data and deterministic logic only. No Phaser, no Math.random.
 
+import type { Rng } from './rng';
+
 /** One ambient road condition for a run. */
 export interface Weather {
   readonly id: string;
@@ -64,4 +66,13 @@ export function weatherByIndex(index: number): Weather {
   const wrapped = ((index % len) + len) % len;
   // noUncheckedIndexedAccess: WEATHERS[wrapped] is Weather | undefined here.
   return WEATHERS[wrapped] ?? FALLBACK_WEATHER;
+}
+
+/**
+ * Roll one weather for a run using a seeded RNG. Deterministic for a given
+ * seed, so run conditions are reproducible and testable. Falls back to the
+ * neutral weather when WEATHERS is empty.
+ */
+export function pickWeather(rng: Rng): Weather {
+  return rng.pick(WEATHERS) ?? FALLBACK_WEATHER;
 }
