@@ -57,3 +57,43 @@ test('travels to a spoke and back, arriving at the return gateway each way', asy
 
   expect(errors, `runtime errors during travel run:\n${errors.join('\n')}`).toEqual([]);
 });
+
+test('reaches the Fenmarch spoke through its own gateway and returns to it', async ({ page }) => {
+  test.setTimeout(90_000);
+
+  const errors = collectErrors(page);
+
+  await bootE2E(page);
+
+  const held = new Set<Arrow>();
+
+  // The Fenmarch gateway sits on a different side of the hub than Saltreach's
+  // (south, not east), so this also proves that tile is reachable in play.
+  const start = await readTick(page, 0, 0);
+  expect(start.state.regionId).toBe('greybridge');
+  const toFenmarch = start.state.gateways.find((g) => g.to === 'fenmarch');
+  expect(toFenmarch, 'greybridge should have a gateway to fenmarch').toBeDefined();
+  await travelTo(page, held, toFenmarch!.tileX, toFenmarch!.tileY, 'greybridge', 'fenmarch');
+
+  // Arrived in Fenmarch on the gateway that leads back to Greybridge.
+  const inFenmarch = await readTick(page, 0, 0);
+  expect(inFenmarch.state.regionId).toBe('fenmarch');
+  const fenBack = inFenmarch.state.gateways.find((g) => g.to === 'greybridge');
+  expect(fenBack, 'fenmarch should link back to greybridge').toBeDefined();
+  expect({ x: inFenmarch.state.courier.tileX, y: inFenmarch.state.courier.tileY }).toEqual({
+    x: fenBack!.tileX,
+    y: fenBack!.tileY,
+  });
+
+  // Travel back: the courier must land on the Fenmarch gateway in Greybridge
+  // (the moved marker), not the region spawn.
+  await travelTo(page, held, fenBack!.tileX, fenBack!.tileY, 'fenmarch', 'greybridge');
+  const backHome = await readTick(page, 0, 0);
+  expect(backHome.state.regionId).toBe('greybridge');
+  expect({ x: backHome.state.courier.tileX, y: backHome.state.courier.tileY }).toEqual({
+    x: toFenmarch!.tileX,
+    y: toFenmarch!.tileY,
+  });
+
+  expect(errors, `runtime errors during fenmarch travel run:\n${errors.join('\n')}`).toEqual([]);
+});
