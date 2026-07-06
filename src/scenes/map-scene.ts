@@ -740,7 +740,8 @@ export class MapScene extends Phaser.Scene {
     }
     const reputation = totalReputation(this.state.ledger);
     const list = this.boardContracts();
-    const lines = ['GREYWATER BOARD  (press number to accept)'];
+    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
+    const lines = [`${homeName.toUpperCase()} BOARD  (press number to accept)`];
     if (list.length === 0) {
       lines.push('  No contracts remain. The frontier is quiet, for now.');
     }
