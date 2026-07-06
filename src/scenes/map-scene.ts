@@ -7,6 +7,7 @@ import {
   COURIER_SPEED,
   FOG_REVEAL_RADIUS,
   FOG_COLOR,
+  CAMERA_LERP,
 } from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
@@ -68,8 +69,11 @@ import {
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
 
-// Minimap layout (pixels per tile in the corner map).
+// Minimap layout. Cells are MINIMAP_CELL pixels per tile, but shrink so the
+// whole minimap fits inside a MINIMAP_MAX_PX box on large maps that would
+// otherwise overflow the corner.
 const MINIMAP_CELL = 6;
+const MINIMAP_MAX_PX = 192;
 
 // Read-only snapshot of live scene state, exposed to end-to-end tests so a
 // headless browser can drive the courier and assert on the delivery loop.
@@ -198,7 +202,9 @@ export class MapScene extends Phaser.Scene {
     this.restoreState(snapshot);
 
     this.map = createTileMap(this.region.rows, this.region.legend);
-    this.mapOriginY = Math.floor((GAME_HEIGHT - this.map.height * TILE_SIZE) / 2);
+    // The map is drawn at the world origin; the camera handles centring small
+    // maps and following the courier on maps larger than the viewport.
+    this.mapOriginY = 0;
 
     this.drawTiles();
     // Colliders read the restored unlock set, so an unlocked ford stays open.
@@ -221,6 +227,8 @@ export class MapScene extends Phaser.Scene {
     this.physics.add.collider(this.courier.sprite, this.impassable);
     this.prevX = spawnX;
     this.prevY = spawnY;
+
+    this.setupCamera();
 
     // The signpost only exists in regions that host the ford-unlock mechanic.
     if (
@@ -553,6 +561,22 @@ export class MapScene extends Phaser.Scene {
       x: tileX * TILE_SIZE + TILE_SIZE / 2,
       y: this.mapOriginY + tileY * TILE_SIZE + TILE_SIZE / 2,
     };
+  }
+
+  /**
+   * Bound the camera to the map and follow the courier on maps larger than the
+   * viewport. Bounds are set centred, so a map that fits the screen stays put
+   * and centred; only a larger map scrolls, and Phaser clamps the follow at the
+   * map edges so no background bleeds past the terrain.
+   */
+  private setupCamera(): void {
+    const worldW = this.map.width * TILE_SIZE;
+    const worldH = this.map.height * TILE_SIZE;
+    const cam = this.cameras.main;
+    cam.setBounds(0, this.mapOriginY, worldW, worldH, true);
+    if (worldW > GAME_WIDTH || worldH > GAME_HEIGHT) {
+      cam.startFollow(this.courier.sprite, true, CAMERA_LERP, CAMERA_LERP);
+    }
   }
 
   private drawTiles(): void {
@@ -988,10 +1012,12 @@ export class MapScene extends Phaser.Scene {
     const line = (y: number, color: string): Phaser.GameObjects.Text =>
       this.add
         .text(8, y, '', { fontFamily: 'monospace', fontSize: '12px', color })
+        .setScrollFactor(0)
         .setDepth(DEPTH_HUD);
 
     this.add
       .text(8, 8, GAME_TITLE, { fontFamily: 'monospace', fontSize: '14px', color: '#e8e8e8' })
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
     this.wallet = line(28, '#e8e8e8');
     this.objective = line(46, '#f2d98f');
@@ -1000,6 +1026,7 @@ export class MapScene extends Phaser.Scene {
     this.weatherLine = line(100, '#a9c7e8');
     this.hint = this.add
       .text(8, GAME_HEIGHT - 22, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8a8a8a' })
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
 
     this.board = this.add
@@ -1011,6 +1038,7 @@ export class MapScene extends Phaser.Scene {
         padding: { x: 10, y: 8 },
         lineSpacing: 4,
       })
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
@@ -1026,6 +1054,7 @@ export class MapScene extends Phaser.Scene {
         align: 'left',
       })
       .setOrigin(0.5, 0)
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
@@ -1041,11 +1070,12 @@ export class MapScene extends Phaser.Scene {
         align: 'center',
       })
       .setOrigin(0.5)
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
     // Minimap graphics (toggled with M), drawn in redrawMinimap.
-    this.minimapGfx = this.add.graphics().setDepth(DEPTH_HUD).setVisible(false);
+    this.minimapGfx = this.add.graphics().setScrollFactor(0).setDepth(DEPTH_HUD).setVisible(false);
 
     // Terrain codex (toggled with L); static content from terrain data.
     const legend = buildLegend(Object.values(TERRAIN_TYPES));
@@ -1064,6 +1094,7 @@ export class MapScene extends Phaser.Scene {
         align: 'left',
       })
       .setOrigin(1, 0)
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
@@ -1088,7 +1119,15 @@ export class MapScene extends Phaser.Scene {
       settlements: Object.values(this.region.settlements).map((s) => ({ x: s.tile.x, y: s.tile.y })),
     });
 
-    const cell = MINIMAP_CELL;
+    // Shrink the per-tile cell so a large map's minimap fits the corner box;
+    // small maps keep the full MINIMAP_CELL size and look unchanged.
+    const cell = Math.max(
+      1,
+      Math.min(
+        MINIMAP_CELL,
+        Math.floor(Math.min(MINIMAP_MAX_PX / model.width, MINIMAP_MAX_PX / model.height)),
+      ),
+    );
     const originX = GAME_WIDTH - model.width * cell - 12;
     const originY = GAME_HEIGHT - model.height * cell - 12;
 
@@ -1282,6 +1321,7 @@ export class MapScene extends Phaser.Scene {
         wordWrap: { width: GAME_WIDTH - 80 },
       })
       .setOrigin(0.5)
+      .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
     this.time.delayedCall(3500, () => toast.destroy());
   }
