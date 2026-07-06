@@ -88,6 +88,9 @@ interface E2EState {
   readonly destination:
     | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
     | null;
+  readonly fordUnlocked: boolean;
+  readonly unlocks: readonly string[];
+  readonly signpost: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number } | null;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -98,6 +101,7 @@ interface CourierE2EApi {
   readonly version: number;
   getState(): E2EState;
   nextStepToward(tileX: number, tileY: number): { x: number; y: number } | null;
+  isPassableTile(tileX: number, tileY: number): boolean;
 }
 
 declare global {
@@ -332,6 +336,7 @@ export class MapScene extends Phaser.Scene {
       version: 1,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
+      isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
     };
   }
 
@@ -349,6 +354,9 @@ export class MapScene extends Phaser.Scene {
       destSettlement === undefined
         ? null
         : this.tileCenter(destSettlement.tile.x, destSettlement.tile.y);
+    const signpostTile = this.region.signpost;
+    const signpostCenter =
+      signpostTile === undefined ? null : this.tileCenter(signpostTile.x, signpostTile.y);
     return {
       regionId: this.region.id,
       courier: { x: this.courier.sprite.x, y: this.courier.sprite.y, tileX: tile.x, tileY: tile.y },
@@ -366,6 +374,12 @@ export class MapScene extends Phaser.Scene {
         destSettlement === undefined || destCenter === null
           ? null
           : { tileX: destSettlement.tile.x, tileY: destSettlement.tile.y, x: destCenter.x, y: destCenter.y },
+      fordUnlocked: this.regionFordUnlocked(),
+      unlocks: [...this.state.unlocks],
+      signpost:
+        signpostTile === undefined || signpostCenter === null
+          ? null
+          : { tileX: signpostTile.x, tileY: signpostTile.y, x: signpostCenter.x, y: signpostCenter.y },
     };
   }
 
@@ -390,6 +404,12 @@ export class MapScene extends Phaser.Scene {
       return null;
     }
     return this.tileCenter(next.x, next.y);
+  }
+
+  /** Whether a tile is currently drivable, given the active unlock set. */
+  private e2eIsPassable(tileX: number, tileY: number): boolean {
+    const id = getTerrainIdAt(this.map, tileX, tileY);
+    return id !== undefined && isPassableWith(id, this.state.unlocks);
   }
 
   update(): void {
