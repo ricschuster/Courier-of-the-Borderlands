@@ -60,7 +60,12 @@ export const GREYBRIDGE_REGION: Region = {
   contracts: CONTRACTS_GREYBRIDGE,
   home: 'greywater',
   spawn: { x: 1, y: 5 },
-  gateways: [{ tile: { x: 19, y: 5 }, to: 'saltreach' }],
+  // Greybridge is the hub. It links out to both spokes: east on the main road
+  // to Saltreach, and from the south-east corner to Fenmarch.
+  gateways: [
+    { tile: { x: 19, y: 5 }, to: 'saltreach' },
+    { tile: { x: 19, y: 10 }, to: 'fenmarch' },
+  ],
   signpost: { x: 8, y: 8 },
   fordUnlockId: 'ford-crossing-greybridge',
 };
@@ -74,10 +79,9 @@ export const SALTREACH_REGION: Region = {
   contracts: SALTREACH_CONTRACTS,
   home: 'tidewatch',
   spawn: SALTREACH_SPAWN,
-  gateways: [
-    { tile: { x: 0, y: 5 }, to: 'greybridge' },
-    { tile: { x: 19, y: 5 }, to: 'fenmarch' },
-  ],
+  // A spoke off the Greybridge hub: its only gateway leads west, back to
+  // Greybridge.
+  gateways: [{ tile: { x: 0, y: 5 }, to: 'greybridge' }],
   signpost: { x: 6, y: 6 },
   fordUnlockId: 'ford-crossing-saltreach',
 };
@@ -91,7 +95,9 @@ export const FENMARCH_REGION: Region = {
   contracts: FENMARCH_CONTRACTS,
   home: FENMARCH_HOME,
   spawn: FENMARCH_SPAWN,
-  gateways: [{ tile: { x: 0, y: 5 }, to: 'saltreach' }],
+  // A spoke off the Greybridge hub: its only gateway leads west, back to
+  // Greybridge.
+  gateways: [{ tile: { x: 0, y: 5 }, to: 'greybridge' }],
   signpost: { x: 8, y: 8 },
   fordUnlockId: 'ford-crossing-fenmarch',
 };
@@ -107,6 +113,24 @@ export const DEFAULT_REGION_ID = 'greybridge';
 /** Region for an id, falling back to the default region for unknown ids. */
 export function getRegion(id: string): Region {
   return REGIONS[id] ?? GREYBRIDGE_REGION;
+}
+
+/**
+ * Where the courier should appear when entering a region.
+ *
+ * Arriving by travel from `fromRegionId` lands on the gateway that leads back
+ * there, so the player steps out at the travel marker they would use to return,
+ * not at the region's generic spawn point. A fresh load or new game (no origin,
+ * or an origin with no matching gateway) falls back to the region spawn.
+ */
+export function arrivalTile(region: Region, fromRegionId?: string): TileCoord {
+  if (fromRegionId !== undefined) {
+    const back = region.gateways.find((g) => g.to === fromRegionId);
+    if (back !== undefined) {
+      return back.tile;
+    }
+  }
+  return region.spawn;
 }
 
 /** Settlement whose tile matches the coordinate within a region, if any. */

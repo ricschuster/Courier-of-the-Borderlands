@@ -1,7 +1,7 @@
 // Fenmarch Region tile data.
 //
-// A wooded fenland at the far eastern edge of the known routes, reached only
-// by the causeway road through Saltreach. A single water channel splits the
+// A wooded fenland at the far edge of the known routes, reached by the
+// causeway road west to the Greybridge hub. A single water channel splits the
 // map down columns 9-10, crossed by one bridge on the main road (row 5). A
 // north-south forest corridor at column 14 links a lake settlement in the
 // north to a thorn-fenced hamlet in the south, and quiet peaks bookend the
@@ -21,8 +21,8 @@
 //   thornwick  (14, 8)  thorn-fenced hamlet south of the bridge, down the forest corridor
 //   hollowfen  (18, 4)  hollow fenland stop east of the bridge, just off the road
 //
-// Gateway (0, 5) leads west to Saltreach. Row 5 is a single road the entire
-// width of the map, crossing the water on a bridge at columns 9-10.
+// Gateway (0, 5) leads west, back to the Greybridge hub. Row 5 is a single road
+// the entire width of the map, crossing the water on a bridge at columns 9-10.
 // Spawn (1, 5) is one step east of the gateway on the road.
 
 import type { Settlement } from './settlements-greybridge';

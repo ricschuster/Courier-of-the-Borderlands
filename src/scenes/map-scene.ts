@@ -48,6 +48,7 @@ import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonu
 import { buildLegend } from '../systems/legend';
 import {
   getRegion,
+  arrivalTile,
   settlementAtTileIn,
   totalSettlementCount,
   DEFAULT_REGION_ID,
@@ -92,6 +93,7 @@ interface E2EState {
   readonly unlocks: readonly string[];
   readonly upgrades: readonly string[];
   readonly signpost: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number } | null;
+  readonly gateways: readonly { readonly tileX: number; readonly tileY: number; readonly to: string }[];
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -128,6 +130,8 @@ interface WasdKeys {
 
 interface MapSceneData {
   readonly regionId?: string;
+  /** Region the courier is travelling from, so it arrives at the return gateway. */
+  readonly fromRegionId?: string;
 }
 
 // Renders the Greybridge tile map and lets the player drive the courier around
@@ -207,8 +211,11 @@ export class MapScene extends Phaser.Scene {
       this.map.height * TILE_SIZE,
     );
 
-    const spawnX = this.region.spawn.x * TILE_SIZE + TILE_SIZE / 2;
-    const spawnY = this.mapOriginY + this.region.spawn.y * TILE_SIZE + TILE_SIZE / 2;
+    // Enter at the return gateway when arriving by travel, so the courier steps
+    // out at the marker back to where it came from, not the region's spawn.
+    const arrival = arrivalTile(this.region, data?.fromRegionId);
+    const spawnX = arrival.x * TILE_SIZE + TILE_SIZE / 2;
+    const spawnY = this.mapOriginY + arrival.y * TILE_SIZE + TILE_SIZE / 2;
     this.courier = new Courier(this, spawnX, spawnY);
     this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.impassable);
@@ -338,7 +345,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 2,
+      version: 3,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -387,6 +394,7 @@ export class MapScene extends Phaser.Scene {
         signpostTile === undefined || signpostCenter === null
           ? null
           : { tileX: signpostTile.x, tileY: signpostTile.y, x: signpostCenter.x, y: signpostCenter.y },
+      gateways: this.region.gateways.map((g) => ({ tileX: g.tile.x, tileY: g.tile.y, to: g.to })),
     };
   }
 
@@ -928,7 +936,10 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.save();
-    this.scene.restart({ regionId: gateway.to } satisfies MapSceneData);
+    this.scene.restart({
+      regionId: gateway.to,
+      fromRegionId: this.region.id,
+    } satisfies MapSceneData);
   }
 
   /** Unlock a feature and open any tiles it gated. Returns true if newly unlocked. */
