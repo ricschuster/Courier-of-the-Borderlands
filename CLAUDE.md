@@ -303,6 +303,22 @@ Commit style:
 
 Keep commits small and meaningful.
 
+## Command style
+
+Run shell commands as single, atomic invocations so they can be matched against
+the permission allowlist in `.claude/settings.json` and run without extra
+confirmation prompts.
+
+- Avoid compound commands: `for`/`while` loops, `if`, pipes, and command
+  substitution `$(...)` cannot be statically analyzed, so they always prompt
+  even when the inner command is allowlisted.
+- Do not prefix commands with `source ~/.bashrc`. Node and npm are already on
+  the default PATH; the prefix does nothing useful and turns every command into
+  an unmatchable compound.
+- To wait for CI on a pull request, use `gh pr checks <number> --watch` (one
+  command that blocks until checks finish), not a hand-rolled polling loop.
+- Prefer many small allowlisted commands over one bundled script.
+
 ## Dependency rules
 
 Before adding a dependency:
