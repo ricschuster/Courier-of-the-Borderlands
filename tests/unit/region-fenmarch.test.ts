@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
+import { CARGO_CATEGORIES } from '../../src/systems/cargo-types';
 import {
   FENMARCH_ROWS,
   FENMARCH_LEGEND,
@@ -44,9 +45,9 @@ describe('Fenmarch map', () => {
     expect(hasWater).toBe(true);
   });
 
-  it('has no ford tile', () => {
+  it('has at least one ford', () => {
     const map = createTileMap(FENMARCH_ROWS, FENMARCH_LEGEND);
-    expect(map.tiles.some((t) => t === 'ford')).toBe(false);
+    expect(map.tiles.some((t) => t === 'ford-fenmarch')).toBe(true);
   });
 });
 
@@ -165,9 +166,13 @@ describe('Fenmarch contracts', () => {
     }
   });
 
-  it('do not set a cargoType field', () => {
+  it('has a known cargoType for every contract', () => {
     for (const contract of FENMARCH_CONTRACTS) {
-      expect(Object.prototype.hasOwnProperty.call(contract, 'cargoType')).toBe(false);
+      expect(contract.cargoType, `${contract.id} missing cargoType`).toBeDefined();
+      expect(
+        CARGO_CATEGORIES[contract.cargoType as keyof typeof CARGO_CATEGORIES],
+        `${contract.id} cargoType`,
+      ).toBeDefined();
     }
   });
 

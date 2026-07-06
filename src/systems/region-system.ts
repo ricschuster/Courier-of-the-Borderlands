@@ -92,6 +92,8 @@ export const FENMARCH_REGION: Region = {
   home: FENMARCH_HOME,
   spawn: FENMARCH_SPAWN,
   gateways: [{ tile: { x: 0, y: 5 }, to: 'saltreach' }],
+  signpost: { x: 8, y: 8 },
+  fordUnlockId: 'ford-crossing-fenmarch',
 };
 
 export const REGIONS: Readonly<Record<string, Region>> = {

@@ -9,10 +9,11 @@
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain
+//   b bridge    ~ water    ^ mountain    x ford
 //
 // Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols
-// at load time. No ford or signpost mechanic in this region.
+// at load time. A locked ford shortcut crosses the water channel on row 8 at
+// columns 9-10, south of the main bridge. A signpost at (8, 8) unlocks it.
 //
 // Settlements:
 //   mossgate   (4,  5)  home town, on the main west-east road
@@ -48,8 +49,9 @@ export const FENMARCH_ROWS: readonly string[] = [
   '.........~~...f.....',
   // row 7: forest patch west, forest corridor continues east
   '....f....~~...f.....',
-  // row 8: thornwick sits in the forest corridor south of the bridge
-  '...ff....~~...f.....',
+  // row 8: thornwick sits in the forest corridor south of the bridge; ford
+  // shortcut (locked) crosses the water at columns 9-10
+  '...ff....xx...f.....',
   // row 9: south-west mountains begin, south-east peaks begin
   '..^^.....~~...f.^^^.',
   // row 10: south-west range closes, south-east range closes
@@ -67,6 +69,7 @@ export const FENMARCH_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
+  x: 'ford-fenmarch',
 };
 
 // ---------------------------------------------------------------------------
@@ -115,6 +118,7 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     reputation: 2,
     minReputation: 0,
     note: 'The baskets are light but the courier before you would not say what was inside. Duskmere will know.',
+    cargoType: 'goods',
   },
   {
     id: 'fenmarch-moss-to-thorn',
@@ -126,6 +130,7 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 3,
     note: 'Thornwick keeps its own accounts and trusts no one else to carry them. Do not read the pages.',
+    cargoType: 'letters',
   },
   {
     id: 'fenmarch-moss-to-hollow',
@@ -137,6 +142,7 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 6,
     note: 'No name, no seal mark, no explanation. Hollowfen has been waiting for this longer than you have been a courier.',
+    cargoType: 'secrets',
   },
 ];
 
