@@ -82,6 +82,7 @@ Shipped:
 - [x] Pathfinding-assisted route hints (`src/systems/pathfinding.ts`)
 - [x] Input-driven e2e playthrough: real key presses drive a full delivery loop and a route unlock, gated behind a `?e2e` debug hook (`tests/e2e/playthrough.spec.ts`)
 - [x] Smoke tests booting each region from a save (Greybridge, Saltreach, Fenmarch) (`tests/e2e/smoke.spec.ts`)
+- [x] Camera follow: maps larger than the viewport scroll to follow the courier; maps that fit stay static and centred. HUD is pinned with `setScrollFactor(0)` and the minimap cell shrinks to a bounded box on large maps. Unblocks authoring maps bigger than the screen (`setupCamera` in `src/scenes/map-scene.ts`)
 
 Not yet started (see `docs/handoffs/2026-07-05_Handoff_v03.md` for the live backlog):
 - Vehicle upgrade purchase covered by the e2e playthrough
