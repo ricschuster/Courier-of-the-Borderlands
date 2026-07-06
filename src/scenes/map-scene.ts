@@ -90,6 +90,7 @@ interface E2EState {
     | null;
   readonly fordUnlocked: boolean;
   readonly unlocks: readonly string[];
+  readonly upgrades: readonly string[];
   readonly signpost: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number } | null;
 }
 
@@ -102,6 +103,10 @@ interface CourierE2EApi {
   getState(): E2EState;
   nextStepToward(tileX: number, tileY: number): { x: number; y: number } | null;
   isPassableTile(tileX: number, tileY: number): boolean;
+  // Full shortest passable path to a goal tile, as tile coordinates (including
+  // the current tile). null if the goal is unreachable with the current
+  // unlocks. Lets tests assert which route pathfinding chooses.
+  pathTo(tileX: number, tileY: number): readonly { x: number; y: number }[] | null;
 }
 
 declare global {
@@ -333,10 +338,11 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 1,
+      version: 2,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
+      pathTo: (tileX, tileY) => this.e2ePathTo(tileX, tileY),
     };
   }
 
@@ -376,6 +382,7 @@ export class MapScene extends Phaser.Scene {
           : { tileX: destSettlement.tile.x, tileY: destSettlement.tile.y, x: destCenter.x, y: destCenter.y },
       fordUnlocked: this.regionFordUnlocked(),
       unlocks: [...this.state.unlocks],
+      upgrades: [...this.state.upgrades],
       signpost:
         signpostTile === undefined || signpostCenter === null
           ? null
@@ -404,6 +411,24 @@ export class MapScene extends Phaser.Scene {
       return null;
     }
     return this.tileCenter(next.x, next.y);
+  }
+
+  /** Full shortest passable path to a goal tile, or null if unreachable. */
+  private e2ePathTo(tileX: number, tileY: number): { x: number; y: number }[] | null {
+    const path = findPath({
+      width: this.map.width,
+      height: this.map.height,
+      isPassable: (x, y) => {
+        const id = getTerrainIdAt(this.map, x, y);
+        return id !== undefined && isPassableWith(id, this.state.unlocks);
+      },
+      start: this.courierTile(),
+      goal: { x: tileX, y: tileY },
+    });
+    if (!path.reachable) {
+      return null;
+    }
+    return path.path.map((tile) => ({ x: tile.x, y: tile.y }));
   }
 
   /** Whether a tile is currently drivable, given the active unlock set. */

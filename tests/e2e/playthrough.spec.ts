@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { bootE2E, collectErrors, driveToTile, readTick, type Arrow } from './drive';
 
 // Input-driven playthrough: boot the real built game, then drive the courier
 // with genuine key presses through a full delivery loop (reach the home town,
@@ -6,120 +7,15 @@ import { test, expect, type Page } from '@playwright/test';
 // assert the rewards land. Navigation targets come from the game's own
 // pathfinding via the `?e2e` debug hook, but all movement is real keyboard
 // input flowing through Phaser, so this exercises the same path a player would.
-
-// A single tile is 48px; treat "close enough" to a waypoint as a quarter tile.
-const REACH_THRESHOLD = 12;
-
-// Arrow keys the drive loop toggles. Held state is tracked so we only send the
-// key transitions that actually change between ticks.
-type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
-
-/**
- * Read live state plus the next path waypoint toward a goal tile, in one hop.
- * The return shape is inferred from the typed `__courier` hook, so the test
- * stays in sync with the game's E2E state contract automatically.
- */
-async function readTick(page: Page, goalTileX: number, goalTileY: number) {
-  const tick = await page.evaluate(
-    (goal) => {
-      const api = globalThis.__courier;
-      if (api === undefined) {
-        return null;
-      }
-      return { state: api.getState(), next: api.nextStepToward(goal.x, goal.y) };
-    },
-    { x: goalTileX, y: goalTileY },
-  );
-  if (tick === null) {
-    throw new Error('the __courier test hook was not attached');
-  }
-  return tick;
-}
-
-/** Which arrow keys point from the courier toward a target world position. */
-function desiredKeys(
-  courier: { x: number; y: number },
-  target: { x: number; y: number },
-): Set<Arrow> {
-  const want = new Set<Arrow>();
-  if (target.x - courier.x > REACH_THRESHOLD) want.add('ArrowRight');
-  else if (courier.x - target.x > REACH_THRESHOLD) want.add('ArrowLeft');
-  if (target.y - courier.y > REACH_THRESHOLD) want.add('ArrowDown');
-  else if (courier.y - target.y > REACH_THRESHOLD) want.add('ArrowUp');
-  return want;
-}
-
-/** Send only the key transitions needed to move from `held` to `want`. */
-async function applyKeys(page: Page, held: Set<Arrow>, want: Set<Arrow>): Promise<void> {
-  for (const key of held) {
-    if (!want.has(key)) {
-      await page.keyboard.up(key);
-      held.delete(key);
-    }
-  }
-  for (const key of want) {
-    if (!held.has(key)) {
-      await page.keyboard.down(key);
-      held.add(key);
-    }
-  }
-}
-
-/** Release every currently-held arrow key. */
-async function releaseAll(page: Page, held: Set<Arrow>): Promise<void> {
-  await applyKeys(page, held, new Set());
-}
-
-/**
- * Drive the courier onto the goal tile using real key presses, following the
- * game's pathfinding one waypoint at a time. Resolves once the courier's tile
- * matches the goal, or throws if it cannot get there within the step budget.
- */
-async function driveToTile(
-  page: Page,
-  held: Set<Arrow>,
-  goalTileX: number,
-  goalTileY: number,
-): Promise<void> {
-  const maxSteps = 250;
-  for (let step = 0; step < maxSteps; step++) {
-    const { state, next } = await readTick(page, goalTileX, goalTileY);
-    if (state.courier.tileX === goalTileX && state.courier.tileY === goalTileY) {
-      await releaseAll(page, held);
-      return;
-    }
-    if (next === null) {
-      await releaseAll(page, held);
-      throw new Error(`no path from (${state.courier.tileX},${state.courier.tileY}) to (${goalTileX},${goalTileY})`);
-    }
-    await applyKeys(page, held, desiredKeys(state.courier, next));
-    // Let a few physics frames advance before re-reading position.
-    await page.waitForTimeout(80);
-  }
-  await releaseAll(page, held);
-  const { state } = await readTick(page, goalTileX, goalTileY);
-  throw new Error(
-    `courier stuck at (${state.courier.tileX},${state.courier.tileY}) heading for (${goalTileX},${goalTileY})`,
-  );
-}
+// Shared drive helpers live in ./drive.
 
 test('drives a full delivery loop with real key presses', async ({ page }) => {
   test.setTimeout(90_000);
 
-  const errors: string[] = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
-  });
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+  const errors = collectErrors(page);
 
   // The `?e2e` flag tells the scene to attach the read-plus-navigate hook.
-  await page.goto('./?e2e=1');
-  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
-  // Focus the canvas so key events reach the game.
-  await page.locator('#game canvas').click();
-  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
-    timeout: 15_000,
-  });
+  await bootE2E(page);
 
   const held = new Set<Arrow>();
 
@@ -184,18 +80,9 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
 test('unlocks the southern ford by driving to the signpost', async ({ page }) => {
   test.setTimeout(90_000);
 
-  const errors: string[] = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
-  });
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+  const errors = collectErrors(page);
 
-  await page.goto('./?e2e=1');
-  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
-  await page.locator('#game canvas').click();
-  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
-    timeout: 15_000,
-  });
+  await bootE2E(page);
 
   const held = new Set<Arrow>();
 
