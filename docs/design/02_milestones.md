@@ -27,7 +27,7 @@ Core delivery loop works end to end with placeholder art.
 - [x] Active objective line shown during a run
 - [x] Unlockable ford shortcut: second river crossing, blocked until the courier reaches a signpost (`src/systems/game-state.ts`)
 
-## M2: MVP -- IN PROGRESS
+## M2: MVP -- DONE
 
 One full region, three contracts, currency and reputation, one vehicle upgrade, short story text, deployed to GitHub Pages.
 
@@ -37,28 +37,53 @@ One full region, three contracts, currency and reputation, one vehicle upgrade, 
 - [x] Unlockable ford shortcut (done in M1, counts here)
 - [x] Vehicle upgrade system: pure logic for purchase and speed calculation (`src/systems/upgrade-system.ts`)
 - [x] Reinforced Wheels upgrade defined in data (`src/data/upgrades-greybridge.ts`)
-- [ ] Currency and reputation HUD visible during play
-- [ ] Upgrade purchase UI at a settlement
-- [ ] Additional NPC and delivery text to establish story tone
-- [ ] GitHub Pages deployment
+- [x] Currency and reputation HUD visible during play (wallet and ford status lines in `src/scenes/map-scene.ts`)
+- [x] Upgrade purchase UI at a settlement (press B in the home town to buy)
+- [x] Additional NPC and delivery text to establish story tone (contract notes, settlement notes, weather flavour)
+- [x] GitHub Pages deployment (live at https://ricschuster.github.io/Courier-of-the-Borderlands/)
 
-## Remaining for MVP
+The MVP definition of done in `CLAUDE.md` is met: the game opens in a browser,
+starts in Greybridge, accepts a contract, drives across terrain and fog to a
+destination, completes a delivery, shows rewards, and unlocks a route or
+upgrade, with in-game text establishing the courier premise.
 
-1. Wire economy rewards into the delivery completion flow so coins and reputation update on screen.
-2. Add a HUD showing current coins and settlement reputation.
-3. Add an upgrade shop at a settlement so the player can spend coins on Reinforced Wheels.
-4. Add one or two short NPC lines at settlements to reinforce the courier premise.
-5. Set up GitHub Pages deployment via GitHub Actions.
+## M3: Second region -- DONE
 
-## M3: Second region -- IN PROGRESS
+Extend the game beyond the Greybridge Region with a region abstraction, a second
+playable region, and persistent cross-region state. Note: the region abstraction
+landed in `src/systems/region-system.ts` (not the `src/data/region-types.ts` /
+`region-registry.ts` guessed here originally), and region content lives in
+`src/data/region-saltreach.ts`.
 
-Extend the game beyond the Greybridge Region with a region abstraction, a second playable region, and persistent cross-region state.
+- [x] Region abstraction: typed `Region` record containing map, settlements, contracts, spawn tile, and gateway list (`src/systems/region-system.ts`)
+- [x] Region registry: keyed by id, looked up by MapScene on load (`REGIONS` in `src/systems/region-system.ts`)
+- [x] Saltreach region: new 20x11 map with its own settlements, contracts, spawn, and gateway (`src/data/region-saltreach.ts`)
+- [x] Gateway tile: road tile at map edge; pressing T while on it and not carrying cargo travels to the linked region
+- [x] Scene restart on travel: MapScene restarts with the new active region id; courier spawns at the destination region's spawn tile
+- [x] Travel restriction: blocked while carrying cargo; on-screen message explains why
+- [x] Per-region fog persistence: save stores explored tiles keyed by region id; fog is restored per region on load
+- [x] Save migration: older single-region saves promoted to greybridge-keyed fog record on load
 
-- [ ] Region abstraction: typed `Region` record containing map, settlements, contracts, spawn tile, and gateway tile (`src/data/region-types.ts`)
-- [ ] Region registry: keyed by id, looked up by MapScene on load (`src/data/region-registry.ts`)
-- [ ] Saltreach region: new 20x11 map with its own settlements, contracts, spawn, and gateway (`src/data/saltreach-*.ts`)
-- [ ] Gateway tile: road tile at map edge; pressing T while on it and not carrying cargo travels to the linked region
-- [ ] Scene restart on travel: MapScene restarts with the new active region id; courier spawns at the destination region's spawn tile
-- [ ] Travel restriction: blocked while carrying cargo; on-screen message explains why
-- [ ] Per-region fog persistence: save stores explored tiles keyed by region id; fog is restored per region on load
-- [ ] Save migration: older single-region saves promoted to greybridge-keyed fog record on load
+## M4: Depth and hardening -- IN PROGRESS
+
+Content and systems added beyond the original MVP and second-region plan.
+
+Shipped:
+- [x] Third region Fenmarch, reached through Saltreach (`src/data/region-fenmarch.ts`)
+- [x] Multi-gateway travel: `Region.gateways` is a list, so a region can link to several neighbours (world is a chain: Greybridge <-> Saltreach <-> Fenmarch)
+- [x] Per-region ford unlock: each region owns its own ford terrain and unlock id, now exercised in Greybridge, Saltreach, and Fenmarch (`ford-greybridge`, `ford-saltreach`, `ford-fenmarch`)
+- [x] Cargo types with pay modifiers, set on every region's contracts including Fenmarch: letters, goods, rumours, secrets (`src/systems/cargo-types.ts`)
+- [x] Per-region contract board header (uses each region's home settlement name)
+- [x] Contract bonus objectives (`src/systems/contract-bonus.ts`)
+- [x] Ambient weather affecting movement (`src/systems/weather.ts`)
+- [x] Achievements and courier titles (`src/systems/achievements.ts`)
+- [x] Journal, minimap, and map legend overlays (`src/systems/journal.ts`, `minimap.ts`, `legend.ts`)
+- [x] Reputation perks scaling rewards (`src/systems/reputation-perks.ts`)
+- [x] Pathfinding-assisted route hints (`src/systems/pathfinding.ts`)
+- [x] Input-driven e2e playthrough: real key presses drive a full delivery loop and a route unlock, gated behind a `?e2e` debug hook (`tests/e2e/playthrough.spec.ts`)
+- [x] Smoke tests booting each region from a save (Greybridge, Saltreach, Fenmarch) (`tests/e2e/smoke.spec.ts`)
+
+Not yet started (see `docs/handoffs/2026-07-05_Handoff_v03.md` for the live backlog):
+- Vehicle upgrade purchase covered by the e2e playthrough
+- Audio and juice (needs asset and licensing decisions)
+- Art pass beyond grey-box
