@@ -59,15 +59,15 @@ export const GREYBRIDGE_REGION: Region = {
   settlements: GREYBRIDGE_SETTLEMENTS,
   contracts: CONTRACTS_GREYBRIDGE,
   home: 'greywater',
-  spawn: { x: 1, y: 5 },
+  spawn: { x: 1, y: 8 },
   // Greybridge is the hub. It links out to both spokes on different sides: east
   // on the main road to Saltreach, and south (over the bridge, then down the
-  // wooded corridor) to Fenmarch.
+  // east-bank road) to Fenmarch, whose gateway sits on the Southmill tile.
   gateways: [
-    { tile: { x: 19, y: 5 }, to: 'saltreach' },
-    { tile: { x: 13, y: 10 }, to: 'fenmarch' },
+    { tile: { x: 29, y: 8 }, to: 'saltreach' },
+    { tile: { x: 21, y: 14 }, to: 'fenmarch' },
   ],
-  signpost: { x: 8, y: 8 },
+  signpost: { x: 13, y: 14 },
   fordUnlockId: 'ford-crossing-greybridge',
 };
 

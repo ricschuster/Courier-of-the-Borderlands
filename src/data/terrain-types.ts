@@ -30,6 +30,12 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   bridge: { id: 'bridge', name: 'Bridge', color: 0x8a6a3a, passable: true, speedModifier: 1.4 },
   water: { id: 'water', name: 'Water', color: 0x2f5fa0, passable: false, speedModifier: 0 },
   mountain: { id: 'mountain', name: 'Mountain', color: 0x6b6b6b, passable: false, speedModifier: 0 },
+  // Hills: passable high ground. Slower than plains but a fair bit quicker than
+  // forest, so a hill road is a sensible way to cross the northern moor.
+  hills: { id: 'hills', name: 'Hills', color: 0x8a7f5a, passable: true, speedModifier: 0.75 },
+  // Marsh: passable but the slowest open terrain, so the southern reeds punish
+  // anyone who leaves the road for a straight line.
+  marsh: { id: 'marsh', name: 'Marsh', color: 0x4a6a4a, passable: true, speedModifier: 0.45 },
   // Ford: a shallow crossing that starts blocked and opens as an unlockable
   // shortcut. Slower than the bridge, but a shorter route across the south.
   // Each region has its own ford terrain and unlock id so opening one
