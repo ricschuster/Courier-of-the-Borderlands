@@ -36,6 +36,23 @@ export function revealedIndices(fog: Fog): number[] {
   return indices;
 }
 
+/**
+ * True when a saved fog's stored [width, height] matches the current map size.
+ *
+ * Revealed tiles are saved as row-major indices, which only mean the same tile
+ * on a map of the same dimensions. If a shipped region is resized, its old
+ * indices point at different (or out-of-range) tiles, so the saved fog is
+ * stale and must be discarded. A save from before dimensions were recorded has
+ * no stored size (`undefined`) and is treated as stale for the same reason.
+ */
+export function fogDimsMatch(
+  stored: readonly [number, number] | undefined,
+  width: number,
+  height: number,
+): boolean {
+  return stored !== undefined && stored[0] === width && stored[1] === height;
+}
+
 /** Rebuild a fog of the given size with the listed indices already revealed. */
 export function fogFromRevealed(width: number, height: number, indices: readonly number[]): Fog {
   const fog = createFog(width, height);
