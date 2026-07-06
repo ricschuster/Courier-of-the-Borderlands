@@ -44,7 +44,8 @@ import {
   courierTitle,
   type AchievementStat,
 } from '../systems/achievements';
-import { WEATHERS, weatherByIndex, type Weather } from '../systems/weather';
+import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
+import { createRng } from '../systems/rng';
 import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
 import { buildLegend } from '../systems/legend';
 import {
@@ -245,8 +246,10 @@ export class MapScene extends Phaser.Scene {
     this.setupInput();
     this.addHud();
 
-    // Pick an ambient road condition for this run.
-    this.weather = weatherByIndex(Math.floor(Math.random() * WEATHERS.length));
+    // Pick an ambient road condition for this run via a seeded RNG. Seeding
+    // from the clock keeps weather varied between runs while routing the roll
+    // through the deterministic, testable generator.
+    this.weather = pickWeather(createRng(Date.now()));
     this.weatherLine.setText(`Weather: ${this.weather.label}`);
 
     // Reveal the area around the spawn so the player is not fully blind.
