@@ -92,11 +92,18 @@ Run the unit tests (Vitest):
 npm test
 ```
 
-Run the browser smoke tests (Playwright, builds and drives the game in Chromium):
+Run the browser tests (Playwright, builds and drives the game in Chromium):
 
 ```bash
 npm run test:e2e
 ```
+
+These include smoke tests (the game boots and renders without runtime errors)
+and an input-driven playthrough that drives the courier through a full delivery
+loop with real key presses. The playthrough boots the game with `?e2e`, which
+attaches a small read-only `window.__courier` hook used only for reading state
+and pathfinding waypoints during tests. The hook is never attached in normal
+play.
 
 Lint the codebase:
 
