@@ -120,10 +120,10 @@ describe('Fenmarch spawn', () => {
 });
 
 describe('Fenmarch gateway', () => {
-  it('has a gateway that links to saltreach', () => {
+  it('has a gateway that links back to the greybridge hub', () => {
     const fenmarch = REGIONS.fenmarch;
     expect(fenmarch).toBeDefined();
-    expect(fenmarch?.gateways.some((g) => g.to === 'saltreach')).toBe(true);
+    expect(fenmarch?.gateways.some((g) => g.to === 'greybridge')).toBe(true);
   });
 
   it('is in bounds and on passable terrain', () => {

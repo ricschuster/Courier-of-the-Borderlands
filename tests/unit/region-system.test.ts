@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   REGIONS,
   getRegion,
+  arrivalTile,
   settlementAtTileIn,
   totalSettlementCount,
   GREYBRIDGE_REGION,
   SALTREACH_REGION,
+  FENMARCH_REGION,
 } from '../../src/systems/region-system';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
@@ -39,20 +41,53 @@ describe('region-system', () => {
     }
   });
 
-  it('forms the expected chain: greybridge <-> saltreach <-> fenmarch', () => {
+  it('forms a hub: greybridge links to both spokes, each spoke links only back', () => {
     const greybridge = REGIONS.greybridge;
     const saltreach = REGIONS.saltreach;
     const fenmarch = REGIONS.fenmarch;
-    expect(greybridge?.gateways.map((g) => g.to)).toEqual(['saltreach']);
-    expect(saltreach?.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'greybridge']);
-    expect(fenmarch?.gateways.map((g) => g.to)).toEqual(['saltreach']);
+    // Greybridge is the hub: it reaches both other regions.
+    expect(greybridge?.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'saltreach']);
+    // The spokes each link only back to the hub, never directly to each other.
+    expect(saltreach?.gateways.map((g) => g.to)).toEqual(['greybridge']);
+    expect(fenmarch?.gateways.map((g) => g.to)).toEqual(['greybridge']);
   });
 
-  it('saltreach has two gateways, one to greybridge and one to fenmarch', () => {
-    const saltreach = REGIONS.saltreach;
-    expect(saltreach?.gateways).toHaveLength(2);
-    expect(saltreach?.gateways.some((g) => g.to === 'greybridge')).toBe(true);
-    expect(saltreach?.gateways.some((g) => g.to === 'fenmarch')).toBe(true);
+  it('greybridge has two gateways, one to each spoke, on distinct tiles', () => {
+    const greybridge = REGIONS.greybridge;
+    expect(greybridge?.gateways).toHaveLength(2);
+    const toSalt = greybridge?.gateways.find((g) => g.to === 'saltreach');
+    const toFen = greybridge?.gateways.find((g) => g.to === 'fenmarch');
+    expect(toSalt).toBeDefined();
+    expect(toFen).toBeDefined();
+    // The two gateways must not share a tile, or arrival would be ambiguous.
+    expect(toSalt?.tile).not.toEqual(toFen?.tile);
+  });
+
+  describe('arrivalTile', () => {
+    it('lands on the return gateway when arriving by travel', () => {
+      // Coming into Greybridge from Saltreach: step out at the gateway that
+      // leads back to Saltreach, not at the Greybridge spawn.
+      const back = GREYBRIDGE_REGION.gateways.find((g) => g.to === 'saltreach');
+      expect(arrivalTile(GREYBRIDGE_REGION, 'saltreach')).toEqual(back?.tile);
+      expect(arrivalTile(GREYBRIDGE_REGION, 'saltreach')).not.toEqual(GREYBRIDGE_REGION.spawn);
+
+      const backFromFen = GREYBRIDGE_REGION.gateways.find((g) => g.to === 'fenmarch');
+      expect(arrivalTile(GREYBRIDGE_REGION, 'fenmarch')).toEqual(backFromFen?.tile);
+    });
+
+    it('lands on the spoke return gateway when arriving from the hub', () => {
+      const saltBack = SALTREACH_REGION.gateways.find((g) => g.to === 'greybridge');
+      expect(arrivalTile(SALTREACH_REGION, 'greybridge')).toEqual(saltBack?.tile);
+      const fenBack = FENMARCH_REGION.gateways.find((g) => g.to === 'greybridge');
+      expect(arrivalTile(FENMARCH_REGION, 'greybridge')).toEqual(fenBack?.tile);
+    });
+
+    it('falls back to spawn for a fresh load or an unconnected origin', () => {
+      expect(arrivalTile(GREYBRIDGE_REGION)).toEqual(GREYBRIDGE_REGION.spawn);
+      // Fenmarch has no direct gateway from Saltreach in the hub layout, so an
+      // origin it does not link back to falls through to spawn.
+      expect(arrivalTile(FENMARCH_REGION, 'saltreach')).toEqual(FENMARCH_REGION.spawn);
+    });
   });
 
   it('settlements sit on passable tiles and look up by tile', () => {

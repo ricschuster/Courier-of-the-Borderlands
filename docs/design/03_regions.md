@@ -25,7 +25,7 @@ saltreach  -> SaltreachRegion
 fenmarch   -> FenmarchRegion
 ```
 
-The regions form a chain: Greybridge <-> Saltreach <-> Fenmarch. Saltreach is the middle node and has two gateways (west to Greybridge, east to Fenmarch).
+The regions form a hub and spokes. Greybridge is the hub and has two gateways, one to each spoke (Saltreach and Fenmarch). Each spoke has a single gateway leading back to Greybridge. The spokes do not connect directly to each other, so all travel passes through the hub.
 
 The registry is a plain typed object. The active scene reads the current region id from global game state, looks it up in the registry, and uses the result to build the map, spawn the courier, and load settlements and contracts. Adding a new region means adding a data module and registering it; no scene logic changes are required.
 
@@ -37,11 +37,13 @@ Travel is only allowed when the courier is not carrying cargo. Accepting a contr
 
 When the player confirms travel:
 
-1. The active region id in global state is updated to the destination region.
+1. The active region id in global state is updated to the destination region, and the origin region id is passed to the restart.
 2. MapScene restarts.
-3. On restart, the scene reads the new active region id, loads that region from the registry, and spawns the courier at the new region's `spawnTile`.
+3. On restart, the scene reads the new active region id, loads that region from the registry, and places the courier at the **arrival tile**: the gateway that leads back to the region it just came from. So the courier steps out at the travel marker it would use to return, not at the region's generic spawn. A fresh load or new game (no origin) uses the region's `spawnTile` instead.
 
-The scene restart approach is intentional: it keeps region switching simple and avoids managing two full region states simultaneously. See `docs/decisions/0002-regions.md` for the rationale.
+The arrival tile is computed by the pure `arrivalTile(region, fromRegionId?)` helper in `region-system.ts`, so the rule is unit tested independently of the scene.
+
+The scene restart approach is intentional: it keeps region switching simple and avoids managing two full region states simultaneously. See `docs/decisions/0002-regions.md` and `docs/decisions/0003-hub-layout-and-arrival-markers.md` for the rationale.
 
 ## Global vs per-region state
 

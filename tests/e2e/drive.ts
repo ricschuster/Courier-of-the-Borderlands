@@ -147,6 +147,39 @@ export async function bootE2E(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Drive onto a gateway tile and travel through it with the "T" key into the
+ * expected destination region. Presses T only while still in the origin region
+ * (re-pressing after arrival would travel straight back), re-pressing each poll
+ * so a dropped keypress under CI load recovers, and tolerates the brief window
+ * during the scene restart when the `__courier` hook is reattaching.
+ */
+export async function travelTo(
+  page: Page,
+  held: Set<Arrow>,
+  gatewayTileX: number,
+  gatewayTileY: number,
+  fromRegionId: string,
+  toRegionId: string,
+  timeoutMs = 20_000,
+): Promise<void> {
+  await driveToTile(page, held, gatewayTileX, gatewayTileY);
+  await expect
+    .poll(
+      async () => {
+        // The hook is briefly absent mid-restart; treat that as "not yet there".
+        const region = await page.evaluate(
+          () => globalThis.__courier?.getState().regionId ?? null,
+        );
+        if (region === toRegionId) return region;
+        if (region === fromRegionId) await page.keyboard.press('T');
+        return region;
+      },
+      { timeout: timeoutMs },
+    )
+    .toBe(toRegionId);
+}
+
 /** Collect console/page errors into an array for an end-of-test assertion. */
 export function collectErrors(page: Page): string[] {
   const errors: string[] = [];
