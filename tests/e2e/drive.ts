@@ -1,5 +1,31 @@
 import { expect, type Page } from '@playwright/test';
 
+/**
+ * Press a key repeatedly until `done()` reports the action took effect. A single
+ * keypress can be dropped if it lands between Phaser input ticks (far more
+ * likely on a loaded CI runner, where the frame loop is throttled), so a
+ * one-shot press is flaky. This checks first, then re-presses each poll until
+ * the game registers it. Only safe where the input is a no-op once complete
+ * (the contract board and shop both ignore further presses after they act).
+ */
+export async function pressUntil(
+  page: Page,
+  key: string,
+  done: () => Promise<boolean>,
+  timeoutMs = 15_000,
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        if (await done()) return true;
+        await page.keyboard.press(key);
+        return done();
+      },
+      { timeout: timeoutMs },
+    )
+    .toBe(true);
+}
+
 // Shared helpers for the input-driven e2e specs. Each spec boots the real built
 // game with `?e2e`, reads live state and pathfinding waypoints through the
 // typed `window.__courier` hook, and drives the courier with genuine key

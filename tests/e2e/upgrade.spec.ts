@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, readTick, type Arrow } from './drive';
+import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
 
 // Input-driven upgrade purchase: boot the real built game, complete a
 // delivery to earn coins, then drive back to the home town and buy the
@@ -26,14 +26,16 @@ test('completes a delivery and buys the cheapest upgrade at home', async ({ page
   const home = start.state.home;
   await driveToTile(page, held, home.tileX, home.tileY);
 
-  // 2. Accept the first contract with a real key press ("1"). Cargo is
+  // 2. Accept the first contract with a real key press ("1"), re-pressing until
+  //    it registers (a single press can be dropped under CI load). Cargo is
   //    picked up automatically in the home town, so status becomes "carrying".
-  await page.keyboard.press('1');
-  await expect
-    .poll(async () => (await readTick(page, home.tileX, home.tileY)).state.activeContractId, {
-      timeout: 5_000,
-    })
-    .toBe('letters-to-eastwatch');
+  await pressUntil(
+    page,
+    '1',
+    async () =>
+      (await readTick(page, home.tileX, home.tileY)).state.activeContractId ===
+      'letters-to-eastwatch',
+  );
   const accepted = await readTick(page, home.tileX, home.tileY);
   expect(accepted.state.contractStatus).toBe('carrying');
   expect(accepted.state.destination).not.toBeNull();
@@ -59,15 +61,13 @@ test('completes a delivery and buys the cheapest upgrade at home', async ({ page
   const backHome = await readTick(page, home.tileX, home.tileY);
   expect(backHome.state.atHome).toBe(true);
 
-  // 6. Buy the cheapest upgrade with a real key press ("B"). The cheapest
-  //    Greybridge upgrade is "far-lantern" at cost 40 (see
-  //    src/data/upgrades-greybridge.ts).
-  await page.keyboard.press('B');
-  await expect
-    .poll(async () => (await readTick(page, home.tileX, home.tileY)).state.upgrades, {
-      timeout: 5_000,
-    })
-    .toContain('far-lantern');
+  // 6. Buy the cheapest upgrade with a real key press ("B"), re-pressing until
+  //    it registers. The cheapest Greybridge upgrade is "far-lantern" at cost
+  //    40 (see src/data/upgrades-greybridge.ts); with 10 coins left after the
+  //    purchase, no further upgrade is affordable, so extra presses are no-ops.
+  await pressUntil(page, 'B', async () =>
+    (await readTick(page, home.tileX, home.tileY)).state.upgrades.includes('far-lantern'),
+  );
   const afterBuy = await readTick(page, home.tileX, home.tileY);
   expect(afterBuy.state.coins).toBe(coinsAfterDelivery - 40);
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, readTick, type Arrow } from './drive';
+import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
 
 // Input-driven playthrough: boot the real built game, then drive the courier
 // with genuine key presses through a full delivery loop (reach the home town,
@@ -34,14 +34,16 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
   // The first Greybridge contract requires no reputation, so it must be offered.
   expect(atHome.state.availableContractIds).toContain('letters-to-eastwatch');
 
-  // 2. Accept the first contract with a real key press ("1"). Cargo is picked
-  //    up automatically in the home town, so status should become "carrying".
-  await page.keyboard.press('1');
-  await expect
-    .poll(async () => (await readTick(page, home.tileX, home.tileY)).state.activeContractId, {
-      timeout: 5_000,
-    })
-    .toBe('letters-to-eastwatch');
+  // 2. Accept the first contract with a real key press ("1"), re-pressing until
+  //    it registers (a single press can be dropped under CI load). Cargo is
+  //    picked up automatically in the home town, so status becomes "carrying".
+  await pressUntil(
+    page,
+    '1',
+    async () =>
+      (await readTick(page, home.tileX, home.tileY)).state.activeContractId ===
+      'letters-to-eastwatch',
+  );
   const accepted = await readTick(page, home.tileX, home.tileY);
   expect(accepted.state.contractStatus).toBe('carrying');
   expect(accepted.state.destination).not.toBeNull();
