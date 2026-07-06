@@ -83,6 +83,8 @@ Shipped:
 - [x] Input-driven e2e playthrough: real key presses drive a full delivery loop and a route unlock, gated behind a `?e2e` debug hook (`tests/e2e/playthrough.spec.ts`)
 - [x] Smoke tests booting each region from a save (Greybridge, Saltreach, Fenmarch) (`tests/e2e/smoke.spec.ts`)
 - [x] Camera follow: maps larger than the viewport scroll to follow the courier; maps that fit stay static and centred. HUD is pinned with `setScrollFactor(0)` and the minimap cell shrinks to a bounded box on large maps. Unblocks authoring maps bigger than the screen (`setupCamera` in `src/scenes/map-scene.ts`)
+- [x] Seeded PRNG (`src/systems/rng.ts`): pure deterministic generator (`next`/`nextInt`/`pick`); weather selection routed through it via `pickWeather`, removing the last `Math.random()` from `src/`
+- [x] Region invariant tests (`tests/unit/region-invariants.test.ts`): assert over every authored region that the spawn is passable, every settlement and gateway is reachable from home without unlocks, every contract has real endpoints with an existing pickup -> destination route, and each ford opens a crossing strictly shorter than its detour. Uses the game's own BFS so a pass means the route exists in play
 
 Not yet started (see `docs/handoffs/2026-07-05_Handoff_v03.md` for the live backlog):
 - Vehicle upgrade purchase covered by the e2e playthrough
