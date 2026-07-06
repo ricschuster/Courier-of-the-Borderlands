@@ -180,3 +180,64 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
   // No runtime errors during the whole playthrough.
   expect(errors, `runtime errors during playthrough:\n${errors.join('\n')}`).toEqual([]);
 });
+
+test('unlocks the southern ford by driving to the signpost', async ({ page }) => {
+  test.setTimeout(90_000);
+
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
+  });
+  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+
+  await page.goto('./?e2e=1');
+  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
+  await page.locator('#game canvas').click();
+  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
+    timeout: 15_000,
+  });
+
+  const held = new Set<Arrow>();
+
+  // Baseline: the ford route starts locked and the signpost that opens it exists.
+  const start = await readTick(page, 0, 0);
+  expect(start.state.regionId).toBe('greybridge');
+  expect(start.state.fordUnlocked).toBe(false);
+  expect(start.state.unlocks).not.toContain('ford-crossing-greybridge');
+  expect(start.state.signpost).not.toBeNull();
+  const signpost = start.state.signpost!;
+
+  // The ford tile just east of the signpost must be blocked before the unlock.
+  const fordTileX = signpost.tileX + 1;
+  const fordTileY = signpost.tileY;
+  const fordBlocked = await page.evaluate(
+    (t) => globalThis.__courier!.isPassableTile(t.x, t.y),
+    { x: fordTileX, y: fordTileY },
+  );
+  expect(fordBlocked, 'ford should be impassable before the unlock').toBe(false);
+
+  // Drive to the signpost. Reaching it fires the unlock overlap.
+  await driveToTile(page, held, signpost.tileX, signpost.tileY);
+
+  // The route unlock lands: ford flag flips, the unlock id is recorded, and the
+  // ford tile becomes drivable, so a new southern crossing has opened.
+  await expect
+    .poll(async () => (await readTick(page, 0, 0)).state.fordUnlocked, { timeout: 5_000 })
+    .toBe(true);
+  const unlocked = await readTick(page, 0, 0);
+  expect(unlocked.state.unlocks).toContain('ford-crossing-greybridge');
+  const fordOpen = await page.evaluate(
+    (t) => globalThis.__courier!.isPassableTile(t.x, t.y),
+    { x: fordTileX, y: fordTileY },
+  );
+  expect(fordOpen, 'ford should be passable after the unlock').toBe(true);
+
+  // The unlock must persist to the save.
+  const save = await page.evaluate(() =>
+    localStorage.getItem('courier-of-the-borderlands/save'),
+  );
+  const parsed = JSON.parse(save ?? '{}');
+  expect(parsed.unlocks).toContain('ford-crossing-greybridge');
+
+  expect(errors, `runtime errors during unlock run:\n${errors.join('\n')}`).toEqual([]);
+});

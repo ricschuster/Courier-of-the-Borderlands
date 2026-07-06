@@ -99,11 +99,12 @@ npm run test:e2e
 ```
 
 These include smoke tests (the game boots and renders without runtime errors)
-and an input-driven playthrough that drives the courier through a full delivery
-loop with real key presses. The playthrough boots the game with `?e2e`, which
-attaches a small read-only `window.__courier` hook used only for reading state
-and pathfinding waypoints during tests. The hook is never attached in normal
-play.
+and input-driven playthroughs that drive the courier with real key presses: one
+completes a full delivery loop, and one unlocks the southern ford by reaching
+its signpost and confirms the blocked route opens. The playthroughs boot the
+game with `?e2e`, which attaches a small read-only `window.__courier` hook used
+only for reading state, pathfinding waypoints, and tile passability during
+tests. The hook is never attached in normal play.
 
 Lint the codebase:
 
