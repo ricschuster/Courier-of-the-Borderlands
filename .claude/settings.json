@@ -29,6 +29,10 @@
       "Bash(gh pr *)",
       "Bash(gh run *)",
       "Bash(gh api *)",
+      "Bash(cat MEMORY.md)",
+      "Bash(command -v node)",
+      "Bash(command -v npm)",
+      "Bash(npm --version)",
       "WebFetch(domain:www.githubstatus.com)"
     ]
   }
