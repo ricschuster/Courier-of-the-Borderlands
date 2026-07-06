@@ -50,4 +50,12 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
     speedModifier: 0.7,
     unlockId: 'ford-crossing-saltreach',
   },
+  'ford-fenmarch': {
+    id: 'ford-fenmarch',
+    name: 'Ford',
+    color: 0x3a6a8a,
+    passable: false,
+    speedModifier: 0.7,
+    unlockId: 'ford-crossing-fenmarch',
+  },
 };
