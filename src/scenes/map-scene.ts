@@ -14,7 +14,14 @@ import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../sys
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
-import { createFog, revealAround, revealedIndices, isRevealed, type Fog } from '../systems/fog-of-war';
+import {
+  createFog,
+  revealAround,
+  revealedIndices,
+  isRevealed,
+  fogDimsMatch,
+  type Fog,
+} from '../systems/fog-of-war';
 import { addCoins, addReputation, ledgerFrom, totalReputation, tierFor } from '../systems/economy';
 import { loadSave, writeSave, clearSave, type GameSnapshot } from '../systems/save-system';
 import {
@@ -147,6 +154,9 @@ export class MapScene extends Phaser.Scene {
   private state: GameState = createGameState();
   private region!: Region;
   private fogByRegion: Record<string, number[]> = {};
+  // Map size each region's saved fog was recorded against, so a resized region
+  // discards its stale (differently indexed) fog instead of revealing wrong tiles.
+  private fogDimsByRegion: Record<string, [number, number]> = {};
   private travelKey!: Phaser.Input.Keyboard.Key;
   private map!: TileMap;
   private mapOriginY = 0;
@@ -279,6 +289,7 @@ export class MapScene extends Phaser.Scene {
     this.trip = createTripLog();
     this.achievements = new Set();
     this.fogByRegion = {};
+    this.fogDimsByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
 
@@ -295,6 +306,9 @@ export class MapScene extends Phaser.Scene {
     this.achievements = new Set(snapshot.achievements);
     for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
       this.fogByRegion[rid] = [...indices];
+    }
+    for (const [rid, dims] of Object.entries(snapshot.fogDimsByRegion)) {
+      this.fogDimsByRegion[rid] = [dims[0], dims[1]];
     }
 
     // Restore the active contract only if it belongs to the current region.
@@ -313,6 +327,15 @@ export class MapScene extends Phaser.Scene {
     if (indices === undefined) {
       return;
     }
+    // Fog indices only mean the same tile on a same-sized map. If this region
+    // was resized since the save (or the save predates dimension tracking),
+    // drop the stale fog so exploration starts fresh rather than revealing the
+    // wrong tiles. save() re-records the current size on the next write.
+    if (!fogDimsMatch(this.fogDimsByRegion[this.region.id], this.map.width, this.map.height)) {
+      delete this.fogByRegion[this.region.id];
+      delete this.fogDimsByRegion[this.region.id];
+      return;
+    }
     for (const index of indices) {
       if (index < 0 || index >= this.fog.revealed.length) {
         continue;
@@ -325,6 +348,7 @@ export class MapScene extends Phaser.Scene {
 
   private save(): void {
     this.fogByRegion[this.region.id] = revealedIndices(this.fog);
+    this.fogDimsByRegion[this.region.id] = [this.map.width, this.map.height];
     writeSave({
       coins: this.state.ledger.coins,
       reputation: { ...this.state.ledger.reputation },
@@ -334,6 +358,7 @@ export class MapScene extends Phaser.Scene {
       visited: [...this.visited],
       regionId: this.region.id,
       fogByRegion: this.fogByRegion,
+      fogDimsByRegion: this.fogDimsByRegion,
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,

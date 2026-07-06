@@ -16,6 +16,7 @@ const SNAPSHOT: GameSnapshot = {
   visited: ['greywater', 'eastwatch'],
   regionId: 'greybridge',
   fogByRegion: { greybridge: [0, 1, 2, 21, 22], saltreach: [5, 6] },
+  fogDimsByRegion: { greybridge: [20, 11], saltreach: [18, 11] },
   activeContractId: 'grain-to-southmill',
   contractStatus: 'carrying',
   distanceTiles: 42.5,
@@ -59,6 +60,7 @@ describe('save-system', () => {
     expect(parsed?.upgrades).toEqual([]);
     expect(parsed?.regionId).toBe('greybridge');
     expect(parsed?.fogByRegion).toEqual({});
+    expect(parsed?.fogDimsByRegion).toEqual({});
     expect(parsed?.activeContractId).toBeNull();
     expect(parsed?.contractStatus).toBeNull();
   });
@@ -76,6 +78,33 @@ describe('save-system', () => {
     });
     expect(parsed?.regionId).toBe('greybridge');
     expect(parsed?.fogByRegion).toEqual({ greybridge: [3, 4, 5] });
+  });
+
+  it('round-trips recorded fog dimensions per region', () => {
+    const parsed = deserialize(serialize(SNAPSHOT));
+    expect(parsed?.fogDimsByRegion).toEqual({ greybridge: [20, 11], saltreach: [18, 11] });
+  });
+
+  it('drops malformed fog dimension entries', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      fogDimsByRegion: {
+        greybridge: [20, 11],
+        bad: [20],
+        alsoBad: [20, 'x'],
+        notArray: 20,
+      },
+    });
+    expect(parsed?.fogDimsByRegion).toEqual({ greybridge: [20, 11] });
+  });
+
+  it('defaults fog dimensions to empty for a save that predates them', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      fogByRegion: { greybridge: [3, 4, 5] },
+    });
+    expect(parsed?.fogByRegion).toEqual({ greybridge: [3, 4, 5] });
+    expect(parsed?.fogDimsByRegion).toEqual({});
   });
 
   it('migrates the legacy global ford unlock id to the greybridge ford', () => {

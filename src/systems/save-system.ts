@@ -18,6 +18,13 @@ export interface GameSnapshot {
   readonly regionId: string;
   /** Revealed tile indices per region id. */
   readonly fogByRegion: Readonly<Record<string, readonly number[]>>;
+  /**
+   * Map [width, height] each region's fog was recorded against. Row-major fog
+   * indices only mean the same tile on a same-sized map, so this lets a load
+   * discard fog whose region was resized since the save. Absent for saves made
+   * before dimensions were tracked; such fog is treated as stale.
+   */
+  readonly fogDimsByRegion: Readonly<Record<string, readonly [number, number]>>;
   readonly activeContractId: string | null;
   readonly contractStatus: ContractStatus | null;
   readonly distanceTiles: number;
@@ -81,6 +88,22 @@ function toFogByRegion(data: Record<string, unknown>): Record<string, number[]> 
 }
 
 /**
+ * Parse recorded fog dimensions per region. Each entry must be a pair of finite
+ * numbers; anything else is dropped, so its fog falls back to stale on load.
+ */
+function toFogDims(value: unknown): Record<string, [number, number]> {
+  const out: Record<string, [number, number]> = {};
+  if (typeof value === 'object' && value !== null) {
+    for (const [regionId, dims] of Object.entries(value as Record<string, unknown>)) {
+      if (Array.isArray(dims) && dims.length === 2 && isFiniteNumber(dims[0]) && isFiniteNumber(dims[1])) {
+        out[regionId] = [dims[0], dims[1]];
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Legacy unlock id from when the ford was a single global unlock shared by
  * every region. The ford terrain was later split per region (see
  * terrain-types.ts), so this id no longer matches any terrain's unlockId.
@@ -123,6 +146,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     visited: toStringArray(data.visited),
     regionId: typeof data.regionId === 'string' ? data.regionId : 'greybridge',
     fogByRegion: toFogByRegion(data),
+    fogDimsByRegion: toFogDims(data.fogDimsByRegion),
     activeContractId: typeof data.activeContractId === 'string' ? data.activeContractId : null,
     contractStatus: toContractStatus(data.contractStatus),
     distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,

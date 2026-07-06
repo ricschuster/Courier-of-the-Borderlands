@@ -5,6 +5,7 @@ import {
   revealAround,
   revealedIndices,
   fogFromRevealed,
+  fogDimsMatch,
 } from '../../src/systems/fog-of-war';
 
 describe('fog-of-war', () => {
@@ -74,5 +75,18 @@ describe('fog-of-war', () => {
     }
     expect(isRevealed(fog, -1, 0)).toBe(false);
     expect(isRevealed(fog, 3, 3)).toBe(false);
+  });
+
+  describe('fogDimsMatch', () => {
+    it('matches only when both dimensions equal the current map size', () => {
+      expect(fogDimsMatch([20, 11], 20, 11)).toBe(true);
+      expect(fogDimsMatch([20, 11], 30, 22)).toBe(false);
+      expect(fogDimsMatch([20, 11], 20, 22)).toBe(false);
+      expect(fogDimsMatch([20, 11], 30, 11)).toBe(false);
+    });
+
+    it('treats a missing stored size (pre-dimension save) as stale', () => {
+      expect(fogDimsMatch(undefined, 20, 11)).toBe(false);
+    });
   });
 });
