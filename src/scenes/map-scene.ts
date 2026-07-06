@@ -70,6 +70,40 @@ import { Courier } from '../entities/courier';
 // Minimap layout (pixels per tile in the corner map).
 const MINIMAP_CELL = 6;
 
+// Read-only snapshot of live scene state, exposed to end-to-end tests so a
+// headless browser can drive the courier and assert on the delivery loop.
+interface E2EState {
+  readonly regionId: string;
+  readonly courier: { readonly x: number; readonly y: number; readonly tileX: number; readonly tileY: number };
+  readonly home: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number };
+  readonly coins: number;
+  readonly reputation: number;
+  readonly deliveries: number;
+  readonly delivered: number;
+  readonly fogRevealed: number;
+  readonly activeContractId: string | null;
+  readonly contractStatus: string | null;
+  readonly atHome: boolean;
+  readonly availableContractIds: readonly string[];
+  readonly destination:
+    | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
+    | null;
+}
+
+// The debug API attached to window when the game boots with `?e2e`. It is a
+// thin, read-plus-navigate surface: tests still drive movement with real key
+// presses, but read state and next-step waypoints through this so navigation
+// stays deterministic. Never attached in normal play.
+interface CourierE2EApi {
+  readonly version: number;
+  getState(): E2EState;
+  nextStepToward(tileX: number, tileY: number): { x: number; y: number } | null;
+}
+
+declare global {
+  var __courier: CourierE2EApi | undefined;
+}
+
 // Depth layers, from bottom to top.
 const DEPTH_MARKER = 1;
 const DEPTH_COURIER = 6;
@@ -199,6 +233,9 @@ export class MapScene extends Phaser.Scene {
     this.time.addEvent({ delay: 2000, loop: true, callback: () => this.save() });
     this.save();
 
+    // Attach the test hook only when explicitly requested via `?e2e`.
+    this.maybeExposeE2EApi();
+
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     this.showToast(
       `${this.region.name}. Reach ${homeName} for contracts. ${this.weather.description}`,
@@ -276,6 +313,83 @@ export class MapScene extends Phaser.Scene {
       deliveries: this.trip.deliveries,
       achievements: [...this.achievements],
     });
+  }
+
+  /** True when the game booted with `?e2e` in the URL (test-only hook). */
+  private isE2E(): boolean {
+    return (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('e2e')
+    );
+  }
+
+  /** Attach the read-plus-navigate test API to window, gated on `?e2e`. */
+  private maybeExposeE2EApi(): void {
+    if (!this.isE2E()) {
+      return;
+    }
+    globalThis.__courier = {
+      version: 1,
+      getState: () => this.e2eState(),
+      nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
+    };
+  }
+
+  /** Snapshot of live state for tests. Recomputed on every call. */
+  private e2eState(): E2EState {
+    const tile = this.courierTile();
+    const home = this.region.settlements[this.region.home];
+    const homeTile = home?.tile ?? this.region.spawn;
+    const homeCenter = this.tileCenter(homeTile.x, homeTile.y);
+    const destSettlement =
+      this.activeContract === undefined
+        ? undefined
+        : this.region.settlements[this.activeContract.destinationId];
+    const destCenter =
+      destSettlement === undefined
+        ? null
+        : this.tileCenter(destSettlement.tile.x, destSettlement.tile.y);
+    return {
+      regionId: this.region.id,
+      courier: { x: this.courier.sprite.x, y: this.courier.sprite.y, tileX: tile.x, tileY: tile.y },
+      home: { tileX: homeTile.x, tileY: homeTile.y, x: homeCenter.x, y: homeCenter.y },
+      coins: this.state.ledger.coins,
+      reputation: totalReputation(this.state.ledger),
+      deliveries: this.trip.deliveries,
+      delivered: this.deliveredInRegion(),
+      fogRevealed: revealedIndices(this.fog).length,
+      activeContractId: this.activeContract?.id ?? null,
+      contractStatus: this.progress?.status ?? null,
+      atHome: this.atSettlement(this.region.home),
+      availableContractIds: this.boardContracts().map((c) => c.id),
+      destination:
+        destSettlement === undefined || destCenter === null
+          ? null
+          : { tileX: destSettlement.tile.x, tileY: destSettlement.tile.y, x: destCenter.x, y: destCenter.y },
+    };
+  }
+
+  /** World centre of the next tile on the shortest passable path to a goal. */
+  private e2eNextStep(tileX: number, tileY: number): { x: number; y: number } | null {
+    const path = findPath({
+      width: this.map.width,
+      height: this.map.height,
+      isPassable: (x, y) => {
+        const id = getTerrainIdAt(this.map, x, y);
+        return id !== undefined && isPassableWith(id, this.state.unlocks);
+      },
+      start: this.courierTile(),
+      goal: { x: tileX, y: tileY },
+    });
+    if (!path.reachable) {
+      return null;
+    }
+    // path[0] is the current tile; [1] is the next step to drive toward.
+    const next = path.path[1] ?? path.path[0];
+    if (next === undefined) {
+      return null;
+    }
+    return this.tileCenter(next.x, next.y);
   }
 
   update(): void {
