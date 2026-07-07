@@ -16,7 +16,8 @@
 //   Ironhollow (4,18)  mining hollow in the south-west mountains
 //   Eastwatch  (19,8)  watchtower on the main road, east of the river
 //   Southmill  (21,14) mill on the south-east reeds (also the Fenmarch gateway)
-//   Mirewatch  (25,18) stilt-village deep in the south-east marsh
+//   Mirewatch  (24,20) stilt-village off the road, deep in the south-east marsh
+//              (reached only by wading south through the reeds from the row-18 road)
 // Crossings: north bridge row 3, main bridge row 8, ford row 14 (cols 14-15).
 // The ford signpost sits at (13,14) on the west bank and unlocks the ford.
 //

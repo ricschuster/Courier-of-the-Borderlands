@@ -11,11 +11,19 @@ describe('bonusFor', () => {
     expect(bonus).toBeDefined();
     expect(bonus?.kind).toBe('swift');
     expect(bonus?.reward).toBe(25);
-    expect(bonus?.maxTiles).toBe(24);
+    expect(bonus?.maxTiles).toBe(28);
   });
 
-  it('returns the via-ford bonus for rumours-to-ironhollow', () => {
+  it('returns the swift bonus for rumours-to-ironhollow', () => {
     const bonus = bonusFor('rumours-to-ironhollow');
+    expect(bonus).toBeDefined();
+    expect(bonus?.kind).toBe('swift');
+    expect(bonus?.reward).toBe(20);
+    expect(bonus?.maxTiles).toBe(17);
+  });
+
+  it('returns the via-ford bonus for secret-to-mirewatch', () => {
+    const bonus = bonusFor('secret-to-mirewatch');
     expect(bonus).toBeDefined();
     expect(bonus?.kind).toBe('via-ford');
     expect(bonus?.reward).toBe(30);
@@ -31,7 +39,7 @@ describe('bonusFor', () => {
 });
 
 describe('bonusAchieved - via-ford', () => {
-  const fordBonus = bonusFor('rumours-to-ironhollow')!;
+  const fordBonus = bonusFor('secret-to-mirewatch')!;
 
   it('returns true when the ford was used', () => {
     expect(bonusAchieved(fordBonus, { usedFord: true, tilesDriven: 99 })).toBe(true);
@@ -51,7 +59,7 @@ describe('bonusAchieved - swift', () => {
   const swiftBonus = bonusFor('grain-to-southmill')!;
 
   it('returns true when tiles driven is exactly at the budget', () => {
-    expect(bonusAchieved(swiftBonus, { usedFord: false, tilesDriven: 24 })).toBe(true);
+    expect(bonusAchieved(swiftBonus, { usedFord: false, tilesDriven: 28 })).toBe(true);
   });
 
   it('returns true when tiles driven is below the budget', () => {
@@ -59,7 +67,7 @@ describe('bonusAchieved - swift', () => {
   });
 
   it('returns false when tiles driven exceeds the budget by one', () => {
-    expect(bonusAchieved(swiftBonus, { usedFord: false, tilesDriven: 25 })).toBe(false);
+    expect(bonusAchieved(swiftBonus, { usedFord: false, tilesDriven: 29 })).toBe(false);
   });
 
   it('returns false when tiles driven greatly exceeds the budget', () => {
@@ -67,8 +75,8 @@ describe('bonusAchieved - swift', () => {
   });
 
   it('ignores usedFord for swift bonuses', () => {
-    expect(bonusAchieved(swiftBonus, { usedFord: true, tilesDriven: 24 })).toBe(true);
-    expect(bonusAchieved(swiftBonus, { usedFord: true, tilesDriven: 25 })).toBe(false);
+    expect(bonusAchieved(swiftBonus, { usedFord: true, tilesDriven: 28 })).toBe(true);
+    expect(bonusAchieved(swiftBonus, { usedFord: true, tilesDriven: 29 })).toBe(false);
   });
 
   it('treats an absent maxTiles as unlimited (always true)', () => {
@@ -84,13 +92,13 @@ describe('bonusAchieved - swift', () => {
 
 describe('describeBonus', () => {
   it('formats the via-ford bonus description correctly', () => {
-    const bonus = bonusFor('rumours-to-ironhollow')!;
+    const bonus = bonusFor('secret-to-mirewatch')!;
     expect(describeBonus(bonus)).toBe('Bonus: Cross the river at the ford (+30c)');
   });
 
   it('formats the swift bonus description correctly', () => {
     const bonus = bonusFor('grain-to-southmill')!;
-    expect(describeBonus(bonus)).toBe('Bonus: Deliver swiftly, within 24 tiles driven (+25c)');
+    expect(describeBonus(bonus)).toBe('Bonus: Deliver swiftly, within 28 tiles driven (+25c)');
   });
 
   it('uses the reward from the bonus object', () => {
