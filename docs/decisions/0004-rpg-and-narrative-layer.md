@@ -61,6 +61,9 @@ social skills. It is built once and depended on by the rest.
 parallel spokes. A light main thread per region, delivered through journal
 entries, NPC dialogue, and mission chains, gives them order and a reason,
 resolving through key missions plus reputation and unlocking the next thread.
+The concrete spine that fills this slot is locked in
+`docs/design/04_storyline.md` (the Blockade): the hub sets it up, the two
+spokes each reveal one half in either order, and the hub resolves.
 
 **6. Tension without combat.** Non-combat road encounters (washed-out crossings,
 bandit tolls resolved by paying, fleeing, or reputation, stranded travellers,

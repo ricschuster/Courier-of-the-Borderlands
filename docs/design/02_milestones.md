@@ -95,8 +95,10 @@ Not yet started (see `docs/handoffs/2026-07-05_Handoff_v03.md` for the live back
 
 Add character progression, missions, and storyline, with world-state
 consequence as the north star. Scope and shape are recorded in
-`docs/decisions/0004-rpg-and-narrative-layer.md`. Build order is smallest,
-most self-contained system first. Each phase ships independently behind CI.
+`docs/decisions/0004-rpg-and-narrative-layer.md`; the narrative spine that
+M5.2 and M5.3 deliver is locked in `docs/design/04_storyline.md` (the
+Blockade). Build order is smallest, most self-contained system first. Each
+phase ships independently behind CI.
 
 ### M5.1: Courier experience and skills -- DONE
 
@@ -126,6 +128,8 @@ secrets, and the social skills that depend on dialogue, M5.2).
 ### M5.2: NPC and dialogue system
 
 Shared foundation for missions, storyline, road encounters, and social skills.
+Authored against the locked spine in `docs/design/04_storyline.md`: the act
+transitions there define the first story flags to model.
 
 - [ ] Branching dialogue node model with story flags (pure, testable)
 - [ ] Dialogue UI at settlements and events
@@ -140,7 +144,9 @@ Authored, multi-step, branching delivery chains built on the contract primitive.
 - [ ] Mission model as a sequence of contract-like steps plus dialogue and choices
 - [ ] Mission state and progress persisted in the save
 - [ ] One mission chain per region as the story spine, connecting the regions
-      into an arc
+      into an arc: Greybridge sets up, each spoke delivers one half (Saltreach
+      the method, Fenmarch the cost), a Greywater capstone resolves. See
+      `docs/design/04_storyline.md`
 - [ ] Non-combat road encounters (may land here or earlier, after M5.2)
 
 ### M5.4: World-state consequence (north star)
