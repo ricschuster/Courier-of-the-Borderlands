@@ -36,6 +36,12 @@ export interface GameSnapshot {
    * Absent in saves made before skills existed; such saves load with no skills.
    */
   readonly skills: Readonly<Record<string, number>>;
+  /**
+   * Story flags set through dialogue and mission progress, as a flat id list.
+   * The dialogue engine treats presence as true. Absent in saves made before
+   * dialogue existed; such saves load with no flags set.
+   */
+  readonly storyFlags: readonly string[];
 }
 
 export interface SaveData extends GameSnapshot {
@@ -176,6 +182,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     deliveries: isFiniteNumber(data.deliveries) ? data.deliveries : 0,
     achievements: toStringArray(data.achievements),
     skills: toSkillRanks(data.skills),
+    storyFlags: toStringArray(data.storyFlags),
   };
 }
 

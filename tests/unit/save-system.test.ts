@@ -23,6 +23,7 @@ const SNAPSHOT: GameSnapshot = {
   deliveries: 1,
   achievements: ['first-delivery', 'ford-finder'],
   skills: { teamster: 2, wayfinder: 1 },
+  storyFlags: ['greybridge_reveal', 'met_postmaster'],
 };
 
 describe('save-system', () => {
@@ -82,6 +83,27 @@ describe('save-system', () => {
       skills: { teamster: 2, bad: 'x', zero: 0, negative: -1, frac: 1.9 },
     });
     expect(parsed?.skills).toEqual({ teamster: 2, frac: 1 });
+  });
+
+  it('round-trips story flags', () => {
+    expect(deserialize(serialize(SNAPSHOT))?.storyFlags).toEqual([
+      'greybridge_reveal',
+      'met_postmaster',
+    ]);
+  });
+
+  it('defaults story flags to empty for a save made before dialogue existed', () => {
+    const parsed = deserialize({ version: SAVE_VERSION, coins: 10 });
+    expect(parsed?.storyFlags).toEqual([]);
+  });
+
+  it('drops non-string story flags', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      coins: 10,
+      storyFlags: ['greybridge_reveal', 7, null, 'met_postmaster'],
+    });
+    expect(parsed?.storyFlags).toEqual(['greybridge_reveal', 'met_postmaster']);
   });
 
   it('keeps a valid contract status', () => {
