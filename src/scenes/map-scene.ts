@@ -47,6 +47,7 @@ import {
   skillSpeedBonus,
   skillRevealBonus,
   skillRewardBonus,
+  derivedSkillFlags,
   type SkillRanks,
 } from '../systems/skills';
 import { findPath, type PathResult } from '../systems/pathfinding';
@@ -140,6 +141,10 @@ interface E2EState {
   readonly storyFlags: readonly string[];
   /** Whether a conversation is currently open. */
   readonly dialogueOpen: boolean;
+  /** Labels of the choices offered on the current dialogue node (empty when closed). */
+  readonly dialogueChoices: readonly string[];
+  /** Whether the skills panel is currently open. */
+  readonly skillPanelOpen: boolean;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -494,6 +499,8 @@ export class MapScene extends Phaser.Scene {
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
       dialogueOpen: this.hud.isDialogueVisible(),
+      dialogueChoices: this.dialogueChoices.map((c) => c.label),
+      skillPanelOpen: this.hud.isSkillPanelVisible(),
     };
   }
 
@@ -1074,7 +1081,7 @@ export class MapScene extends Phaser.Scene {
    * (the home region being reconnected) without persisting a redundant flag.
    */
   private effectiveFlags(): StoryFlags {
-    const derived: string[] = [];
+    const derived: string[] = [...derivedSkillFlags(this.skills)];
     if (this.regionCleared()) {
       derived.push(FLAG_HOME_RECONNECTED);
     }

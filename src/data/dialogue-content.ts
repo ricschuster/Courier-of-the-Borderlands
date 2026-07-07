@@ -7,6 +7,7 @@
 // reconnects it. This first conversation is the Act 1 setup at the home town.
 
 import { END_DIALOGUE, type Dialogue } from '../systems/dialogue';
+import { skillFlag } from '../systems/skills';
 
 // Story flags this content sets or reads. Named here so the scene and the
 // content agree on ids.
@@ -19,6 +20,9 @@ export const FLAG_GREYBRIDGE_REVEAL = 'greybridge_reveal';
 // is reconnected. See docs/design/04_storyline.md.
 export const FLAG_SALTREACH_METHOD = 'saltreach_method';
 export const FLAG_FENMARCH_COST = 'fenmarch_cost';
+// Derived (never persisted): granted by the Cipher social skill while owned.
+// Gates dialogue lines that only a courier who can read carried secrets sees.
+export const FLAG_CIPHER = skillFlag('cipher');
 // Derived (never persisted): the scene computes this from world-state each time
 // a dialogue opens, so a choice can gate on a real fact about the world. It is
 // set when the home region's contracts are all delivered (the region is
@@ -66,7 +70,21 @@ const GREYWATER_POSTMASTER: Dialogue = {
       speaker: 'Greywater Postmaster',
       text: 'If I knew, I would not be whispering it to a courier. But mark this: some folk have started routing word around my post office. Letters with no seal and no name. Someone is building a road I cannot see.',
       choices: [
+        {
+          label: 'I have started to read the unsigned letters.',
+          requires: { allOf: [FLAG_CIPHER] },
+          next: 'cipher',
+        },
         { label: 'I will watch for them.', next: END_DIALOGUE },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+    cipher: {
+      id: 'cipher',
+      speaker: 'Greywater Postmaster',
+      text: 'Then you already know more than is safe. Whoever writes them is stitching the roads back together in the dark, one courier at a time. Keep that skill quiet. The last one who could read them went east asking questions, and the coast kept him.',
+      choices: [
+        { label: 'I will keep it to myself.', next: END_DIALOGUE },
         { label: 'Ask something else.', next: 'greeting' },
       ],
     },
