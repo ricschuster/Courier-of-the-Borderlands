@@ -20,6 +20,10 @@ export const FLAG_GREYBRIDGE_REVEAL = 'greybridge_reveal';
 // is reconnected. See docs/design/04_storyline.md.
 export const FLAG_SALTREACH_METHOD = 'saltreach_method';
 export const FLAG_FENMARCH_COST = 'fenmarch_cost';
+// The arc's resolution: set at the Greywater capstone once both spoke reveals
+// are known. The immediate blockade over the borderland is broken; the larger
+// question of who commands it stays open. See docs/design/04_storyline.md.
+export const FLAG_BLOCKADE_BROKEN = 'blockade_broken';
 // Derived (never persisted): granted by the Cipher social skill while owned.
 // Gates dialogue lines that only a courier who can read carried secrets sees.
 export const FLAG_CIPHER = skillFlag('cipher');
@@ -51,6 +55,15 @@ const GREYWATER_POSTMASTER: Dialogue = {
           requires: { allOf: [FLAG_HOME_RECONNECTED], noneOf: [FLAG_GREYBRIDGE_REVEAL] },
           set: [FLAG_GREYBRIDGE_REVEAL],
           next: 'reveal',
+        },
+        {
+          label: 'Both roads are open again. Saltreach and the fen.',
+          requires: {
+            allOf: [FLAG_SALTREACH_METHOD, FLAG_FENMARCH_COST],
+            noneOf: [FLAG_BLOCKADE_BROKEN],
+          },
+          set: [FLAG_BLOCKADE_BROKEN],
+          next: 'resolve',
         },
         { label: 'Just passing through.', next: END_DIALOGUE },
       ],
@@ -103,6 +116,15 @@ const GREYWATER_POSTMASTER: Dialogue = {
       text: 'So they are. I felt it, the day your deliveries started landing. This was no accident, courier. Someone cut these roads on purpose, and whoever it was does not stop at Greybridge. If you want the why of it, you will have to carry it out of the region. Follow the letters.',
       choices: [
         { label: 'Then I will follow them.', next: END_DIALOGUE },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+    resolve: {
+      id: 'resolve',
+      speaker: 'Greywater Postmaster',
+      text: 'Then it is done, the part we can do. Word runs the roads faster than their birds now, coast to fen, because a courier carried it. Whoever cut these roads has lost the borderland. They have not lost everything, and they will not forget your wheels. But tonight the lamps are lit from here to Hollowfen. Rest. The next road can wait for morning.',
+      choices: [
+        { label: 'And then?', next: END_DIALOGUE },
         { label: 'Ask something else.', next: 'greeting' },
       ],
     },

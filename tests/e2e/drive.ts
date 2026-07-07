@@ -161,7 +161,9 @@ export async function travelTo(
   gatewayTileY: number,
   fromRegionId: string,
   toRegionId: string,
-  timeoutMs = 20_000,
+  // Travel needs a full scene restart plus the hook reattaching, which is slow
+  // under CI load; give the re-pressing poll room so a dropped T does not fail.
+  timeoutMs = 30_000,
 ): Promise<void> {
   await driveToTile(page, held, gatewayTileX, gatewayTileY);
   await expect
