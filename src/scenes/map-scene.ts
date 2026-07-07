@@ -84,6 +84,13 @@ import {
   type StoryFlags,
 } from '../systems/dialogue';
 import { dialogueForSettlement, FLAG_HOME_RECONNECTED } from '../data/dialogue-content';
+import {
+  activeObjective,
+  activeMission,
+  missionProgress,
+  type MissionState,
+} from '../systems/mission-system';
+import { MISSIONS } from '../data/missions';
 import { MapHud, STATUS_COLOR } from './map-hud';
 import {
   getRegion,
@@ -145,6 +152,10 @@ interface E2EState {
   readonly dialogueChoices: readonly string[];
   /** Whether the skills panel is currently open. */
   readonly skillPanelOpen: boolean;
+  /** Active mission id for the current region, or null when none is active. */
+  readonly activeMissionId: string | null;
+  /** The active mission's current step id, or null. */
+  readonly activeMissionStepId: string | null;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -453,6 +464,7 @@ export class MapScene extends Phaser.Scene {
 
   /** Snapshot of live state for tests. Recomputed on every call. */
   private e2eState(): E2EState {
+    const e2eObjective = activeObjective(MISSIONS, this.missionState(), this.region.id);
     const tile = this.courierTile();
     const home = this.region.settlements[this.region.home];
     const homeTile = home?.tile ?? this.region.spawn;
@@ -501,6 +513,8 @@ export class MapScene extends Phaser.Scene {
       dialogueOpen: this.hud.isDialogueVisible(),
       dialogueChoices: this.dialogueChoices.map((c) => c.label),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
+      activeMissionId: e2eObjective?.mission.id ?? null,
+      activeMissionStepId: e2eObjective?.step.id ?? null,
     };
   }
 
@@ -1088,6 +1102,15 @@ export class MapScene extends Phaser.Scene {
     return setFlags(this.storyFlags, derived);
   }
 
+  /** Facts mission progress is derived from: completed contracts, flags, visits. */
+  private missionState(): MissionState {
+    return {
+      completedContractIds: [...this.completed],
+      flags: this.effectiveFlags(),
+      visitedIds: [...this.visited],
+    };
+  }
+
   /** Render the current conversation node and remember its available choices. */
   private showDialogueNode(): void {
     const dialogue = this.activeDialogue;
@@ -1344,6 +1367,23 @@ export class MapScene extends Phaser.Scene {
     this.hud.setSkillText(lines.join('\n'));
   }
 
+  /** Story-spine lines for the journal: the active mission and its step progress. */
+  private missionJournalLines(): string[] {
+    const state = this.missionState();
+    const mission = activeMission(MISSIONS, state, this.region.id);
+    if (mission === null) {
+      return ['Story:', '  No mission calls just now. The borderland holds its breath.', ''];
+    }
+    const progress = missionProgress(mission, state);
+    const lines = ['Story:', `  ${mission.title}`];
+    progress.steps.forEach((entry, i) => {
+      const mark = entry.done ? '[x]' : i === progress.currentStepIndex ? '[>]' : '[ ]';
+      lines.push(`    ${mark} ${entry.step.summary}`);
+    });
+    lines.push('');
+    return lines;
+  }
+
   /** The active objective as re-readable text for the journal, or null. */
   private journalObjective(): { title: string; detail: string } | null {
     const contract = this.activeContract;
@@ -1387,6 +1427,7 @@ export class MapScene extends Phaser.Scene {
       ...model.summaryLines,
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
+      ...this.missionJournalLines(),
       'Places:',
     ];
     for (const place of model.places) {
@@ -1475,7 +1516,13 @@ export class MapScene extends Phaser.Scene {
 
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     if (contract === undefined || progress === undefined) {
-      if (this.boardContracts().length === 0) {
+      // With no cargo in hand, lead with the spine: the active mission step is
+      // the strategic through-line. Fall back to tactical guidance when no
+      // mission is active (for example after the arc resolves).
+      const objective = activeObjective(MISSIONS, this.missionState(), this.region.id);
+      if (objective !== null) {
+        this.hud.setObjective(`Mission: ${objective.step.summary}`);
+      } else if (this.boardContracts().length === 0) {
         const other = this.gatewayDestinationNames();
         this.hud.setObjective(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
       } else if (this.atSettlement(this.region.home)) {

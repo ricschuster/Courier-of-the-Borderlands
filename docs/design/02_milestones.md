@@ -145,20 +145,31 @@ transitions there define the first story flags to model.
       (`src/data/dialogue-content.ts`), whose reveal unlocks only once the
       region is reconnected. Covered by unit tests plus a browser e2e
       (`tests/e2e/dialogue.spec.ts`).
-- [ ] Social skills (for example negotiation, reading carried secrets) hook
-      dialogue options
-- [ ] More conversations across the regions, and the spoke reveals
+- [x] Social skills hook dialogue options: a skill grants a derived
+      `skill_<id>` flag while owned (`derivedSkillFlags`), and the scene folds
+      those into the flags handed to dialogue, so a choice can gate on a skill.
+      First social skill: Cipher (reading carried secrets), which unlocks a
+      postmaster line about the unsigned letters (`tests/e2e/social-skill.spec.ts`).
+- [x] More conversations across the regions and the spoke reveals: Tidewatch
+      (Saltreach, the method) and Mossgate (Fenmarch, the cost), each gated on
+      its region being reconnected (`src/data/dialogue-content.ts`).
 
 ### M5.3: Missions
 
 Authored, multi-step, branching delivery chains built on the contract primitive.
 
-- [ ] Mission model as a sequence of contract-like steps plus dialogue and choices
-- [ ] Mission state and progress persisted in the save
-- [ ] One mission chain per region as the story spine, connecting the regions
-      into an arc: Greybridge sets up, each spoke delivers one half (Saltreach
-      the method, Fenmarch the cost), a Greywater capstone resolves. See
-      `docs/design/04_storyline.md`
+- [x] Mission model as a sequence of steps whose completion is derived from
+      contract completions, story flags, and visits (`src/systems/mission-system.ts`,
+      pure and unit tested). No persisted mission state, matching world-state
+      and experience.
+- [x] Mission progress persisted: nothing new to persist. It is derived from
+      the already-saved completed contracts, story flags, and visited ids.
+- [x] One mission chain per region as the story spine, connecting the regions
+      into an arc (`src/data/missions.ts`): Greybridge sets up, each spoke
+      delivers one half (Saltreach the method, Fenmarch the cost, gated on the
+      hub reveal), and a Greywater capstone resolves. The active mission step
+      shows in the HUD objective and the journal Story section. See
+      `docs/design/04_storyline.md`.
 - [ ] Non-combat road encounters (may land here or earlier, after M5.2)
 
 ### M5.4: World-state consequence (north star)
