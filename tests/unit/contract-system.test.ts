@@ -7,8 +7,13 @@ import {
   pickUp,
   deliver,
   isDelivered,
+  isContractAvailable,
+  availableContracts,
+  contractsInPlay,
+  baseContracts,
   type Contract,
 } from '../../src/systems/contract-system';
+import { emptyFlags, flagsFromArray } from '../../src/systems/dialogue';
 
 const CONTRACT: Contract = {
   id: 'test',
@@ -68,5 +73,57 @@ describe('contract-system', () => {
     const delivered = deliver(pickUp(accepted));
     // Cannot pick up again once delivered.
     expect(pickUp(delivered).status).toBe('delivered');
+  });
+});
+
+describe('contract availability gating', () => {
+  const standing: Contract = { ...CONTRACT, id: 'standing', minReputation: 0 };
+  const gated: Contract = {
+    ...CONTRACT,
+    id: 'gated',
+    minReputation: 0,
+    requires: { allOf: ['arc_started'] },
+  };
+  const all = [standing, gated];
+  const none: ReadonlySet<string> = new Set();
+
+  it('treats an ungated contract as available whenever not completed', () => {
+    expect(isContractAvailable(standing, none, emptyFlags())).toBe(true);
+    expect(isContractAvailable(standing, new Set(['standing']), emptyFlags())).toBe(false);
+  });
+
+  it('hides a gated contract until its flag condition is met', () => {
+    expect(isContractAvailable(gated, none, emptyFlags())).toBe(false);
+    expect(isContractAvailable(gated, none, flagsFromArray(['arc_started']))).toBe(true);
+  });
+
+  it('availableContracts excludes completed and unrevealed gated contracts', () => {
+    expect(availableContracts(all, none, emptyFlags()).map((c) => c.id)).toEqual(['standing']);
+    expect(availableContracts(all, none, flagsFromArray(['arc_started'])).map((c) => c.id)).toEqual([
+      'standing',
+      'gated',
+    ]);
+    expect(
+      availableContracts(all, new Set(['standing']), flagsFromArray(['arc_started'])).map((c) => c.id),
+    ).toEqual(['gated']);
+  });
+
+  it('contractsInPlay counts completed plus currently-available, not hidden gated', () => {
+    // Before the reveal: only the standing contract is in play.
+    expect(contractsInPlay(all, none, emptyFlags()).map((c) => c.id)).toEqual(['standing']);
+    // After clearing the standing one but before the reveal: it still counts
+    // (completed), the gated one does not.
+    expect(contractsInPlay(all, new Set(['standing']), emptyFlags()).map((c) => c.id)).toEqual([
+      'standing',
+    ]);
+    // After the reveal: the gated contract enters the count.
+    expect(contractsInPlay(all, new Set(['standing']), flagsFromArray(['arc_started'])).map((c) => c.id)).toEqual([
+      'standing',
+      'gated',
+    ]);
+  });
+
+  it('baseContracts returns only the ungated standing routes', () => {
+    expect(baseContracts(all).map((c) => c.id)).toEqual(['standing']);
   });
 });

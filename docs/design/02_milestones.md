@@ -207,9 +207,22 @@ Shipped:
       objective and per-settlement status, fixing the "popup vanished" and
       "forgot the lore" playtest complaints (`src/systems/journal.ts`)
 
+Shipped (cont.):
+- [x] Arc-driven contract availability: contracts can carry an optional
+      `requires` story-flag gate (`src/systems/contract-system.ts`,
+      `isContractAvailable` / `availableContracts` / `contractsInPlay`), so the
+      board opens new work as the world reconnects. One gated contract per region
+      appears after that region's reveal (`greybridge_reveal` /
+      `saltreach_method` / `fenmarch_cost`), each carrying the hidden network's
+      unsigned letters. Progress counts count only revealed contracts, so the
+      board never shows one the courier cannot see, and `regionCleared` is
+      decoupled to the standing (ungated) contracts so a new gated contract does
+      not re-lock the arc's reveals. Unit tested plus a save-seeded browser e2e
+      (`tests/e2e/gated-contract.spec.ts`).
+
 Still to do:
-- [ ] Consequences beyond visibility: new or withdrawn contracts, price and
-      reward shifts, deeper settlement changes
+- [ ] Further consequences: withdrawn contracts, price and reward shifts,
+      deeper settlement changes
 - [ ] Missions and skills read and write world-state
 - [x] Progression that does not flatline: coin sink (more upgrades) plus the
       M5.1 experience and skill track

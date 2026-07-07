@@ -116,6 +116,9 @@ import {
   canDeliver,
   pickUp,
   isDelivered,
+  availableContracts,
+  contractsInPlay,
+  baseContracts,
   type Contract,
   type ContractProgress,
 } from '../systems/contract-system';
@@ -159,6 +162,12 @@ interface E2EState {
   readonly dialogueChoices: readonly string[];
   /** Id of the road encounter currently playing, or null when none is open. */
   readonly activeEncounterId: string | null;
+  /**
+   * Whether the region's standing (ungated) contracts are all delivered. This is
+   * what the derived home_reconnected flag is built on, so it must stay true even
+   * after an arc-gated contract opens new work.
+   */
+  readonly regionCleared: boolean;
   /** Whether the skills panel is currently open. */
   readonly skillPanelOpen: boolean;
   /** Active mission id for the current region, or null when none is active. */
@@ -472,7 +481,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 7,
+      version: 8,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -531,6 +540,7 @@ export class MapScene extends Phaser.Scene {
       dialogueOpen: this.hud.isDialogueVisible(),
       dialogueChoices: this.dialogueChoices.map((c) => c.label),
       activeEncounterId: this.activeEncounter?.id ?? null,
+      regionCleared: this.regionCleared(),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,
       activeMissionStepId: e2eObjective?.step.id ?? null,
@@ -920,9 +930,9 @@ export class MapScene extends Phaser.Scene {
     this.save();
   }
 
-  /** Contracts not yet delivered, in their canonical order. */
+  /** Contracts offerable now: not delivered and any story-flag gate satisfied. */
   private boardContracts(): Contract[] {
-    return this.region.contracts.filter((c) => !this.completed.has(c.id));
+    return availableContracts(this.region.contracts, this.completed, this.effectiveFlags());
   }
 
   /** How many of the active region's contracts are delivered. */
@@ -930,8 +940,25 @@ export class MapScene extends Phaser.Scene {
     return this.region.contracts.filter((c) => this.completed.has(c.id)).length;
   }
 
+  /**
+   * Contracts counting toward region progress: completed plus currently
+   * available. Excludes gated contracts not yet revealed, so "N of M" never
+   * counts work the courier cannot see and M grows as the arc opens new work.
+   */
+  private contractsInPlayCount(): number {
+    return contractsInPlay(this.region.contracts, this.completed, this.effectiveFlags()).length;
+  }
+
+  /**
+   * The region is "cleared" once its standing (ungated) routes are all
+   * delivered. Deliberately ignores gated contracts: the derived
+   * home_reconnected flag is built on this, and the arc's reveals unlock gated
+   * contracts, so counting those would re-lock the reveals the moment they
+   * opened new work.
+   */
   private regionCleared(): boolean {
-    return this.region.contracts.length > 0 && this.boardContracts().length === 0;
+    const base = baseContracts(this.region.contracts);
+    return base.length > 0 && base.every((c) => this.completed.has(c.id));
   }
 
   private atSettlement(id: string): boolean {
@@ -1502,7 +1529,7 @@ export class MapScene extends Phaser.Scene {
       })),
       visitedIds: [...this.visited],
       delivered: this.deliveredInRegion(),
-      totalContracts: this.region.contracts.length,
+      totalContracts: this.contractsInPlayCount(),
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       fordUnlocked: this.regionFordUnlocked(),
       activeObjective: this.journalObjective(),
@@ -1542,7 +1569,7 @@ export class MapScene extends Phaser.Scene {
       totalReputation: totalReputation(this.state.ledger),
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       delivered: this.deliveredInRegion(),
-      totalContracts: this.region.contracts.length,
+      totalContracts: this.contractsInPlayCount(),
       fordUnlocked: this.regionFordUnlocked(),
       upgradesOwned: this.state.upgrades.size,
     });

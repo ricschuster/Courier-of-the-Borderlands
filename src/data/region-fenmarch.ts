@@ -27,6 +27,7 @@
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
+import { FLAG_FENMARCH_COST } from './dialogue-content';
 
 // ---------------------------------------------------------------------------
 // Map rows
@@ -143,6 +144,22 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     minReputation: 6,
     note: 'No name, no seal mark, no explanation. Hollowfen has been waiting for this longer than you have been a courier.',
     cargoType: 'secrets',
+  },
+  // Arc-gated: appears once the warden's reveal is known (fenmarch_cost), when
+  // the fen understands what the silence costs it. The courier carries the
+  // hidden network's word up the water road (ADR 0004, M5.4).
+  {
+    id: 'fenmarch-lamp-for-duskmere',
+    title: 'A Lamp for Duskmere',
+    cargo: 'an unsigned letter',
+    pickupId: 'mossgate',
+    destinationId: 'duskmere',
+    reward: 96,
+    reputation: 3,
+    minReputation: 0,
+    note: 'The warden asks one more run of you. Duskmere let its water go dark; carry this up the corridor and give them a reason to light the lamps again. No seal. They will know the hand.',
+    cargoType: 'secrets',
+    requires: { allOf: [FLAG_FENMARCH_COST] },
   },
 ];
 

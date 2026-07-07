@@ -111,8 +111,11 @@ describe('Saltreach gateway', () => {
 });
 
 describe('Saltreach contracts', () => {
-  it('has exactly three contracts', () => {
-    expect(SALTREACH_CONTRACTS).toHaveLength(3);
+  it('has three standing contracts plus one arc-gated contract', () => {
+    const standing = SALTREACH_CONTRACTS.filter((c) => c.requires === undefined);
+    const gated = SALTREACH_CONTRACTS.filter((c) => c.requires !== undefined);
+    expect(standing).toHaveLength(3);
+    expect(gated).toHaveLength(1);
   });
 
   it('have unique ids', () => {
