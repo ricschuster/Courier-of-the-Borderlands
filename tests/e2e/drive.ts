@@ -116,6 +116,15 @@ export async function driveToTile(
       await releaseAll(page, held);
       return;
     }
+    // A road encounter can open mid-drive and freeze movement modally. If the
+    // goal is elsewhere, step away from it with Escape and keep driving; the
+    // encounter stays unresolved but does not re-open until the tile is
+    // re-entered, so travel through it is not blocked.
+    if (state.dialogueOpen) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(80);
+      continue;
+    }
     if (next === null) {
       await releaseAll(page, held);
       throw new Error(
