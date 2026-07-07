@@ -42,7 +42,7 @@ export const SETTLEMENTS: Readonly<Record<string, Settlement>> = {
   mirewatch: {
     id: 'mirewatch',
     name: 'Mirewatch',
-    tile: { x: 25, y: 18 },
+    tile: { x: 24, y: 20 },
     note: 'A stilt-village deep in the salt marsh, reached only by those the reeds allow.',
   },
 };

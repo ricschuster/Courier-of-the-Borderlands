@@ -57,7 +57,7 @@ Arriving at the destination settlement while carrying cargo completes the contra
 
 ### 6. Unlock progression
 
-Reaching a signpost near the southern crossing unlocks the ford. That second crossing opens a shorter route to Southmill, making repeat runs faster. Each region that has a ford unlocks it separately, through its own signpost, so opening one region's ford does not open another's. Coins can be spent on the Reinforced Wheels upgrade, which adds 25 percent speed across all terrain.
+Reaching a signpost near the southern crossing unlocks the ford. That second crossing links the south-west (Ironhollow) to the south-east (Southmill and Mirewatch), which the bridge detour reaches only the long way around. The signpost sits directly on the west approach to the ford, so the Ironhollow-to-Mirewatch secret run passes it: that late contract both needs the crossing and carries a "cross at the ford" bonus, so unlocking the ford pays off in a real delivery. Each region that has a ford unlocks it separately, through its own signpost, so opening one region's ford does not open another's. Coins can be spent on the Reinforced Wheels upgrade, which adds 25 percent speed across all terrain.
 
 ## How the design pillars show up
 

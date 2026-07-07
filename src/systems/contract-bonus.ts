@@ -15,15 +15,28 @@ export interface BonusFacts {
   readonly tilesDriven: number;   // tiles driven since the contract was accepted
 }
 
-/** Bonus objectives keyed by contract id. Contracts without an entry have no bonus. */
+/**
+ * Bonus objectives keyed by contract id. Contracts without an entry have no bonus.
+ *
+ * Tile budgets are set against the shortest route on the current 30x22 map plus
+ * a small slack, so a direct run earns the bonus but a meandering one does not.
+ * The via-ford bonus lives on the run the ford actually shortens: the Ironhollow
+ * to Mirewatch leg crosses the river, and the ford is the short way over.
+ */
 export const CONTRACT_BONUSES: Readonly<Record<string, ContractBonus>> = {
   'grain-to-southmill': {
     kind: 'swift',
     reward: 25,
-    maxTiles: 24,
-    description: 'Deliver swiftly, within 24 tiles driven',
+    maxTiles: 28, // shortest Greywater -> Southmill is 25 tiles
+    description: 'Deliver swiftly, within 28 tiles driven',
   },
   'rumours-to-ironhollow': {
+    kind: 'swift',
+    reward: 20,
+    maxTiles: 17, // shortest Greywater -> Ironhollow is 14 tiles
+    description: 'Deliver swiftly, within 17 tiles driven',
+  },
+  'secret-to-mirewatch': {
     kind: 'via-ford',
     reward: 30,
     description: 'Cross the river at the ford',
