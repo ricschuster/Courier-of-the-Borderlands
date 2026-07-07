@@ -25,6 +25,7 @@
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
+import { FLAG_SALTREACH_METHOD } from './dialogue-content';
 
 // ---------------------------------------------------------------------------
 // Map rows
@@ -140,6 +141,22 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     minReputation: 6,
     note: 'The letter has no seal, no name, and no return address. The person who gave it to you was already gone before you could ask a single question.',
     cargoType: 'secrets',
+  },
+  // Arc-gated: appears once the harbormaster's reveal is known (saltreach_method),
+  // when the coast understands how its roads were cut. The courier starts
+  // carrying the hidden network's word past the birds (ADR 0004, M5.4).
+  {
+    id: 'saltreach-run-the-birds',
+    title: 'Outrun the Birds',
+    cargo: 'a wax-sealed cipher',
+    pickupId: 'tidewatch',
+    destinationId: 'reedford',
+    reward: 92,
+    reputation: 3,
+    minReputation: 0,
+    note: 'Now you know why the roads were left to rot. Carry this to Reedford by wheel, ahead of whatever Cormorant Rock sends by wing. Every letter that beats a bird is a road they do not own.',
+    cargoType: 'secrets',
+    requires: { allOf: [FLAG_SALTREACH_METHOD] },
   },
 ];
 

@@ -143,8 +143,11 @@ describe('Fenmarch gateway', () => {
 });
 
 describe('Fenmarch contracts', () => {
-  it('has exactly three contracts', () => {
-    expect(FENMARCH_CONTRACTS).toHaveLength(3);
+  it('has three standing contracts plus one arc-gated contract', () => {
+    const standing = FENMARCH_CONTRACTS.filter((c) => c.requires === undefined);
+    const gated = FENMARCH_CONTRACTS.filter((c) => c.requires !== undefined);
+    expect(standing).toHaveLength(3);
+    expect(gated).toHaveLength(1);
   });
 
   it('have unique ids', () => {

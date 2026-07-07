@@ -1,4 +1,5 @@
 import type { Contract } from '../systems/contract-system';
+import { FLAG_GREYBRIDGE_REVEAL } from './dialogue-content';
 
 export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
   {
@@ -60,5 +61,22 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     minReputation: 7,
     note: 'Ironhollow presses a sealed tube into your hands: carry it south to Mirewatch, and take the ford if the reeds allow. Ask the way once. Do not ask twice.',
     cargoType: 'secrets',
+  },
+  // Arc-gated: appears only after the postmaster's reveal (greybridge_reveal),
+  // once the region is answering again. The courier begins carrying the hidden
+  // network's unsigned letters. A world-state consequence: reconnecting the
+  // region opens work that did not exist before (ADR 0004, M5.4).
+  {
+    id: 'greybridge-follow-the-letters',
+    title: 'Follow the Letters',
+    cargo: 'an unsigned letter',
+    pickupId: 'greywater',
+    destinationId: 'eastwatch',
+    reward: 85,
+    reputation: 3,
+    minReputation: 0,
+    note: 'The postmaster slides one more letter across the counter, no seal, no name. It goes to Eastwatch, and then Eastwatch will know where to send the next. You are on the hidden road now.',
+    cargoType: 'secrets',
+    requires: { allOf: [FLAG_GREYBRIDGE_REVEAL] },
   },
 ];
