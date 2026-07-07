@@ -27,4 +27,27 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
     speedBonus: 0,
     roughnessRelief: 0.5,
   },
+  {
+    id: 'marsh-treads',
+    name: 'Marsh Treads',
+    description: 'Wide-webbed treads bite into mire and reed. With a sprung axle, the worst ground barely slows you.',
+    cost: 90,
+    speedBonus: 0,
+    roughnessRelief: 0.5,
+  },
+  {
+    id: 'courier-charts',
+    name: "Courier's Charts",
+    description: 'Dog-eared charts and a keen eye reveal far more of the road ahead.',
+    cost: 110,
+    speedBonus: 0,
+    revealBonus: 2,
+  },
+  {
+    id: 'swift-team',
+    name: 'Swift Team',
+    description: 'A fresh team bred for distance. Adds another 25 percent to your speed.',
+    cost: 150,
+    speedBonus: 0.25,
+  },
 ];
