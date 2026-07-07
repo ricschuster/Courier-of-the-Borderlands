@@ -170,7 +170,16 @@ Authored, multi-step, branching delivery chains built on the contract primitive.
       hub reveal), and a Greywater capstone resolves. The active mission step
       shows in the HUD objective and the journal Story section. See
       `docs/design/04_storyline.md`.
-- [ ] Non-combat road encounters (may land here or earlier, after M5.2)
+- [x] Non-combat road encounters: pure, data-driven encounters built on the
+      dialogue engine (`src/systems/encounter-system.ts`, `src/data/encounters.ts`).
+      An encounter fires when the courier reaches a trigger tile, opens the
+      existing modal dialogue, and a choice applies a coin or reputation outcome.
+      One-shot via resolution flags (the keys of its `outcomes` map), which are
+      ordinary persisted story flags, so no new save field. First three: a
+      stranded courier (Greybridge), a coast-road toll (Saltreach), and a
+      washed-out causeway (Fenmarch). Unit tested plus a browser e2e
+      (`tests/e2e/encounter.spec.ts`), with map-placement invariants
+      (`tests/unit/encounter-invariants.test.ts`).
 
 ### M5.4: World-state consequence (north star)
 
