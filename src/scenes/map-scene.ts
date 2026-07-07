@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import {
-  GAME_TITLE,
   GAME_WIDTH,
   GAME_HEIGHT,
   TILE_SIZE,
@@ -69,7 +68,7 @@ import {
 import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
 import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
-import { buildLegend } from '../systems/legend';
+import { MapHud, STATUS_COLOR } from './map-hud';
 import {
   getRegion,
   arrivalTile,
@@ -91,12 +90,6 @@ import {
   type ContractProgress,
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
-
-// Minimap layout. Cells are MINIMAP_CELL pixels per tile, but shrink so the
-// whole minimap fits inside a MINIMAP_MAX_PX box on large maps that would
-// otherwise overflow the corner.
-const MINIMAP_CELL = 6;
-const MINIMAP_MAX_PX = 192;
 
 // Read-only snapshot of live scene state, exposed to end-to-end tests so a
 // headless browser can drive the courier and assert on the delivery loop.
@@ -149,26 +142,10 @@ declare global {
   var __courier: CourierE2EApi | undefined;
 }
 
-// Depth layers, from bottom to top.
+// Depth layers, from bottom to top. HUD depth lives in map-hud.ts.
 const DEPTH_MARKER = 1;
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
-const DEPTH_HUD = 10;
-
-// Settlement marker fill by connection status: silent places read as dim and
-// dark, reconnected places glow warm, home stays pale. This is the visible
-// payoff of a delivery (see docs/design/05_playtest_notes.md).
-const STATUS_COLOR: Readonly<Record<SettlementStatus, number>> = {
-  home: 0xf2efe4,
-  reconnected: 0xf2c14e,
-  silent: 0x6b6660,
-};
-
-// Semi-transparent dark backing for HUD text so it stays legible over any
-// terrain once fog is cleared (the help line washed out over light tiles; see
-// docs/design/05_playtest_notes.md).
-const HUD_BG = 'rgba(11, 11, 11, 0.66)';
-const HUD_PAD = { x: 4, y: 1 } as const;
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -203,25 +180,17 @@ export class MapScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private buyKey!: Phaser.Input.Keyboard.Key;
-  private terrainReadout!: Phaser.GameObjects.Text;
-  private fordStatus!: Phaser.GameObjects.Text;
-  private wallet!: Phaser.GameObjects.Text;
-  private hint!: Phaser.GameObjects.Text;
+  // All HUD and overlay GameObjects live in the MapHud presentation layer.
+  private hud!: MapHud;
   private fog!: Fog;
   private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
   private activeContract: Contract | undefined;
   private progress: ContractProgress | undefined;
   private completed = new Set<string>();
-  private objective!: Phaser.GameObjects.Text;
-  private board!: Phaser.GameObjects.Text;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private newGameKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
-  private minimapGfx!: Phaser.GameObjects.Graphics;
-  private minimapVisible = false;
-  private journalPanel!: Phaser.GameObjects.Text;
-  private summaryPanel!: Phaser.GameObjects.Text;
   private trip: TripLog = createTripLog();
   private prevX = 0;
   private prevY = 0;
@@ -235,11 +204,8 @@ export class MapScene extends Phaser.Scene {
   // stats; only these choices are persisted.
   private skills: SkillRanks = {};
   private skillKey!: Phaser.Input.Keyboard.Key;
-  private skillPanel!: Phaser.GameObjects.Text;
   private weather: Weather = weatherByIndex(0);
   private legendKey!: Phaser.Input.Keyboard.Key;
-  private legendPanel!: Phaser.GameObjects.Text;
-  private weatherLine!: Phaser.GameObjects.Text;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   private usedFordThisContract = false;
@@ -299,13 +265,19 @@ export class MapScene extends Phaser.Scene {
     this.addFog();
     this.restoreFog();
     this.setupInput();
-    this.addHud();
+    this.hud = new MapHud(this);
+    this.refreshWallet();
+    this.refreshObjective();
+    this.refreshFordStatus();
+    this.refreshHint();
+    this.refreshBoard();
+    this.refreshSummary();
 
     // Pick an ambient road condition for this run via a seeded RNG. Seeding
     // from the clock keeps weather varied between runs while routing the roll
     // through the deterministic, testable generator.
     this.weather = pickWeather(createRng(Date.now()));
-    this.weatherLine.setText(`Weather: ${this.weather.label}`);
+    this.hud.setWeather(`Weather: ${this.weather.label}`);
 
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
@@ -319,7 +291,7 @@ export class MapScene extends Phaser.Scene {
     this.maybeExposeE2EApi();
 
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
-    this.showToast(
+    this.hud.showToast(
       `${this.region.name}. Reach ${homeName} for contracts. ${this.weather.description}`,
     );
   }
@@ -579,12 +551,12 @@ export class MapScene extends Phaser.Scene {
     this.handleTravelInput();
     this.handleToggles();
     this.refreshBoard();
-    if (this.minimapVisible) {
+    if (this.hud.isMinimapVisible()) {
       this.redrawMinimap();
     }
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
-    this.terrainReadout.setText(
+    this.hud.setTerrain(
       terrain === undefined
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`,
@@ -801,7 +773,7 @@ export class MapScene extends Phaser.Scene {
 
     if (canPickUp(progress, contract, settlement.id)) {
       this.progress = pickUp(progress);
-      this.showToast(`Collected ${contract.cargo} at ${settlement.name}.`);
+      this.hud.showToast(`Collected ${contract.cargo} at ${settlement.name}.`);
       this.refreshObjective();
       this.save();
     } else if (canDeliver(progress, contract, settlement.id)) {
@@ -844,7 +816,7 @@ export class MapScene extends Phaser.Scene {
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
-    this.showToast(
+    this.hud.showToast(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
         `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}`,
     );
@@ -855,7 +827,7 @@ export class MapScene extends Phaser.Scene {
     // The delivery reconnects this settlement: recolour its marker (and the
     // minimap if it is open) so the change to the world is immediately visible.
     this.refreshSettlementMarkers();
-    if (this.minimapVisible) {
+    if (this.hud.isMinimapVisible()) {
       this.redrawMinimap();
     }
     this.save();
@@ -893,14 +865,14 @@ export class MapScene extends Phaser.Scene {
     // Reset per-contract bonus tracking.
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
-    this.showToast(`Accepted: ${contract.title}. ${contract.note}`);
+    this.hud.showToast(`Accepted: ${contract.title}. ${contract.note}`);
     this.refreshObjective();
     this.save();
   }
 
   /** Spend skill points while the skill panel is open (number keys rank skills). */
   private handleSkillInput(): void {
-    if (!this.skillPanel.visible) {
+    if (!this.hud.isSkillPanelVisible()) {
       return;
     }
     const level = this.courierLevel();
@@ -912,12 +884,12 @@ export class MapScene extends Phaser.Scene {
       }
       if (canRankUp(this.skills, skill.id, level)) {
         this.skills = rankUp(this.skills, skill.id);
-        this.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
+        this.hud.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
         this.refreshSkillPanel();
         this.refreshWallet();
         this.save();
       } else {
-        this.showToast(`Cannot improve ${skill.name} yet.`);
+        this.hud.showToast(`Cannot improve ${skill.name} yet.`);
       }
     }
   }
@@ -925,7 +897,7 @@ export class MapScene extends Phaser.Scene {
   private handleBoardInput(): void {
     // The skill panel reuses the number keys to spend points; do not also
     // accept a contract with the same press.
-    if (this.skillPanel.visible) {
+    if (this.hud.isSkillPanelVisible()) {
       return;
     }
     if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
@@ -943,7 +915,7 @@ export class MapScene extends Phaser.Scene {
         if (canAccept(contract, reputation)) {
           this.acceptContract(contract);
         } else {
-          this.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
+          this.hud.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
         }
       }
     }
@@ -951,8 +923,8 @@ export class MapScene extends Phaser.Scene {
 
   private refreshBoard(): void {
     const show = this.activeContract === undefined && this.atSettlement(this.region.home);
-    this.board.setVisible(show);
     if (!show) {
+      this.hud.setBoard(null);
       return;
     }
     const reputation = totalReputation(this.state.ledger);
@@ -975,7 +947,7 @@ export class MapScene extends Phaser.Scene {
         lines.push(`      ${describeBonus(bonus)}`);
       }
     });
-    this.board.setText(lines.join('\n'));
+    this.hud.setBoard(lines.join('\n'));
   }
 
   private handlePurchaseInput(): void {
@@ -984,46 +956,34 @@ export class MapScene extends Phaser.Scene {
     }
     const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
     if (target === null) {
-      this.showToast('Every upgrade is already fitted.');
+      this.hud.showToast('Every upgrade is already fitted.');
       return;
     }
     const result = purchase(this.state.upgrades, this.state.ledger.coins, target);
     if (!result.ok) {
-      this.showToast(`Not enough coins for ${target.name} (${target.cost}).`);
+      this.hud.showToast(`Not enough coins for ${target.name} (${target.cost}).`);
       return;
     }
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
-    this.showToast(`Fitted ${target.name}. ${target.description}`);
+    this.hud.showToast(`Fitted ${target.name}. ${target.description}`);
     this.refreshWallet();
     this.refreshAchievements(true);
     this.save();
   }
 
   private handleToggles(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.mapKey)) {
-      this.minimapVisible = !this.minimapVisible;
-      this.minimapGfx.setVisible(this.minimapVisible);
-      if (this.minimapVisible) {
-        this.redrawMinimap();
-      }
+    if (Phaser.Input.Keyboard.JustDown(this.mapKey) && this.hud.toggleMinimap()) {
+      this.redrawMinimap();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.journalKey)) {
-      const show = !this.journalPanel.visible;
-      this.journalPanel.setVisible(show);
-      if (show) {
-        this.refreshJournal();
-      }
+    if (Phaser.Input.Keyboard.JustDown(this.journalKey) && this.hud.toggleJournal()) {
+      this.refreshJournal();
     }
     if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
-      this.legendPanel.setVisible(!this.legendPanel.visible);
+      this.hud.toggleLegend();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.skillKey)) {
-      const show = !this.skillPanel.visible;
-      this.skillPanel.setVisible(show);
-      if (show) {
-        this.refreshSkillPanel();
-      }
+    if (Phaser.Input.Keyboard.JustDown(this.skillKey) && this.hud.toggleSkills()) {
+      this.refreshSkillPanel();
     }
   }
 
@@ -1036,13 +996,14 @@ export class MapScene extends Phaser.Scene {
 
   private refreshWallet(): void {
     const reputation = totalReputation(this.state.ledger);
-    const tier = tierFor(reputation);
     const level = this.courierLevel();
-    const points = availablePoints(level, this.skills);
-    const pointsNote = points > 0 ? `   Skill points: ${points} (K)` : '';
-    this.wallet.setText(
-      `Coins: ${this.state.ledger.coins}   Rep: ${reputation} (${tier.name})   Lv ${level}${pointsNote}`,
-    );
+    this.hud.setWallet({
+      coins: this.state.ledger.coins,
+      reputation,
+      tierName: tierFor(reputation).name,
+      level,
+      skillPoints: availablePoints(level, this.skills),
+    });
   }
 
   private refreshHint(): void {
@@ -1055,7 +1016,7 @@ export class MapScene extends Phaser.Scene {
       // south to Fenmarch); name it so the dual purpose is not confusing.
       const here = settlementAtTileIn(this.region, tile.x, tile.y);
       const where = here === undefined ? `The road ahead leads to ${other}` : `${here.name} is the road to ${other}`;
-      this.hint.setText(`${base}  ${where}: press T to travel.`);
+      this.hud.setHint(`${base}  ${where}: press T to travel.`);
       return;
     }
     const target = this.atSettlement(this.region.home)
@@ -1063,12 +1024,12 @@ export class MapScene extends Phaser.Scene {
       : null;
     if (target !== null) {
       const affordable = canAfford(this.state.ledger.coins, target);
-      this.hint.setText(
+      this.hud.setHint(
         `${base}  Press B: ${target.name} (${target.cost}c)` +
           (affordable ? '' : ' - need more coins'),
       );
     } else {
-      this.hint.setText(base);
+      this.hud.setHint(base);
     }
   }
 
@@ -1130,7 +1091,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     if (this.activeContract !== undefined) {
-      this.showToast('Deliver your cargo before leaving the region.');
+      this.hud.showToast('Deliver your cargo before leaving the region.');
       return;
     }
     this.save();
@@ -1149,7 +1110,7 @@ export class MapScene extends Phaser.Scene {
     blocks?.forEach((block) => block.destroy());
     this.gatedBlocks.delete(id);
     this.refreshFordStatus();
-    this.showToast('Shortcut unlocked: the ford is open.');
+    this.hud.showToast('Shortcut unlocked: the ford is open.');
     this.refreshAchievements(true);
     this.save();
     return true;
@@ -1183,138 +1144,6 @@ export class MapScene extends Phaser.Scene {
       .map((code) => keyboard.addKey(code));
   }
 
-  private addHud(): void {
-    const line = (y: number, color: string): Phaser.GameObjects.Text =>
-      this.add
-        .text(8, y, '', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color,
-          backgroundColor: HUD_BG,
-          padding: HUD_PAD,
-        })
-        .setScrollFactor(0)
-        .setDepth(DEPTH_HUD);
-
-    this.add
-      .text(8, 8, GAME_TITLE, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#e8e8e8',
-        backgroundColor: HUD_BG,
-        padding: HUD_PAD,
-      })
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD);
-    this.wallet = line(28, '#e8e8e8');
-    this.objective = line(46, '#f2d98f');
-    this.terrainReadout = line(64, '#e8e8e8');
-    this.fordStatus = line(82, '#e8e8e8');
-    this.weatherLine = line(100, '#a9c7e8');
-    this.hint = this.add
-      .text(8, GAME_HEIGHT - 24, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#d0d0d0',
-        backgroundColor: HUD_BG,
-        padding: HUD_PAD,
-      })
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD);
-
-    this.board = this.add
-      .text(8, 118, '', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bcc',
-        padding: { x: 10, y: 8 },
-        lineSpacing: 4,
-      })
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-
-    // Journal panel (toggled with J), centred near the top.
-    this.journalPanel = this.add
-      .text(GAME_WIDTH / 2, 40, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bdd',
-        padding: { x: 12, y: 10 },
-        lineSpacing: 4,
-        align: 'left',
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-
-    // Skills panel (toggled with K), centred near the top.
-    this.skillPanel = this.add
-      .text(GAME_WIDTH / 2, 40, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bdd',
-        padding: { x: 12, y: 10 },
-        lineSpacing: 4,
-        align: 'left',
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-
-    // Run summary panel, shown when the region is cleared.
-    this.summaryPanel = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bee',
-        padding: { x: 16, y: 14 },
-        lineSpacing: 6,
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-
-    // Minimap graphics (toggled with M), drawn in redrawMinimap.
-    this.minimapGfx = this.add.graphics().setScrollFactor(0).setDepth(DEPTH_HUD).setVisible(false);
-
-    // Terrain codex (toggled with L); static content from terrain data.
-    const legend = buildLegend(Object.values(TERRAIN_TYPES));
-    const legendLines = ['TERRAIN CODEX   (L to close)'];
-    for (const entry of legend) {
-      legendLines.push(`  ${entry.name}: ${entry.speedLabel}${entry.passable ? '' : ' (impassable)'}`);
-    }
-    this.legendPanel = this.add
-      .text(GAME_WIDTH - 8, 40, legendLines.join('\n'), {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bdd',
-        padding: { x: 12, y: 10 },
-        lineSpacing: 4,
-        align: 'left',
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-
-    this.refreshWallet();
-    this.refreshObjective();
-    this.refreshFordStatus();
-    this.refreshHint();
-    this.refreshBoard();
-    this.refreshSummary();
-  }
-
   private redrawMinimap(): void {
     const status = this.worldState();
     const model = buildMinimap({
@@ -1332,57 +1161,7 @@ export class MapScene extends Phaser.Scene {
         status: status[s.id] ?? 'silent',
       })),
     });
-
-    // Shrink the per-tile cell so a large map's minimap fits the corner box;
-    // small maps keep the full MINIMAP_CELL size and look unchanged.
-    const cell = Math.max(
-      1,
-      Math.min(
-        MINIMAP_CELL,
-        Math.floor(Math.min(MINIMAP_MAX_PX / model.width, MINIMAP_MAX_PX / model.height)),
-      ),
-    );
-    const originX = GAME_WIDTH - model.width * cell - 12;
-    const originY = GAME_HEIGHT - model.height * cell - 12;
-
-    const g = this.minimapGfx;
-    g.clear();
-    g.fillStyle(0x0b0b0b, 0.85);
-    g.fillRect(originX - 4, originY - 4, model.width * cell + 8, model.height * cell + 8);
-
-    for (let i = 0; i < model.cells.length; i++) {
-      const c = model.cells[i];
-      if (c === undefined) {
-        continue;
-      }
-      const x = i % model.width;
-      const y = Math.floor(i / model.width);
-      const px = originX + x * cell;
-      const py = originY + y * cell;
-      const fill = c.revealed ? (c.color ?? 0x5a8f4a) : 0x1c1c1c;
-      g.fillStyle(fill, 1);
-      g.fillRect(px, py, cell - 1, cell - 1);
-      if (c.marker === 'settlement') {
-        g.fillStyle(STATUS_COLOR[c.settlementStatus ?? 'silent'], 1);
-        g.fillRect(px + 1, py + 1, cell - 3, cell - 3);
-      } else if (c.marker === 'courier') {
-        g.fillStyle(0xf2c14e, 1);
-        g.fillRect(px, py, cell - 1, cell - 1);
-      }
-    }
-
-    // Overlay the route to the active destination on the intermediate tiles.
-    const path = this.currentPath;
-    if (path !== null && path.reachable && path.path.length > 2) {
-      g.fillStyle(0x6fd0e0, 0.9);
-      for (let k = 1; k < path.path.length - 1; k++) {
-        const node = path.path[k];
-        if (node === undefined) {
-          continue;
-        }
-        g.fillRect(originX + node.x * cell + 2, originY + node.y * cell + 2, cell - 4, cell - 4);
-      }
-    }
+    this.hud.drawMinimap(model, this.currentPath);
   }
 
   private refreshSkillPanel(): void {
@@ -1402,7 +1181,7 @@ export class MapScene extends Phaser.Scene {
       lines.push(`        ${skill.description}`);
     });
     lines.push('', 'Level up by delivering, exploring, and covering ground.');
-    this.skillPanel.setText(lines.join('\n'));
+    this.hud.setSkillText(lines.join('\n'));
   }
 
   /** The active objective as re-readable text for the journal, or null. */
@@ -1463,7 +1242,7 @@ export class MapScene extends Phaser.Scene {
       const got = this.achievements.has(achievement.id);
       lines.push(`  ${got ? '[x]' : '[ ]'} ${achievement.name}`);
     }
-    this.journalPanel.setText(lines.join('\n'));
+    this.hud.setJournalText(lines.join('\n'));
   }
 
   private refreshSummary(): void {
@@ -1477,7 +1256,7 @@ export class MapScene extends Phaser.Scene {
       upgradesOwned: this.state.upgrades.size,
     });
     if (!summary.complete) {
-      this.summaryPanel.setVisible(false);
+      this.hud.setSummary(null);
       return;
     }
     const otherNames = this.gatewayDestinationNames();
@@ -1490,8 +1269,7 @@ export class MapScene extends Phaser.Scene {
       `Reach the gateway and press T to travel to ${otherNames}.`,
       'Press N for a new run.',
     ];
-    this.summaryPanel.setText(lines.join('\n'));
-    this.summaryPanel.setVisible(true);
+    this.hud.setSummary(lines.join('\n'));
   }
 
   private achievementStat(): AchievementStat {
@@ -1521,20 +1299,14 @@ export class MapScene extends Phaser.Scene {
       this.achievements.add(id);
       if (announce) {
         const def = ACHIEVEMENTS.find((a) => a.id === id);
-        this.showToast(`Achievement unlocked: ${def?.name ?? id}`, 140);
+        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`, 140);
       }
     }
   }
 
   private refreshFordStatus(): void {
     const fordUnlockId = this.region.fordUnlockId;
-    if (fordUnlockId === undefined) {
-      this.fordStatus.setText('');
-      return;
-    }
-    const open = isUnlocked(this.state, fordUnlockId);
-    this.fordStatus.setText(`Ford: ${open ? 'OPEN' : 'locked'}`);
-    this.fordStatus.setColor(open ? '#8fd18f' : '#d18f8f');
+    this.hud.setFordStatus(fordUnlockId === undefined ? null : isUnlocked(this.state, fordUnlockId));
   }
 
   private refreshObjective(): void {
@@ -1545,11 +1317,11 @@ export class MapScene extends Phaser.Scene {
     if (contract === undefined || progress === undefined) {
       if (this.boardContracts().length === 0) {
         const other = this.gatewayDestinationNames();
-        this.objective.setText(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
+        this.hud.setObjective(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
       } else if (this.atSettlement(this.region.home)) {
-        this.objective.setText('Choose a contract from the board.');
+        this.hud.setObjective('Choose a contract from the board.');
       } else {
-        this.objective.setText(`Return to ${homeName} for a new contract.`);
+        this.hud.setObjective(`Return to ${homeName} for a new contract.`);
       }
       return;
     }
@@ -1561,36 +1333,19 @@ export class MapScene extends Phaser.Scene {
 
     switch (progress.status) {
       case 'accepted':
-        this.objective.setText(`${contract.title}: collect ${contract.cargo} at ${pickupName}`);
+        this.hud.setObjective(`${contract.title}: collect ${contract.cargo} at ${pickupName}`);
         break;
       case 'carrying': {
         const path = this.currentPath;
         const via =
           path === null ? '' : path.reachable ? ` (${path.distance} tiles)` : ' (no route yet)';
-        this.objective.setText(`${contract.title}: deliver to ${destinationName}${via}`);
+        this.hud.setObjective(`${contract.title}: deliver to ${destinationName}${via}`);
         break;
       }
       case 'delivered':
-        this.objective.setText(`${contract.title}: delivered. Well driven.`);
+        this.hud.setObjective(`${contract.title}: delivered. Well driven.`);
         break;
     }
-  }
-
-  private showToast(message: string, y = 60): void {
-    const toast = this.add
-      .text(GAME_WIDTH / 2, y, message, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffffff',
-        backgroundColor: '#00000088',
-        padding: { x: 8, y: 4 },
-        align: 'center',
-        wordWrap: { width: GAME_WIDTH - 80 },
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD);
-    this.time.delayedCall(3500, () => toast.destroy());
   }
 
   /** On first arrival at a settlement, surface its existing lore note. */
@@ -1601,7 +1356,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.visited.add(settlement.id);
-    this.showToast(`${settlement.name}. ${settlement.note}`, 104);
+    this.hud.showToast(`${settlement.name}. ${settlement.note}`, 104);
     this.refreshAchievements(true);
     this.save();
   }
