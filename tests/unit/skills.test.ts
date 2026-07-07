@@ -9,6 +9,8 @@ import {
   skillSpeedBonus,
   skillRevealBonus,
   skillRewardBonus,
+  skillFlag,
+  derivedSkillFlags,
 } from '../../src/systems/skills';
 
 describe('sanitizeRanks', () => {
@@ -105,6 +107,26 @@ describe('rankUp', () => {
 
   it('is a no-op at maxRank', () => {
     expect(rankUp({ wayfinder: 3 }, 'wayfinder')).toEqual({ wayfinder: 3 });
+  });
+});
+
+describe('derivedSkillFlags', () => {
+  it('names a skill flag with the skill prefix', () => {
+    expect(skillFlag('cipher')).toBe('skill_cipher');
+  });
+
+  it('is empty when no skills are owned', () => {
+    expect(derivedSkillFlags({})).toEqual([]);
+  });
+
+  it('grants a flag for each owned skill (rank at least 1)', () => {
+    expect(derivedSkillFlags({ cipher: 1, teamster: 2 }).sort()).toEqual(
+      ['skill_cipher', 'skill_teamster'].sort(),
+    );
+  });
+
+  it('ignores unknown ids so a stale save cannot grant a phantom flag', () => {
+    expect(derivedSkillFlags({ nonsense: 3 })).toEqual([]);
   });
 });
 

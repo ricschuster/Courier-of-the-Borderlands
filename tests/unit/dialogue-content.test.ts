@@ -7,6 +7,7 @@ import {
   FLAG_HOME_RECONNECTED,
   FLAG_SALTREACH_METHOD,
   FLAG_FENMARCH_COST,
+  FLAG_CIPHER,
 } from '../../src/data/dialogue-content';
 import {
   validateDialogue,
@@ -16,6 +17,7 @@ import {
   emptyFlags,
   setFlags,
   hasFlag,
+  getNode,
   END_DIALOGUE,
 } from '../../src/systems/dialogue';
 
@@ -121,6 +123,22 @@ describe('dialogue-content', () => {
       const seen = setFlags(after, [FLAG_HOME_RECONNECTED]);
       expect(availableChoices(greeting, seen).some((c) => c.next === node)).toBe(false);
     }
+  });
+
+  it('shows the Cipher-only line at the postmaster only when the skill flag is present', () => {
+    const dialogue = dialogueForSettlement('greywater');
+    if (dialogue === undefined) {
+      throw new Error('expected the postmaster dialogue');
+    }
+    const letters = getNode(dialogue, 'letters');
+    if (letters === undefined) {
+      throw new Error('expected a letters node');
+    }
+    // Without the Cipher skill flag, the reading-the-letters line is hidden.
+    expect(availableChoices(letters, emptyFlags()).some((c) => c.next === 'cipher')).toBe(false);
+    // With it, the line appears.
+    const withCipher = setFlags(emptyFlags(), [FLAG_CIPHER]);
+    expect(availableChoices(letters, withCipher).some((c) => c.next === 'cipher')).toBe(true);
   });
 
   it('every terminal choice ends the conversation cleanly', () => {

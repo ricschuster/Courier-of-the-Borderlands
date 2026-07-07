@@ -39,7 +39,29 @@ export const SKILLS: readonly Skill[] = [
     maxRank: 3,
     perRank: { rewardBonus: 0.1 },
   },
+  {
+    id: 'cipher',
+    name: 'Cipher',
+    description: 'You have learned to read what you carry. Unlocks new lines in conversation.',
+    maxRank: 1,
+    perRank: {},
+  },
 ];
+
+// A skill contributes a derived story flag ("skill_<id>") once owned, so that
+// dialogue choices can gate on a social skill without the dialogue engine
+// needing to know anything about skills. These flags are derived, never saved.
+const SKILL_FLAG_PREFIX = 'skill_';
+
+/** The story-flag id a skill grants while owned. */
+export function skillFlag(id: string): string {
+  return `${SKILL_FLAG_PREFIX}${id}`;
+}
+
+/** Story flags derived from owned skills (rank at least 1), for dialogue gating. */
+export function derivedSkillFlags(ranks: SkillRanks): string[] {
+  return SKILLS.filter((skill) => rankOf(ranks, skill.id) > 0).map((skill) => skillFlag(skill.id));
+}
 
 export type SkillRanks = Readonly<Record<string, number>>;
 
