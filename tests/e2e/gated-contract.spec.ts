@@ -69,6 +69,13 @@ test('an arc-gated contract appears after the reveal without re-locking the regi
   // flag (and the spoke reveals it gates) is not re-locked by the new work.
   expect(state.regionCleared).toBe(true);
 
+  // Open the journal so refreshJournal builds the Hidden Road thread lines (the
+  // reveal flag is set, so the thread has started). This exercises the story
+  // thread rendering in the real build; assert only that it does not throw.
+  await page.locator('#game canvas').click();
+  await page.keyboard.press('J');
+  await page.waitForTimeout(300);
+
   expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
 });
 

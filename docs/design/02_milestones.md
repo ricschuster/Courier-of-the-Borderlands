@@ -220,9 +220,17 @@ Shipped (cont.):
       not re-lock the arc's reveals. Unit tested plus a save-seeded browser e2e
       (`tests/e2e/gated-contract.spec.ts`).
 
+- [x] Hidden Road journal thread: a cross-region story thread derived from the
+      arc-gated contracts (`src/systems/story-threads.ts`, pure and unit tested),
+      shown in the journal Story section once the courier has begun it (revealed
+      or delivered one), so the arc contracts read as one through-line rather
+      than loose extra work. Reads world-state (delivery history + flags); no HUD
+      objective or balance impact; no save change.
+
 Still to do:
 - [ ] Further consequences: withdrawn contracts, price and reward shifts,
-      deeper settlement changes
-- [ ] Missions and skills read and write world-state
+      deeper settlement changes (reward tuning is best set from a playtest)
+- [ ] Missions proper read and write world-state (a mission step gated on an
+      arc-gated contract, once the spine shape is confirmed by a playtest)
 - [x] Progression that does not flatline: coin sink (more upgrades) plus the
       M5.1 experience and skill track

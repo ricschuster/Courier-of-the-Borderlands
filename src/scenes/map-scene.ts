@@ -104,10 +104,12 @@ import {
   arrivalTile,
   settlementAtTileIn,
   totalSettlementCount,
+  REGIONS,
   DEFAULT_REGION_ID,
   type Region,
   type RegionGateway,
 } from '../systems/region-system';
+import { hiddenRoadProgress, hiddenRoadJournalLines } from '../systems/story-threads';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
@@ -1514,6 +1516,16 @@ export class MapScene extends Phaser.Scene {
     return lines;
   }
 
+  /**
+   * Journal lines for the cross-region Hidden Road thread (the arc-gated
+   * contracts), derived from delivery history. Empty until the thread starts, so
+   * it never pre-announces the arc.
+   */
+  private hiddenRoadJournalLines(): string[] {
+    const regions = Object.values(REGIONS).map((r) => ({ name: r.name, contracts: r.contracts }));
+    return hiddenRoadJournalLines(hiddenRoadProgress(regions, this.completed, this.effectiveFlags()));
+  }
+
   /** The active objective as re-readable text for the journal, or null. */
   private journalObjective(): { title: string; detail: string } | null {
     const contract = this.activeContract;
@@ -1558,6 +1570,7 @@ export class MapScene extends Phaser.Scene {
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
       ...this.missionJournalLines(),
+      ...this.hiddenRoadJournalLines(),
       'Places:',
     ];
     for (const place of model.places) {
