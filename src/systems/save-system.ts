@@ -30,6 +30,12 @@ export interface GameSnapshot {
   readonly distanceTiles: number;
   readonly deliveries: number;
   readonly achievements: readonly string[];
+  /**
+   * Chosen courier skill ranks, keyed by skill id. Experience and level are
+   * derived from play stats, so only the player's skill choices are persisted.
+   * Absent in saves made before skills existed; such saves load with no skills.
+   */
+  readonly skills: Readonly<Record<string, number>>;
 }
 
 export interface SaveData extends GameSnapshot {
@@ -66,6 +72,23 @@ function toReputation(value: unknown): Record<string, number> {
 
 function toContractStatus(value: unknown): ContractStatus | null {
   return value === 'accepted' || value === 'carrying' || value === 'delivered' ? value : null;
+}
+
+/**
+ * Parse persisted skill ranks: a record of skill id to a non-negative integer
+ * rank. Anything malformed is dropped. The game further sanitizes against the
+ * known skill list on load, so this only needs to guarantee a clean record.
+ */
+function toSkillRanks(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof value === 'object' && value !== null) {
+    for (const [id, rank] of Object.entries(value as Record<string, unknown>)) {
+      if (isFiniteNumber(rank) && rank > 0) {
+        out[id] = Math.floor(rank);
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -152,6 +175,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,
     deliveries: isFiniteNumber(data.deliveries) ? data.deliveries : 0,
     achievements: toStringArray(data.achievements),
+    skills: toSkillRanks(data.skills),
   };
 }
 
