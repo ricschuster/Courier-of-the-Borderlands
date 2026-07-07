@@ -150,9 +150,16 @@ export async function bootE2E(page: Page): Promise<void> {
 /**
  * Drive onto a gateway tile and travel through it with the "T" key into the
  * expected destination region. Presses T only while still in the origin region
- * (re-pressing after arrival would travel straight back), re-pressing each poll
- * so a dropped keypress under CI load recovers, and tolerates the brief window
- * during the scene restart when the `__courier` hook is reattaching.
+ * (re-pressing after arrival would travel straight back) and tolerates the
+ * brief window during the scene restart when the `__courier` hook is reattaching.
+ *
+ * Two things make a naive one-shot press flaky under CI load, and this guards
+ * both. First, travel only fires when the courier is standing exactly on the
+ * gateway tile: the key-up that ends driveToTile can be processed a frame late,
+ * letting the courier coast one tile past the gateway, after which every T is a
+ * no-op. So each iteration re-seats the courier onto the gateway if it drifted
+ * off. Second, a single keypress can be dropped between input ticks, so T is
+ * pressed at a steady fast cadence rather than backing off.
  */
 export async function travelTo(
   page: Page,
@@ -162,24 +169,39 @@ export async function travelTo(
   fromRegionId: string,
   toRegionId: string,
   // Travel needs a full scene restart plus the hook reattaching, which is slow
-  // under CI load; give the re-pressing poll room so a dropped T does not fail.
+  // under CI load; give the re-pressing loop room so a dropped T does not fail.
   timeoutMs = 30_000,
 ): Promise<void> {
   await driveToTile(page, held, gatewayTileX, gatewayTileY);
-  await expect
-    .poll(
-      async () => {
-        // The hook is briefly absent mid-restart; treat that as "not yet there".
-        const region = await page.evaluate(
-          () => globalThis.__courier?.getState().regionId ?? null,
-        );
-        if (region === toRegionId) return region;
-        if (region === fromRegionId) await page.keyboard.press('T');
-        return region;
-      },
-      { timeout: timeoutMs },
-    )
-    .toBe(toRegionId);
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const region = await page.evaluate(() => globalThis.__courier?.getState().regionId ?? null);
+    if (region === toRegionId) return;
+    // The hook is briefly absent mid scene-restart; wait for it to reattach.
+    if (region === null) {
+      await page.waitForTimeout(100);
+      continue;
+    }
+    if (region === fromRegionId) {
+      // Re-seat onto the gateway if the courier coasted off it, then press T.
+      const onGateway = await page.evaluate(
+        (g) => {
+          const c = globalThis.__courier?.getState().courier;
+          return c !== undefined && c.tileX === g.x && c.tileY === g.y;
+        },
+        { x: gatewayTileX, y: gatewayTileY },
+      );
+      if (!onGateway) {
+        await driveToTile(page, held, gatewayTileX, gatewayTileY);
+      }
+      await page.keyboard.press('T');
+      await page.waitForTimeout(120);
+    }
+  }
+  throw new Error(
+    `travelTo timed out after ${timeoutMs}ms without reaching ${toRegionId} from ${fromRegionId}`,
+  );
 }
 
 /** Collect console/page errors into an array for an end-of-test assertion. */
