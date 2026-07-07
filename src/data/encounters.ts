@@ -25,6 +25,12 @@ export const FLAG_TOLL_PAID = 'enc_toll_paid';
 export const FLAG_TOLL_REFUSED = 'enc_toll_refused';
 export const FLAG_WASHOUT_TIPPED = 'enc_washout_tipped';
 export const FLAG_WASHOUT_THANKED = 'enc_washout_thanked';
+export const FLAG_ROCKFALL_CLEARED = 'enc_rockfall_cleared';
+export const FLAG_ROCKFALL_PICKED = 'enc_rockfall_picked';
+export const FLAG_SEAFOG_GUIDED = 'enc_seafog_guided';
+export const FLAG_SEAFOG_ALONE = 'enc_seafog_alone';
+export const FLAG_FENGUIDE_HELPED = 'enc_fenguide_helped';
+export const FLAG_FENGUIDE_PASSED = 'enc_fenguide_passed';
 
 // Greybridge: a courier broken down on the main road east of Greywater. Helping
 // costs nothing but a moment and earns goodwill and a first rumour of the birds;
@@ -105,6 +111,81 @@ const FENMARCH_WASHOUT: Dialogue = {
   },
 };
 
+// Greybridge, side route: a rockfall on the mine road down to Ironhollow.
+// Clearing it earns the miners' goodwill and keeps the road open for the next
+// wagon; picking through is free but leaves the stones for someone else. A
+// weather/hazard event on a spur only the Ironhollow and Mirewatch runs take.
+// Sits on the mountain descent road at (5,17).
+const GREYBRIDGE_ROCKFALL: Dialogue = {
+  start: 'scene',
+  nodes: {
+    scene: {
+      id: 'scene',
+      speaker: 'The Road',
+      text: 'The mine road is half buried. A shelf of the mountain came down in the last blow, and the stones are stacked shoulder-high across the ruts. Ironhollow is somewhere on the far side of it.',
+      choices: [
+        { label: 'Roll up your sleeves and clear a lane.', set: [FLAG_ROCKFALL_CLEARED], next: 'cleared' },
+        { label: 'Pick the wagon through the gap and move on.', set: [FLAG_ROCKFALL_PICKED], next: END_DIALOGUE },
+      ],
+    },
+    cleared: {
+      id: 'cleared',
+      speaker: 'Ironhollow Miner',
+      text: 'Heard the stones shifting from the shaft. You did not have to do that, courier, and that is exactly why it will be remembered down the hollow. A cleared road is worth more to us than most of what gets carried on it.',
+      choices: [{ label: 'Just keeping the road open.', next: END_DIALOGUE }],
+    },
+  },
+};
+
+// Saltreach, side route: sea-fog swallows the cliff road to Cormorant Rock, the
+// one road only the courier's most dangerous contract takes. A birdkeeper will
+// lead you along the ledge for a coin; feeling your way alone is free but blind.
+// A weather-closing-a-pass event at (15,0) on the north-east cliff road.
+const SALTREACH_SEAFOG: Dialogue = {
+  start: 'scene',
+  nodes: {
+    scene: {
+      id: 'scene',
+      speaker: 'Birdkeeper',
+      text: 'Fog is in off the water, courier, and the cliff road has no rail. One wheel wrong and it is a long quiet fall. I know every stone of this ledge by the sound of the birds. A coin, and I will walk you along it.',
+      choices: [
+        { label: 'Take the guide. (3 coins)', set: [FLAG_SEAFOG_GUIDED], next: 'guided' },
+        { label: 'Feel your own way through the fog.', set: [FLAG_SEAFOG_ALONE], next: END_DIALOGUE },
+      ],
+    },
+    guided: {
+      id: 'guided',
+      speaker: 'Birdkeeper',
+      text: 'Steady now. Left wheel to the rock, always. The birds go quiet where the edge is nearest, so listen for the silence. There. Solid road under you again. Whatever you carry up to the Rock, courier, carry it and come straight back down.',
+      choices: [{ label: 'My thanks.', next: END_DIALOGUE }],
+    },
+  },
+};
+
+// Fenmarch, side route: a fen-guide bogged to the axle in the forest corridor
+// north to Duskmere. Helping earns the marsh warden's people; passing leaves
+// them to the mud. A stranded-traveller event at (14,4) up the corridor.
+const FENMARCH_FENGUIDE: Dialogue = {
+  start: 'scene',
+  nodes: {
+    scene: {
+      id: 'scene',
+      speaker: 'Fen-Guide',
+      text: 'Sunk to the axle, ser, and the light going. I know these paths blind but I cannot know them and dig at once. A shoulder on the wheel and we are both moving before the mist thickens.',
+      choices: [
+        { label: 'Put your shoulder to the wheel.', set: [FLAG_FENGUIDE_HELPED], next: 'helped' },
+        { label: 'The mist is rising. Press on alone.', set: [FLAG_FENGUIDE_PASSED], next: END_DIALOGUE },
+      ],
+    },
+    helped: {
+      id: 'helped',
+      speaker: 'Fen-Guide',
+      text: 'Out, and dry-shod. Take this for the trouble. And when you go up to Duskmere, say the guide sent you; they turn away strangers on the water road, but not friends of mine. Few enough travel it now to make a friend worth the making.',
+      choices: [{ label: 'I will say so.', next: END_DIALOGUE }],
+    },
+  },
+};
+
 /** Every authored road encounter, in fire-check order within a region. */
 export const ENCOUNTERS: readonly RoadEncounter[] = [
   {
@@ -138,6 +219,39 @@ export const ENCOUNTERS: readonly RoadEncounter[] = [
     outcomes: {
       [FLAG_WASHOUT_TIPPED]: { coins: -2, reputationId: 'mossgate', reputation: 1 },
       [FLAG_WASHOUT_THANKED]: {},
+    },
+  },
+  {
+    id: 'greybridge-rockfall',
+    title: 'The Rockfall on the Mine Road',
+    regionId: 'greybridge',
+    tile: { x: 5, y: 17 },
+    dialogue: GREYBRIDGE_ROCKFALL,
+    outcomes: {
+      [FLAG_ROCKFALL_CLEARED]: { reputationId: 'ironhollow', reputation: 2 },
+      [FLAG_ROCKFALL_PICKED]: {},
+    },
+  },
+  {
+    id: 'saltreach-seafog',
+    title: 'Sea-Fog on the Cliff Road',
+    regionId: 'saltreach',
+    tile: { x: 15, y: 0 },
+    dialogue: SALTREACH_SEAFOG,
+    outcomes: {
+      [FLAG_SEAFOG_GUIDED]: { coins: -3, reputationId: 'tidewatch', reputation: 1 },
+      [FLAG_SEAFOG_ALONE]: {},
+    },
+  },
+  {
+    id: 'fenmarch-fenguide',
+    title: 'The Bogged Fen-Guide',
+    regionId: 'fenmarch',
+    tile: { x: 14, y: 4 },
+    dialogue: FENMARCH_FENGUIDE,
+    outcomes: {
+      [FLAG_FENGUIDE_HELPED]: { coins: 5, reputationId: 'mossgate', reputation: 2 },
+      [FLAG_FENGUIDE_PASSED]: {},
     },
   },
 ];

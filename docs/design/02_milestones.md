@@ -179,7 +179,10 @@ Authored, multi-step, branching delivery chains built on the contract primitive.
       stranded courier (Greybridge), a coast-road toll (Saltreach), and a
       washed-out causeway (Fenmarch). Unit tested plus a browser e2e
       (`tests/e2e/encounter.spec.ts`), with map-placement invariants
-      (`tests/unit/encounter-invariants.test.ts`).
+      (`tests/unit/encounter-invariants.test.ts`). A second batch adds one
+      side-route encounter per region covering the remaining hazard types: a
+      rockfall on the mine road (Greybridge), sea-fog on the cliff road
+      (Saltreach), and a bogged fen-guide (Fenmarch).
 
 ### M5.4: World-state consequence (north star)
 
