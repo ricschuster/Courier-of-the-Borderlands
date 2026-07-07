@@ -131,11 +131,23 @@ Shared foundation for missions, storyline, road encounters, and social skills.
 Authored against the locked spine in `docs/design/04_storyline.md`: the act
 transitions there define the first story flags to model.
 
-- [ ] Branching dialogue node model with story flags (pure, testable)
-- [ ] Dialogue UI at settlements and events
-- [ ] Story flags persisted in the save
+- [x] Branching dialogue node model with story flags (pure, testable)
+      (`src/systems/dialogue.ts`): nodes, choices gated by flag conditions
+      (allOf / noneOf), immutable flag application, and validation.
+- [x] Dialogue UI at settlements: a bottom-centre dialogue box in MapHud,
+      opened with E at a settlement that has an NPC, choices taken with number
+      keys, Esc to step away; movement freezes while a conversation is open.
+- [x] Story flags persisted in the save (optional `storyFlags` field, no
+      version bump). The scene hands the engine the persisted flags plus flags
+      derived from live world-state (for example the home region being
+      reconnected), so a choice can gate on a real fact without storing it.
+- [x] First conversation authored: the Greywater postmaster Act 1 setup
+      (`src/data/dialogue-content.ts`), whose reveal unlocks only once the
+      region is reconnected. Covered by unit tests plus a browser e2e
+      (`tests/e2e/dialogue.spec.ts`).
 - [ ] Social skills (for example negotiation, reading carried secrets) hook
       dialogue options
+- [ ] More conversations across the regions, and the spoke reveals
 
 ### M5.3: Missions
 

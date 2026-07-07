@@ -41,6 +41,14 @@ export interface WalletView {
   readonly skillPoints: number;
 }
 
+/** A conversation node to render: who is speaking, what they say, and the choices. */
+export interface DialogueView {
+  readonly speaker: string;
+  readonly text: string;
+  /** Choice labels in order; the HUD numbers them and the scene maps a number back. */
+  readonly choices: readonly string[];
+}
+
 /**
  * Owns every HUD and overlay GameObject for MapScene: the status lines, the
  * contract board, the toggled panels (journal, skills, legend, minimap), the
@@ -65,6 +73,7 @@ export class MapHud {
   private readonly skillPanel: Phaser.GameObjects.Text;
   private readonly summaryPanel: Phaser.GameObjects.Text;
   private readonly legendPanel: Phaser.GameObjects.Text;
+  private readonly dialoguePanel: Phaser.GameObjects.Text;
   private readonly minimapGfx: Phaser.GameObjects.Graphics;
   private minimapVisible = false;
 
@@ -166,6 +175,24 @@ export class MapHud {
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
+
+    // Dialogue box (opened with E at a settlement), anchored bottom-centre so
+    // it reads like a conversation panel. Movement is frozen while it is open.
+    this.dialoguePanel = scene.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 36, '', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bee',
+        padding: { x: 14, y: 12 },
+        lineSpacing: 5,
+        align: 'left',
+        wordWrap: { width: GAME_WIDTH - 120 },
+      })
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
   }
 
   /** A left-aligned dark panel centred near the top, used for the toggled overlays. */
@@ -247,6 +274,24 @@ export class MapHud {
       return;
     }
     this.summaryPanel.setText(text).setVisible(true);
+  }
+
+  /** Show a conversation node, or hide the dialogue box when view is null. */
+  setDialogue(view: DialogueView | null): void {
+    if (view === null) {
+      this.dialoguePanel.setVisible(false);
+      return;
+    }
+    const lines = [view.speaker.toUpperCase(), '', view.text, ''];
+    view.choices.forEach((label, i) => {
+      lines.push(`  [${i + 1}] ${label}`);
+    });
+    lines.push('', 'Press a number to choose. Esc to step away.');
+    this.dialoguePanel.setText(lines.join('\n')).setVisible(true);
+  }
+
+  isDialogueVisible(): boolean {
+    return this.dialoguePanel.visible;
   }
 
   isJournalVisible(): boolean {

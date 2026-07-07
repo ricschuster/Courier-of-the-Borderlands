@@ -68,6 +68,21 @@ import {
 import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
 import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
+import {
+  startDialogue,
+  availableChoices,
+  chooseOption,
+  getNode,
+  setFlags,
+  flagsToArray,
+  flagsFromArray,
+  emptyFlags,
+  END_DIALOGUE,
+  type Dialogue,
+  type DialogueChoice,
+  type StoryFlags,
+} from '../systems/dialogue';
+import { dialogueForSettlement, FLAG_HOME_RECONNECTED } from '../data/dialogue-content';
 import { MapHud, STATUS_COLOR } from './map-hud';
 import {
   getRegion,
@@ -121,6 +136,10 @@ interface E2EState {
   readonly skillPoints: number;
   /** Chosen skill ranks, keyed by skill id. */
   readonly skills: Record<string, number>;
+  /** Story flags set through dialogue, as a flat id list. */
+  readonly storyFlags: readonly string[];
+  /** Whether a conversation is currently open. */
+  readonly dialogueOpen: boolean;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -206,6 +225,16 @@ export class MapScene extends Phaser.Scene {
   private skillKey!: Phaser.Input.Keyboard.Key;
   private weather: Weather = weatherByIndex(0);
   private legendKey!: Phaser.Input.Keyboard.Key;
+  // Story flags set through dialogue, persisted across regions. Presence means
+  // set. Derived situational flags are added at dialogue time, not stored here.
+  private storyFlags: StoryFlags = emptyFlags();
+  private talkKey!: Phaser.Input.Keyboard.Key;
+  private escapeKey!: Phaser.Input.Keyboard.Key;
+  // The active conversation and where we are in it, or undefined when closed.
+  private activeDialogue: Dialogue | undefined;
+  private dialogueNodeId: string | undefined;
+  // The choices currently offered, so a number key maps straight to a choice.
+  private dialogueChoices: readonly DialogueChoice[] = [];
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   private usedFordThisContract = false;
@@ -310,6 +339,10 @@ export class MapScene extends Phaser.Scene {
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
     this.skills = {};
+    this.storyFlags = emptyFlags();
+    this.activeDialogue = undefined;
+    this.dialogueNodeId = undefined;
+    this.dialogueChoices = [];
 
     if (snapshot === null) {
       return;
@@ -325,6 +358,7 @@ export class MapScene extends Phaser.Scene {
     // Sanitize against the current skill list so a stale or edited save cannot
     // grant unknown skills or over-max ranks.
     this.skills = sanitizeRanks({ ...snapshot.skills });
+    this.storyFlags = flagsFromArray(snapshot.storyFlags);
     for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
       this.fogByRegion[rid] = [...indices];
     }
@@ -386,6 +420,7 @@ export class MapScene extends Phaser.Scene {
       deliveries: this.trip.deliveries,
       achievements: [...this.achievements],
       skills: { ...this.skills },
+      storyFlags: flagsToArray(this.storyFlags),
     });
   }
 
@@ -403,7 +438,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 5,
+      version: 6,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -457,6 +492,8 @@ export class MapScene extends Phaser.Scene {
       level: this.courierLevel(),
       skillPoints: availablePoints(this.courierLevel(), this.skills),
       skills: { ...this.skills },
+      storyFlags: flagsToArray(this.storyFlags),
+      dialogueOpen: this.hud.isDialogueVisible(),
     };
   }
 
@@ -508,6 +545,14 @@ export class MapScene extends Phaser.Scene {
   }
 
   update(): void {
+    // A conversation is modal: freeze the wagon and take only dialogue input so
+    // number keys pick choices instead of accepting contracts or spending points.
+    if (this.hud.isDialogueVisible()) {
+      this.courier.setVelocity(0, 0);
+      this.handleDialogueInput();
+      return;
+    }
+
     const input: MoveInput = {
       up: this.cursors.up.isDown || this.wasd.W.isDown,
       down: this.cursors.down.isDown || this.wasd.S.isDown,
@@ -549,6 +594,7 @@ export class MapScene extends Phaser.Scene {
     this.handlePurchaseInput();
     this.handleResetInput();
     this.handleTravelInput();
+    this.handleTalkInput();
     this.handleToggles();
     this.refreshBoard();
     if (this.hud.isMinimapVisible()) {
@@ -994,6 +1040,107 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** Open a settlement's conversation when the talk key is pressed on its tile. */
+  private handleTalkInput(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.talkKey)) {
+      return;
+    }
+    const tile = this.courierTile();
+    const here = settlementAtTileIn(this.region, tile.x, tile.y);
+    if (here === undefined) {
+      return;
+    }
+    const dialogue = dialogueForSettlement(here.id);
+    if (dialogue === undefined) {
+      this.hud.showToast(`No one in ${here.name} has much to say just now.`);
+      return;
+    }
+    this.openDialogue(dialogue);
+  }
+
+  private openDialogue(dialogue: Dialogue): void {
+    const start = startDialogue(dialogue);
+    if (start === undefined) {
+      return;
+    }
+    this.activeDialogue = dialogue;
+    this.dialogueNodeId = start.id;
+    this.showDialogueNode();
+  }
+
+  /**
+   * Flags handed to the dialogue engine: the persisted story flags plus flags
+   * derived from the live world. Derived flags let a choice gate on a real fact
+   * (the home region being reconnected) without persisting a redundant flag.
+   */
+  private effectiveFlags(): StoryFlags {
+    const derived: string[] = [];
+    if (this.regionCleared()) {
+      derived.push(FLAG_HOME_RECONNECTED);
+    }
+    return setFlags(this.storyFlags, derived);
+  }
+
+  /** Render the current conversation node and remember its available choices. */
+  private showDialogueNode(): void {
+    const dialogue = this.activeDialogue;
+    if (dialogue === undefined || this.dialogueNodeId === undefined) {
+      this.closeDialogue();
+      return;
+    }
+    const node = getNode(dialogue, this.dialogueNodeId);
+    if (node === undefined) {
+      this.closeDialogue();
+      return;
+    }
+    this.dialogueChoices = availableChoices(node, this.effectiveFlags());
+    this.hud.setDialogue({
+      speaker: node.speaker,
+      text: node.text,
+      choices: this.dialogueChoices.map((c) => c.label),
+    });
+  }
+
+  /** While a conversation is open, take a numbered choice or step away with Esc. */
+  private handleDialogueInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
+      this.closeDialogue();
+      return;
+    }
+    for (let i = 0; i < this.numberKeys.length && i < this.dialogueChoices.length; i++) {
+      const key = this.numberKeys[i];
+      if (key !== undefined && Phaser.Input.Keyboard.JustDown(key)) {
+        this.chooseDialogueOption(i);
+        return;
+      }
+    }
+  }
+
+  private chooseDialogueOption(index: number): void {
+    const choice = this.dialogueChoices[index];
+    if (choice === undefined) {
+      return;
+    }
+    // Apply set-flags to the persisted flags only, then persist immediately so
+    // story progress survives a reload mid-conversation.
+    const result = chooseOption(this.storyFlags, choice);
+    this.storyFlags = result.flags;
+    this.save();
+    if (result.next === END_DIALOGUE) {
+      this.closeDialogue();
+      return;
+    }
+    this.dialogueNodeId = result.next;
+    this.showDialogueNode();
+  }
+
+  private closeDialogue(): void {
+    this.activeDialogue = undefined;
+    this.dialogueNodeId = undefined;
+    this.dialogueChoices = [];
+    this.hud.setDialogue(null);
+  }
+
   private refreshWallet(): void {
     const reputation = totalReputation(this.state.ledger);
     const level = this.courierLevel();
@@ -1007,8 +1154,11 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshHint(): void {
-    const base = 'WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.';
     const tile = this.courierTile();
+    const here = settlementAtTileIn(this.region, tile.x, tile.y);
+    const talk =
+      here !== undefined && dialogueForSettlement(here.id) !== undefined ? `  E: talk to ${here.name}` : '';
+    const base = `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.${talk}`;
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
@@ -1130,6 +1280,8 @@ export class MapScene extends Phaser.Scene {
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.travelKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
     this.skillKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
+    this.talkKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.escapeKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
