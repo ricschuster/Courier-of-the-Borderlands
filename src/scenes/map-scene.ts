@@ -70,27 +70,14 @@ import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
 import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
 import {
-  startDialogue,
-  availableChoices,
-  chooseOption,
-  getNode,
   setFlags,
   flagsToArray,
   flagsFromArray,
   emptyFlags,
-  END_DIALOGUE,
-  type Dialogue,
-  type DialogueChoice,
   type StoryFlags,
 } from '../systems/dialogue';
 import { dialogueForSettlement, FLAG_HOME_RECONNECTED } from '../data/dialogue-content';
-import {
-  pickEncounter,
-  outcomeForFlag,
-  type RoadEncounter,
-  type EncounterOutcome,
-} from '../systems/encounter-system';
-import { ENCOUNTERS } from '../data/encounters';
+import { DialogueController, type DialogueHost } from './dialogue-controller';
 import {
   activeObjective,
   activeMission,
@@ -266,18 +253,10 @@ export class MapScene extends Phaser.Scene {
   private storyFlags: StoryFlags = emptyFlags();
   private talkKey!: Phaser.Input.Keyboard.Key;
   private escapeKey!: Phaser.Input.Keyboard.Key;
-  // The active conversation and where we are in it, or undefined when closed.
-  private activeDialogue: Dialogue | undefined;
-  private dialogueNodeId: string | undefined;
-  // The choices currently offered, so a number key maps straight to a choice.
-  private dialogueChoices: readonly DialogueChoice[] = [];
-  // The road encounter currently playing, if the open conversation is one, so a
-  // resolving choice can apply its coin or reputation outcome.
-  private activeEncounter: RoadEncounter | undefined;
-  // The tile the courier already occupied when encounters were last checked, so
-  // an encounter fires once on entry and does not re-open every frame while the
-  // wagon sits on the trigger (or immediately after the player steps away).
-  private lastEncounterTile: { x: number; y: number } | undefined;
+  // Conversation subsystem: settlement talk, road encounters, and the modal
+  // dialogue state machine. Constructed fresh each create(), so a scene restart
+  // starts with no conversation open.
+  private dialogue!: DialogueController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   private usedFordThisContract = false;
@@ -338,6 +317,29 @@ export class MapScene extends Phaser.Scene {
     this.restoreFog();
     this.setupInput();
     this.hud = new MapHud(this);
+    // Fresh conversation subsystem per create(), so a scene restart (travel, new
+    // game) opens with no dialogue in progress. The host literal is the scene's
+    // narrow, explicit coupling surface to the controller.
+    const host: DialogueHost = {
+      getHud: () => this.hud,
+      getRegion: () => this.region,
+      courierTile: () => this.courierTile(),
+      effectiveFlags: () => this.effectiveFlags(),
+      getStoryFlags: () => this.storyFlags,
+      setStoryFlags: (flags) => {
+        this.storyFlags = flags;
+      },
+      getLedger: () => this.state.ledger,
+      setLedger: (ledger) => {
+        this.state.ledger = ledger;
+      },
+      save: () => this.save(),
+      refreshWallet: () => this.refreshWallet(),
+      getTalkKey: () => this.talkKey,
+      getEscapeKey: () => this.escapeKey,
+      getNumberKeys: () => this.numberKeys,
+    };
+    this.dialogue = new DialogueController(host);
     this.refreshWallet();
     this.refreshObjective();
     this.refreshFordStatus();
@@ -383,11 +385,8 @@ export class MapScene extends Phaser.Scene {
     this.usedFordThisContract = false;
     this.skills = {};
     this.storyFlags = emptyFlags();
-    this.activeDialogue = undefined;
-    this.dialogueNodeId = undefined;
-    this.dialogueChoices = [];
-    this.activeEncounter = undefined;
-    this.lastEncounterTile = undefined;
+    // The dialogue controller is (re)constructed fresh later in create(), so no
+    // conversation state needs resetting here.
 
     if (snapshot === null) {
       return;
@@ -540,8 +539,8 @@ export class MapScene extends Phaser.Scene {
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
       dialogueOpen: this.hud.isDialogueVisible(),
-      dialogueChoices: this.dialogueChoices.map((c) => c.label),
-      activeEncounterId: this.activeEncounter?.id ?? null,
+      dialogueChoices: this.dialogue.choiceLabels(),
+      activeEncounterId: this.dialogue.activeEncounterId(),
       regionCleared: this.regionCleared(),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,
@@ -601,7 +600,7 @@ export class MapScene extends Phaser.Scene {
     // number keys pick choices instead of accepting contracts or spending points.
     if (this.hud.isDialogueVisible()) {
       this.courier.setVelocity(0, 0);
-      this.handleDialogueInput();
+      this.dialogue.handleInput();
       return;
     }
 
@@ -646,8 +645,8 @@ export class MapScene extends Phaser.Scene {
     this.handlePurchaseInput();
     this.handleResetInput();
     this.handleTravelInput();
-    this.handleTalkInput();
-    this.handleEncounters();
+    this.dialogue.handleTalk();
+    this.dialogue.handleEncounters();
     this.handleToggles();
     this.refreshBoard();
     if (this.hud.isMinimapVisible()) {
@@ -1110,113 +1109,6 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Open a settlement's conversation when the talk key is pressed on its tile. */
-  private handleTalkInput(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.talkKey)) {
-      return;
-    }
-    const tile = this.courierTile();
-    const here = settlementAtTileIn(this.region, tile.x, tile.y);
-    if (here === undefined) {
-      return;
-    }
-    const dialogue = dialogueForSettlement(here.id);
-    if (dialogue === undefined) {
-      this.hud.showToast(`No one in ${here.name} has much to say just now.`);
-      return;
-    }
-    this.openDialogue(dialogue);
-  }
-
-  /** Open a conversation. Returns false (without opening) if its start is dangling. */
-  private openDialogue(dialogue: Dialogue): boolean {
-    const start = startDialogue(dialogue);
-    if (start === undefined) {
-      return false;
-    }
-    this.activeDialogue = dialogue;
-    this.dialogueNodeId = start.id;
-    this.showDialogueNode();
-    return true;
-  }
-
-  /**
-   * Fire a road encounter when the courier reaches its trigger tile. Runs each
-   * frame from update(). An encounter is checked once per tile the courier
-   * enters (lastEncounterTile), so it opens on arrival and does not re-open
-   * while the wagon sits on the tile or the instant the player steps away
-   * without resolving it. Settlement tiles are skipped: those host NPC talk on
-   * E, not drive-through events. The open conversation is modal, so the update
-   * early-return suppresses further checks until it closes.
-   */
-  private handleEncounters(): void {
-    const tile = this.courierTile();
-    if (this.lastEncounterTile?.x === tile.x && this.lastEncounterTile?.y === tile.y) {
-      return;
-    }
-    this.lastEncounterTile = tile;
-    if (settlementAtTileIn(this.region, tile.x, tile.y) !== undefined) {
-      return;
-    }
-    const encounter = pickEncounter(ENCOUNTERS, {
-      regionId: this.region.id,
-      tile,
-      flags: this.effectiveFlags(),
-    });
-    if (encounter === undefined) {
-      return;
-    }
-    // Only mark the encounter active if its dialogue actually opened, so a
-    // malformed dialogue cannot leave a stale activeEncounter that would then
-    // apply outcomes to the next (settlement) conversation.
-    if (this.openDialogue(encounter.dialogue)) {
-      this.activeEncounter = encounter;
-    }
-  }
-
-  /**
-   * Apply the coin and reputation outcomes of a choice that resolves the active
-   * encounter. A choice may set several flags; only those that are outcome keys
-   * of the active encounter take effect. The ledger clamps coins and reputation
-   * at zero, so a toll never drives the wallet negative.
-   */
-  private applyEncounterOutcomes(choice: DialogueChoice): void {
-    const encounter = this.activeEncounter;
-    if (encounter === undefined || choice.set === undefined) {
-      return;
-    }
-    for (const flag of choice.set) {
-      const outcome = outcomeForFlag(encounter, flag);
-      if (outcome !== undefined) {
-        this.applyEncounterOutcome(outcome);
-      }
-    }
-  }
-
-  private applyEncounterOutcome(outcome: EncounterOutcome): void {
-    const parts: string[] = [];
-    if (outcome.coins !== undefined && outcome.coins !== 0) {
-      // Report the coins actually moved, not the nominal amount: addCoins clamps
-      // at zero, so a broke courier who pays a toll loses only what they have,
-      // and the toast should say so rather than overstate the cost.
-      const before = this.state.ledger.coins;
-      this.state.ledger = addCoins(this.state.ledger, outcome.coins);
-      const delta = this.state.ledger.coins - before;
-      if (delta !== 0) {
-        parts.push(delta > 0 ? `+${delta} coins` : `${delta} coins`);
-      }
-    }
-    if (outcome.reputationId !== undefined && outcome.reputation !== undefined && outcome.reputation !== 0) {
-      this.state.ledger = addReputation(this.state.ledger, outcome.reputationId, outcome.reputation);
-      const name = this.region.settlements[outcome.reputationId]?.name ?? outcome.reputationId;
-      parts.push(`+${outcome.reputation} reputation with ${name}`);
-    }
-    this.refreshWallet();
-    if (parts.length > 0) {
-      this.hud.showToast(parts.join(', '));
-    }
-  }
-
   /**
    * Flags handed to the dialogue engine: the persisted story flags plus flags
    * derived from the live world. Derived flags let a choice gate on a real fact
@@ -1237,70 +1129,6 @@ export class MapScene extends Phaser.Scene {
       flags: this.effectiveFlags(),
       visitedIds: [...this.visited],
     };
-  }
-
-  /** Render the current conversation node and remember its available choices. */
-  private showDialogueNode(): void {
-    const dialogue = this.activeDialogue;
-    if (dialogue === undefined || this.dialogueNodeId === undefined) {
-      this.closeDialogue();
-      return;
-    }
-    const node = getNode(dialogue, this.dialogueNodeId);
-    if (node === undefined) {
-      this.closeDialogue();
-      return;
-    }
-    this.dialogueChoices = availableChoices(node, this.effectiveFlags());
-    this.hud.setDialogue({
-      speaker: node.speaker,
-      text: node.text,
-      choices: this.dialogueChoices.map((c) => c.label),
-    });
-  }
-
-  /** While a conversation is open, take a numbered choice or step away with Esc. */
-  private handleDialogueInput(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
-      this.closeDialogue();
-      return;
-    }
-    for (let i = 0; i < this.numberKeys.length && i < this.dialogueChoices.length; i++) {
-      const key = this.numberKeys[i];
-      if (key !== undefined && Phaser.Input.Keyboard.JustDown(key)) {
-        this.chooseDialogueOption(i);
-        return;
-      }
-    }
-  }
-
-  private chooseDialogueOption(index: number): void {
-    const choice = this.dialogueChoices[index];
-    if (choice === undefined) {
-      return;
-    }
-    // Apply set-flags to the persisted flags only, then persist immediately so
-    // story progress survives a reload mid-conversation.
-    const result = chooseOption(this.storyFlags, choice);
-    this.storyFlags = result.flags;
-    // Apply any encounter outcome (coins, reputation) before persisting, so the
-    // ledger change is saved in the same write as the resolution flag.
-    this.applyEncounterOutcomes(choice);
-    this.save();
-    if (result.next === END_DIALOGUE) {
-      this.closeDialogue();
-      return;
-    }
-    this.dialogueNodeId = result.next;
-    this.showDialogueNode();
-  }
-
-  private closeDialogue(): void {
-    this.activeDialogue = undefined;
-    this.dialogueNodeId = undefined;
-    this.dialogueChoices = [];
-    this.activeEncounter = undefined;
-    this.hud.setDialogue(null);
   }
 
   private refreshWallet(): void {
