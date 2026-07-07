@@ -37,6 +37,19 @@ import { buildMinimap } from '../systems/minimap';
 import { buildJournal, statusLabel } from '../systems/journal';
 import { computeWorldState, type SettlementStatus } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
+import { totalXp, levelForXp, levelProgress } from '../systems/experience';
+import {
+  SKILLS,
+  sanitizeRanks,
+  availablePoints,
+  canRankUp,
+  rankUp,
+  rankOf,
+  skillSpeedBonus,
+  skillRevealBonus,
+  skillRewardBonus,
+  type SkillRanks,
+} from '../systems/skills';
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor, applyRewardBonus } from '../systems/reputation-perks';
 import { getCargoCategory, cargoPayout } from '../systems/cargo-types';
@@ -110,6 +123,11 @@ interface E2EState {
   readonly gateways: readonly { readonly tileX: number; readonly tileY: number; readonly to: string }[];
   /** Connection status per settlement id, derived from delivery history. */
   readonly worldState: Record<string, SettlementStatus>;
+  /** Courier level derived from play stats, and unspent skill points. */
+  readonly level: number;
+  readonly skillPoints: number;
+  /** Chosen skill ranks, keyed by skill id. */
+  readonly skills: Record<string, number>;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -213,6 +231,11 @@ export class MapScene extends Phaser.Scene {
   // Main-map settlement marker rectangles, keyed by settlement id, so their
   // fill can be recoloured when a delivery reconnects a place.
   private settlementMarkers = new Map<string, Phaser.GameObjects.Rectangle>();
+  // Chosen courier skill ranks. Experience and level are derived from play
+  // stats; only these choices are persisted.
+  private skills: SkillRanks = {};
+  private skillKey!: Phaser.Input.Keyboard.Key;
+  private skillPanel!: Phaser.GameObjects.Text;
   private weather: Weather = weatherByIndex(0);
   private legendKey!: Phaser.Input.Keyboard.Key;
   private legendPanel!: Phaser.GameObjects.Text;
@@ -314,6 +337,7 @@ export class MapScene extends Phaser.Scene {
     this.fogDimsByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
+    this.skills = {};
 
     if (snapshot === null) {
       return;
@@ -326,6 +350,9 @@ export class MapScene extends Phaser.Scene {
     this.visited = new Set(snapshot.visited);
     this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
     this.achievements = new Set(snapshot.achievements);
+    // Sanitize against the current skill list so a stale or edited save cannot
+    // grant unknown skills or over-max ranks.
+    this.skills = sanitizeRanks({ ...snapshot.skills });
     for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
       this.fogByRegion[rid] = [...indices];
     }
@@ -386,6 +413,7 @@ export class MapScene extends Phaser.Scene {
       distanceTiles: this.trip.distanceTiles,
       deliveries: this.trip.deliveries,
       achievements: [...this.achievements],
+      skills: { ...this.skills },
     });
   }
 
@@ -403,7 +431,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 4,
+      version: 5,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -454,6 +482,9 @@ export class MapScene extends Phaser.Scene {
           : { tileX: signpostTile.x, tileY: signpostTile.y, x: signpostCenter.x, y: signpostCenter.y },
       gateways: this.region.gateways.map((g) => ({ tileX: g.tile.x, tileY: g.tile.y, to: g.to })),
       worldState: this.worldState(),
+      level: this.courierLevel(),
+      skillPoints: availablePoints(this.courierLevel(), this.skills),
+      skills: { ...this.skills },
     };
   }
 
@@ -519,7 +550,8 @@ export class MapScene extends Phaser.Scene {
       this.state.upgrades,
       UPGRADES_GREYBRIDGE,
     );
-    const upgradeModifier = speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE);
+    const upgradeModifier =
+      speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE) + skillSpeedBonus(this.skills);
     const speed = COURIER_SPEED * terrainModifier * upgradeModifier * this.weather.speedMultiplier;
     const velocity = computeVelocity(input, speed);
     this.courier.setVelocity(velocity.x, velocity.y);
@@ -540,6 +572,7 @@ export class MapScene extends Phaser.Scene {
     this.revealAroundCourier();
     this.updateDelivery();
     this.checkArrival();
+    this.handleSkillInput();
     this.handleBoardInput();
     this.handlePurchaseInput();
     this.handleResetInput();
@@ -688,7 +721,9 @@ export class MapScene extends Phaser.Scene {
 
   private revealAroundCourier(): void {
     const tile = this.courierTile();
-    const base = revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS);
+    const base =
+      revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS) +
+      skillRevealBonus(this.skills);
     const radius = Math.max(1, base + this.weather.revealBonus);
     const revealed = revealAround(this.fog, tile.x, tile.y, radius);
     for (const { x, y } of revealed) {
@@ -718,6 +753,20 @@ export class MapScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(DEPTH_MARKER);
     }
+  }
+
+  /** Courier experience, derived from cumulative play stats (not stored). */
+  private courierXp(): number {
+    return totalXp({
+      deliveries: this.trip.deliveries,
+      distanceTiles: this.trip.distanceTiles,
+      discoveries: this.visited.size,
+    });
+  }
+
+  /** Courier level from current experience. */
+  private courierLevel(): number {
+    return levelForXp(this.courierXp());
   }
 
   /** Connection status per settlement, derived from delivery history. */
@@ -768,6 +817,8 @@ export class MapScene extends Phaser.Scene {
     const reputation = totalReputation(this.state.ledger);
     const payout = applyRewardBonus(baseReward, reputation);
     const perk = perkFor(reputation);
+    // The Negotiator skill adds a flat fraction on top of the standing bonus.
+    const skillReward = Math.round(payout * skillRewardBonus(this.skills));
 
     // Optional bonus objective for this contract.
     const bonus = bonusFor(contract.id);
@@ -780,7 +831,7 @@ export class MapScene extends Phaser.Scene {
     const bonusCoins = bonusEarned && bonus !== undefined ? bonus.reward : 0;
 
     this.completed.add(contract.id);
-    this.state.ledger = addCoins(this.state.ledger, payout + bonusCoins);
+    this.state.ledger = addCoins(this.state.ledger, payout + skillReward + bonusCoins);
     this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
     this.trip = recordDelivery(this.trip);
     this.activeContract = undefined;
@@ -789,12 +840,13 @@ export class MapScene extends Phaser.Scene {
     // Compare against the cargo-adjusted base so the perk note reflects a
     // reputation boost, not the cargo pay modifier.
     const perkNote = payout > baseReward ? ` (${perk.label})` : '';
+    const skillNote = skillReward > 0 ? ` +${skillReward} negotiated.` : '';
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
     this.showToast(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${payout} coins${perkNote}, +${contract.reputation} reputation.${bonusNote}${cargoNote}`,
+        `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}`,
     );
     this.refreshObjective();
     this.refreshWallet();
@@ -846,7 +898,36 @@ export class MapScene extends Phaser.Scene {
     this.save();
   }
 
+  /** Spend skill points while the skill panel is open (number keys rank skills). */
+  private handleSkillInput(): void {
+    if (!this.skillPanel.visible) {
+      return;
+    }
+    const level = this.courierLevel();
+    for (let i = 0; i < SKILLS.length && i < this.numberKeys.length; i++) {
+      const key = this.numberKeys[i];
+      const skill = SKILLS[i];
+      if (key === undefined || skill === undefined || !Phaser.Input.Keyboard.JustDown(key)) {
+        continue;
+      }
+      if (canRankUp(this.skills, skill.id, level)) {
+        this.skills = rankUp(this.skills, skill.id);
+        this.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
+        this.refreshSkillPanel();
+        this.refreshWallet();
+        this.save();
+      } else {
+        this.showToast(`Cannot improve ${skill.name} yet.`);
+      }
+    }
+  }
+
   private handleBoardInput(): void {
+    // The skill panel reuses the number keys to spend points; do not also
+    // accept a contract with the same press.
+    if (this.skillPanel.visible) {
+      return;
+    }
     if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
       return;
     }
@@ -937,6 +1018,13 @@ export class MapScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
       this.legendPanel.setVisible(!this.legendPanel.visible);
     }
+    if (Phaser.Input.Keyboard.JustDown(this.skillKey)) {
+      const show = !this.skillPanel.visible;
+      this.skillPanel.setVisible(show);
+      if (show) {
+        this.refreshSkillPanel();
+      }
+    }
   }
 
   private handleResetInput(): void {
@@ -949,13 +1037,16 @@ export class MapScene extends Phaser.Scene {
   private refreshWallet(): void {
     const reputation = totalReputation(this.state.ledger);
     const tier = tierFor(reputation);
+    const level = this.courierLevel();
+    const points = availablePoints(level, this.skills);
+    const pointsNote = points > 0 ? `   Skill points: ${points} (K)` : '';
     this.wallet.setText(
-      `Coins: ${this.state.ledger.coins}   Reputation: ${reputation} (${tier.name})`,
+      `Coins: ${this.state.ledger.coins}   Rep: ${reputation} (${tier.name})   Lv ${level}${pointsNote}`,
     );
   }
 
   private refreshHint(): void {
-    const base = 'WASD/arrows drive.  M: map  J: journal  L: codex  N: new game.';
+    const base = 'WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.';
     const tile = this.courierTile();
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
@@ -1077,6 +1168,7 @@ export class MapScene extends Phaser.Scene {
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.travelKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
+    this.skillKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
 
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -1145,6 +1237,22 @@ export class MapScene extends Phaser.Scene {
 
     // Journal panel (toggled with J), centred near the top.
     this.journalPanel = this.add
+      .text(GAME_WIDTH / 2, 40, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#f2efe4',
+        backgroundColor: '#0b0b0bdd',
+        padding: { x: 12, y: 10 },
+        lineSpacing: 4,
+        align: 'left',
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
+    // Skills panel (toggled with K), centred near the top.
+    this.skillPanel = this.add
       .text(GAME_WIDTH / 2, 40, '', {
         fontFamily: 'monospace',
         fontSize: '12px',
@@ -1275,6 +1383,26 @@ export class MapScene extends Phaser.Scene {
         g.fillRect(originX + node.x * cell + 2, originY + node.y * cell + 2, cell - 4, cell - 4);
       }
     }
+  }
+
+  private refreshSkillPanel(): void {
+    const prog = levelProgress(this.courierXp());
+    const points = availablePoints(prog.level, this.skills);
+    const lines = [
+      'COURIER SKILLS   (K to close)',
+      `Level ${prog.level}   XP ${prog.xpIntoLevel} / ${prog.xpForNextLevel}`,
+      `Skill points to spend: ${points}`,
+      '',
+      'Press the number to invest a point:',
+    ];
+    SKILLS.forEach((skill, i) => {
+      const rank = rankOf(this.skills, skill.id);
+      const maxed = rank >= skill.maxRank ? '  (max)' : '';
+      lines.push(`  [${i + 1}] ${skill.name}  rank ${rank}/${skill.maxRank}${maxed}`);
+      lines.push(`        ${skill.description}`);
+    });
+    lines.push('', 'Level up by delivering, exploring, and covering ground.');
+    this.skillPanel.setText(lines.join('\n'));
   }
 
   /** The active objective as re-readable text for the journal, or null. */

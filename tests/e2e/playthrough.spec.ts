@@ -70,6 +70,12 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
   // The home town is always home; a still-undelivered place stays silent.
   expect(done.state.worldState.greywater).toBe('home');
   expect(done.state.worldState.southmill).toBe('silent');
+  // Courier progression: driving, discovering, and delivering earns XP, so the
+  // courier has levelled past 1 and has a skill point to spend (M5.1).
+  expect(done.state.level).toBeGreaterThanOrEqual(2);
+  expect(done.state.skillPoints).toBeGreaterThanOrEqual(1);
+  // Level is monotonic across the run: it never dropped while playing.
+  expect(done.state.level).toBeGreaterThanOrEqual(accepted.state.level);
   // The contract pays a fixed +2 reputation and a positive coin reward.
   expect(done.state.reputation).toBe(2);
   expect(done.state.coins).toBeGreaterThan(0);

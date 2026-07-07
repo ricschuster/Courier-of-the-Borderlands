@@ -98,18 +98,30 @@ consequence as the north star. Scope and shape are recorded in
 `docs/decisions/0004-rpg-and-narrative-layer.md`. Build order is smallest,
 most self-contained system first. Each phase ships independently behind CI.
 
-### M5.1: Courier experience and skills
+### M5.1: Courier experience and skills -- DONE
 
 Pure progression logic that reuses the existing effect pipeline
-(`speedMultiplier`, `revealRadius`, `terrainSpeedFactor`, `applyRewardBonus`).
+(`speedMultiplier`, `revealRadius`, `applyRewardBonus`). Built to fix the
+playtest's flatline finding: coins and reputation cap, so a non-capping
+identity track keeps play rewarding.
 
-- [ ] Experience earned from the existing loop (deliveries, distance, tiles
-      revealed, first-visit discoveries); levels are pure and unit tested
-- [ ] Skill data model and a per-skill effect that feeds the shared pipeline
-- [ ] First skill batch: non-social verbs that need nothing else (for example
-      terrain access, map reveal, carrying more than one contract)
-- [ ] Skill-point spend UI and experience/level HUD
-- [ ] Skills and levels persisted in the save with a migration
+- [x] Experience earned from the existing loop (deliveries, distance,
+      first-visit discoveries); levels are pure and unit tested
+      (`src/systems/experience.ts`). XP is *derived* from already-persisted
+      stats, so no new XP save field is needed, mirroring the world-state slice.
+- [x] Skill data model with ranks and per-skill effects feeding the shared
+      pipeline (`src/systems/skills.ts`)
+- [x] First skill batch (numeric effects, no new engine surface): Wayfinder
+      (map reveal), Teamster (speed), Negotiator (delivery reward), each up to
+      rank 3
+- [x] Skill-point spend UI (K panel, number keys invest) and a level / skill
+      point readout in the HUD
+- [x] Chosen skill ranks persisted in the save (optional field, no version
+      bump); level and points verified end to end in the browser playthrough
+
+Deferred to a later batch: true "verb" skills that need engine work (crossing
+otherwise-impassable terrain, carrying more than one contract, reading carried
+secrets, and the social skills that depend on dialogue, M5.2).
 
 ### M5.2: NPC and dialogue system
 
@@ -158,5 +170,5 @@ Still to do:
 - [ ] Consequences beyond visibility: new or withdrawn contracts, price and
       reward shifts, deeper settlement changes
 - [ ] Missions and skills read and write world-state
-- [ ] Progression that does not flatline (coin sink, skills) so reconnecting
-      keeps paying off
+- [x] Progression that does not flatline: coin sink (more upgrades) plus the
+      M5.1 experience and skill track

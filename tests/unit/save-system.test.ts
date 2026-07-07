@@ -22,6 +22,7 @@ const SNAPSHOT: GameSnapshot = {
   distanceTiles: 42.5,
   deliveries: 1,
   achievements: ['first-delivery', 'ford-finder'],
+  skills: { teamster: 2, wayfinder: 1 },
 };
 
 describe('save-system', () => {
@@ -63,6 +64,24 @@ describe('save-system', () => {
     expect(parsed?.fogDimsByRegion).toEqual({});
     expect(parsed?.activeContractId).toBeNull();
     expect(parsed?.contractStatus).toBeNull();
+  });
+
+  it('round-trips chosen skill ranks', () => {
+    expect(deserialize(serialize(SNAPSHOT))?.skills).toEqual({ teamster: 2, wayfinder: 1 });
+  });
+
+  it('defaults skills to empty for a save made before skills existed', () => {
+    const parsed = deserialize({ version: SAVE_VERSION, coins: 10 });
+    expect(parsed?.skills).toEqual({});
+  });
+
+  it('drops malformed skill ranks', () => {
+    const parsed = deserialize({
+      version: SAVE_VERSION,
+      coins: 10,
+      skills: { teamster: 2, bad: 'x', zero: 0, negative: -1, frac: 1.9 },
+    });
+    expect(parsed?.skills).toEqual({ teamster: 2, frac: 1 });
   });
 
   it('keeps a valid contract status', () => {
