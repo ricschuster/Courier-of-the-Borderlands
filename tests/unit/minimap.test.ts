@@ -97,6 +97,26 @@ describe('buildMinimap', () => {
     expect(cell!.marker).toBeNull();
   });
 
+  it('carries a revealed settlement status onto its cell', () => {
+    const input = makeInput({
+      settlements: [{ x: 1, y: 0, status: 'reconnected' }], // (1,0) is revealed
+    });
+    const model = buildMinimap(input);
+
+    const cell = model.cells[idx(input, 1, 0)];
+    expect(cell!.marker).toBe('settlement');
+    expect(cell!.settlementStatus).toBe('reconnected');
+  });
+
+  it('leaves settlementStatus null on non-settlement cells', () => {
+    const input = makeInput({ settlements: [{ x: 1, y: 0, status: 'silent' }] });
+    const model = buildMinimap(input);
+
+    const empty = model.cells[idx(input, 2, 0)]; // revealed, no settlement
+    expect(empty!.marker).toBeNull();
+    expect(empty!.settlementStatus).toBeNull();
+  });
+
   it('courier takes precedence over settlement on the same tile', () => {
     // Put courier and settlement on the same revealed tile.
     const input = makeInput({
