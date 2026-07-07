@@ -48,6 +48,9 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
   expect(accepted.state.contractStatus).toBe('carrying');
   expect(accepted.state.destination).not.toBeNull();
 
+  // Eastwatch is silent before its delivery: the world has not reacted yet.
+  expect(accepted.state.worldState.eastwatch).toBe('silent');
+
   // 3. Drive to the delivery destination.
   const dest = accepted.state.destination!;
   await driveToTile(page, held, dest.tileX, dest.tileY);
@@ -61,6 +64,12 @@ test('drives a full delivery loop with real key presses', async ({ page }) => {
   const done = await readTick(page, dest.tileX, dest.tileY);
   expect(done.state.delivered).toBe(1);
   expect(done.state.activeContractId).toBeNull();
+  // World-state reacts: the delivery reconnects Eastwatch. This is the payoff
+  // the playtest found missing (docs/design/05_playtest_notes.md).
+  expect(done.state.worldState.eastwatch).toBe('reconnected');
+  // The home town is always home; a still-undelivered place stays silent.
+  expect(done.state.worldState.greywater).toBe('home');
+  expect(done.state.worldState.southmill).toBe('silent');
   // The contract pays a fixed +2 reputation and a positive coin reward.
   expect(done.state.reputation).toBe(2);
   expect(done.state.coins).toBeGreaterThan(0);

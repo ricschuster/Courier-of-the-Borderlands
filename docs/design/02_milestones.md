@@ -136,8 +136,27 @@ Authored, multi-step, branching delivery chains built on the contract primitive.
 Settlements react to delivery history so the world visibly changes and story
 emerges from play.
 
-- [ ] Per-settlement world-state driven by delivery history
-- [ ] Consequences: new or withdrawn contracts, price and reward shifts, visible
-      settlement changes
+A first "Reconnection" slice shipped ahead of the ADR sequence, driven by the
+playtest (`docs/design/05_playtest_notes.md`): the disengage moment was that
+rewards flatline and deliveries stop mattering, which is exactly the stakes gap
+world-state fills. This slice was the cheapest test of the fix.
+
+Shipped:
+- [x] Per-settlement world-state (`silent` / `reconnected` / `home`) derived
+      purely from delivery history, no new save field or migration
+      (`src/systems/world-state.ts`, unit tested)
+- [x] Visible settlement change: main-map markers and minimap cells recolour
+      when a delivery reconnects a place; verified end to end in the browser
+      playthrough (`tests/e2e/playthrough.spec.ts`)
+- [x] Spine payoff text per settlement, shown in the journal on reconnection
+      (`src/data/reconnection-notes.ts`)
+- [x] Journal upgraded to re-openable status board: re-readable active
+      objective and per-settlement status, fixing the "popup vanished" and
+      "forgot the lore" playtest complaints (`src/systems/journal.ts`)
+
+Still to do:
+- [ ] Consequences beyond visibility: new or withdrawn contracts, price and
+      reward shifts, deeper settlement changes
 - [ ] Missions and skills read and write world-state
-- [ ] World-state persisted in the save with a migration
+- [ ] Progression that does not flatline (coin sink, skills) so reconnecting
+      keeps paying off

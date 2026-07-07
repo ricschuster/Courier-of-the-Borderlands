@@ -34,7 +34,9 @@ import {
 } from '../systems/upgrade-system';
 import { computeRunSummary } from '../systems/run-summary';
 import { buildMinimap } from '../systems/minimap';
-import { buildJournal } from '../systems/journal';
+import { buildJournal, statusLabel } from '../systems/journal';
+import { computeWorldState, type SettlementStatus } from '../systems/world-state';
+import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor, applyRewardBonus } from '../systems/reputation-perks';
 import { getCargoCategory, cargoPayout } from '../systems/cargo-types';
@@ -106,6 +108,8 @@ interface E2EState {
   readonly upgrades: readonly string[];
   readonly signpost: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number } | null;
   readonly gateways: readonly { readonly tileX: number; readonly tileY: number; readonly to: string }[];
+  /** Connection status per settlement id, derived from delivery history. */
+  readonly worldState: Record<string, SettlementStatus>;
 }
 
 // The debug API attached to window when the game boots with `?e2e`. It is a
@@ -132,6 +136,15 @@ const DEPTH_MARKER = 1;
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
 const DEPTH_HUD = 10;
+
+// Settlement marker fill by connection status: silent places read as dim and
+// dark, reconnected places glow warm, home stays pale. This is the visible
+// payoff of a delivery (see docs/design/05_playtest_notes.md).
+const STATUS_COLOR: Readonly<Record<SettlementStatus, number>> = {
+  home: 0xf2efe4,
+  reconnected: 0xf2c14e,
+  silent: 0x6b6660,
+};
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -191,6 +204,9 @@ export class MapScene extends Phaser.Scene {
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
   private achievements = new Set<string>();
+  // Main-map settlement marker rectangles, keyed by settlement id, so their
+  // fill can be recoloured when a delivery reconnects a place.
+  private settlementMarkers = new Map<string, Phaser.GameObjects.Rectangle>();
   private weather: Weather = weatherByIndex(0);
   private legendKey!: Phaser.Input.Keyboard.Key;
   private legendPanel!: Phaser.GameObjects.Text;
@@ -381,7 +397,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 3,
+      version: 4,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -431,6 +447,7 @@ export class MapScene extends Phaser.Scene {
           ? null
           : { tileX: signpostTile.x, tileY: signpostTile.y, x: signpostCenter.x, y: signpostCenter.y },
       gateways: this.region.gateways.map((g) => ({ tileX: g.tile.x, tileY: g.tile.y, to: g.to })),
+      worldState: this.worldState(),
     };
   }
 
@@ -676,12 +693,16 @@ export class MapScene extends Phaser.Scene {
   }
 
   private addSettlementMarkers(): void {
+    const status = this.worldState();
+    this.settlementMarkers.clear();
     for (const settlement of Object.values(this.region.settlements)) {
       const center = this.tileCenter(settlement.tile.x, settlement.tile.y);
-      this.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xf2efe4)
+      const fill = STATUS_COLOR[status[settlement.id] ?? 'silent'];
+      const marker = this.add
+        .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, fill)
         .setStrokeStyle(2, 0x1a1a1a)
         .setDepth(DEPTH_MARKER);
+      this.settlementMarkers.set(settlement.id, marker);
       this.add
         .text(center.x, center.y + TILE_SIZE * 0.5, settlement.name, {
           fontFamily: 'monospace',
@@ -690,6 +711,24 @@ export class MapScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_MARKER);
+    }
+  }
+
+  /** Connection status per settlement, derived from delivery history. */
+  private worldState(): Record<string, SettlementStatus> {
+    return computeWorldState({
+      settlements: Object.values(this.region.settlements).map((s) => ({ id: s.id })),
+      contracts: this.region.contracts.map((c) => ({ id: c.id, destinationId: c.destinationId })),
+      homeId: this.region.home,
+      completedContractIds: [...this.completed],
+    });
+  }
+
+  /** Recolour the main-map settlement markers to match current world-state. */
+  private refreshSettlementMarkers(): void {
+    const status = this.worldState();
+    for (const [id, marker] of this.settlementMarkers) {
+      marker.setFillStyle(STATUS_COLOR[status[id] ?? 'silent']);
     }
   }
 
@@ -755,6 +794,12 @@ export class MapScene extends Phaser.Scene {
     this.refreshWallet();
     this.refreshSummary();
     this.refreshAchievements(true);
+    // The delivery reconnects this settlement: recolour its marker (and the
+    // minimap if it is open) so the change to the world is immediately visible.
+    this.refreshSettlementMarkers();
+    if (this.minimapVisible) {
+      this.redrawMinimap();
+    }
     this.save();
   }
 
@@ -1135,6 +1180,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private redrawMinimap(): void {
+    const status = this.worldState();
     const model = buildMinimap({
       width: this.map.width,
       height: this.map.height,
@@ -1144,7 +1190,11 @@ export class MapScene extends Phaser.Scene {
         return id === undefined ? null : (getTerrain(id)?.color ?? null);
       },
       courier: this.courierTile(),
-      settlements: Object.values(this.region.settlements).map((s) => ({ x: s.tile.x, y: s.tile.y })),
+      settlements: Object.values(this.region.settlements).map((s) => ({
+        x: s.tile.x,
+        y: s.tile.y,
+        status: status[s.id] ?? 'silent',
+      })),
     });
 
     // Shrink the per-tile cell so a large map's minimap fits the corner box;
@@ -1177,7 +1227,7 @@ export class MapScene extends Phaser.Scene {
       g.fillStyle(fill, 1);
       g.fillRect(px, py, cell - 1, cell - 1);
       if (c.marker === 'settlement') {
-        g.fillStyle(0xf2efe4, 1);
+        g.fillStyle(STATUS_COLOR[c.settlementStatus ?? 'silent'], 1);
         g.fillRect(px + 1, py + 1, cell - 3, cell - 3);
       } else if (c.marker === 'courier') {
         g.fillStyle(0xf2c14e, 1);
@@ -1199,25 +1249,58 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** The active objective as re-readable text for the journal, or null. */
+  private journalObjective(): { title: string; detail: string } | null {
+    const contract = this.activeContract;
+    const progress = this.progress;
+    if (contract === undefined || progress === undefined) {
+      return null;
+    }
+    const destName = this.region.settlements[contract.destinationId]?.name ?? contract.destinationId;
+    const pickupName = this.region.settlements[contract.pickupId]?.name ?? contract.pickupId;
+    const detail =
+      progress.status === 'carrying'
+        ? `Deliver ${contract.cargo} to ${destName}.`
+        : `Collect ${contract.cargo} at ${pickupName}, then deliver to ${destName}.`;
+    return { title: contract.title, detail };
+  }
+
   private refreshJournal(): void {
+    const status = this.worldState();
     const model = buildJournal({
-      settlements: Object.values(this.region.settlements).map((s) => ({ id: s.id, name: s.name, note: s.note })),
+      settlements: Object.values(this.region.settlements).map((s) => ({
+        id: s.id,
+        name: s.name,
+        note: s.note,
+        status: status[s.id] ?? 'silent',
+        reconnectedNote: reconnectedNoteFor(s.id),
+      })),
       visitedIds: [...this.visited],
       delivered: this.deliveredInRegion(),
       totalContracts: this.region.contracts.length,
       reputationTier: tierFor(totalReputation(this.state.ledger)).name,
       fordUnlocked: this.regionFordUnlocked(),
+      activeObjective: this.journalObjective(),
     });
     const lines = [
       'DISCOVERIES JOURNAL   (J to close)',
       `Title: ${courierTitle(this.achievementStat())}`,
+      '',
+      'Current objective:',
+      ...model.objectiveLines.map((l) => `  ${l}`),
+      '',
       ...model.summaryLines,
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
       'Places:',
     ];
     for (const place of model.places) {
-      lines.push(`  ${place.name} - ${place.note}`);
+      const label = statusLabel(place.status);
+      const tag = label ? ` [${label}]` : '';
+      lines.push(`  ${place.name}${tag} - ${place.note}`);
+      if (place.statusNote) {
+        lines.push(`      ${place.statusNote}`);
+      }
     }
     lines.push('', 'Achievements:');
     for (const achievement of ACHIEVEMENTS) {
