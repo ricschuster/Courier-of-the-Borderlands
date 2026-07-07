@@ -5,6 +5,8 @@ import {
   FLAG_MET_POSTMASTER,
   FLAG_GREYBRIDGE_REVEAL,
   FLAG_HOME_RECONNECTED,
+  FLAG_SALTREACH_METHOD,
+  FLAG_FENMARCH_COST,
 } from '../../src/data/dialogue-content';
 import {
   validateDialogue,
@@ -81,6 +83,44 @@ describe('dialogue-content', () => {
     const seen = setFlags(afterReveal, [FLAG_HOME_RECONNECTED]);
     const afterChoices = availableChoices(greeting, seen);
     expect(afterChoices.some((c) => c.next === 'reveal')).toBe(false);
+  });
+
+  it('gates each spoke reveal on its region being reconnected, and sets its flag once', () => {
+    const cases = [
+      { id: 'tidewatch', flag: FLAG_SALTREACH_METHOD, node: 'method' },
+      { id: 'mossgate', flag: FLAG_FENMARCH_COST, node: 'cost' },
+    ] as const;
+    for (const { id, flag, node } of cases) {
+      const dialogue = dialogueForSettlement(id);
+      if (dialogue === undefined) {
+        throw new Error(`expected a dialogue for ${id}`);
+      }
+      const greeting = startDialogue(dialogue);
+      if (greeting === undefined) {
+        throw new Error(`expected a greeting node for ${id}`);
+      }
+
+      // Hidden until the region is reconnected.
+      const before = availableChoices(greeting, emptyFlags());
+      expect(before.some((c) => c.next === node), `${id} reveal hidden before reconnect`).toBe(
+        false,
+      );
+
+      // Offered once reconnected, and taking it sets the spoke flag.
+      const reconnected = setFlags(emptyFlags(), [FLAG_HOME_RECONNECTED]);
+      const withReveal = availableChoices(greeting, reconnected);
+      const revealChoice = withReveal.find((c) => c.next === node);
+      expect(revealChoice, `${id} reveal offered after reconnect`).toBeDefined();
+      if (revealChoice === undefined) {
+        continue;
+      }
+      const after = chooseOption(reconnected, revealChoice).flags;
+      expect(hasFlag(after, flag), `${id} sets ${flag}`).toBe(true);
+
+      // Not offered again once the flag is set.
+      const seen = setFlags(after, [FLAG_HOME_RECONNECTED]);
+      expect(availableChoices(greeting, seen).some((c) => c.next === node)).toBe(false);
+    }
   });
 
   it('every terminal choice ends the conversation cleanly', () => {

@@ -1283,6 +1283,9 @@ export class MapScene extends Phaser.Scene {
     this.talkKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escapeKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
+    // Allocate all number keys, not just one per contract: the same keys select
+    // contracts, spend skill points, and pick dialogue choices, and a region may
+    // have fewer contracts than there are skills or conversation choices.
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
       Phaser.Input.Keyboard.KeyCodes.TWO,
@@ -1291,9 +1294,7 @@ export class MapScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.FIVE,
       Phaser.Input.Keyboard.KeyCodes.SIX,
     ];
-    this.numberKeys = numberCodes
-      .slice(0, this.region.contracts.length)
-      .map((code) => keyboard.addKey(code));
+    this.numberKeys = numberCodes.map((code) => keyboard.addKey(code));
   }
 
   private redrawMinimap(): void {
