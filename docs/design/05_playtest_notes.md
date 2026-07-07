@@ -84,3 +84,16 @@ The playtest confirms the hypothesis and points at one slice.
 
 5. **Quick wins to bank alongside:** help-text contrast over discovered tiles,
    more upgrades to buy (a coin sink), and clarifying Southmill's travel.
+   *(Landed: HUD text now has a dark backing; three more upgrades raise the
+   coin sink from 150 to 500; the gateway hint names the settlement it shares a
+   tile with, e.g. "Southmill is the road to Fenmarch".)*
+
+## Still open after the Reconnection + polish passes
+
+- Progression still flatlines once every upgrade is bought and reputation caps.
+  The coin sink helps but the real fix is a non-capping track (courier
+  experience and skills, M5.1) so reconnecting keeps paying off.
+- Travel and the ford still lack a strong "why" beyond reaching new contracts;
+  that wants the regional story arc (missions, M5.3) to give them stakes.
+- The spine is written into the journal but cannot yet be *spoken*; NPC
+  dialogue (M5.2) is the next enabler.

@@ -146,6 +146,12 @@ const STATUS_COLOR: Readonly<Record<SettlementStatus, number>> = {
   silent: 0x6b6660,
 };
 
+// Semi-transparent dark backing for HUD text so it stays legible over any
+// terrain once fog is cleared (the help line washed out over light tiles; see
+// docs/design/05_playtest_notes.md).
+const HUD_BG = 'rgba(11, 11, 11, 0.66)';
+const HUD_PAD = { x: 4, y: 1 } as const;
+
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
   readonly A: Phaser.Input.Keyboard.Key;
@@ -954,7 +960,11 @@ export class MapScene extends Phaser.Scene {
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
-      this.hint.setText(`${base}  Press T to travel to ${other}.`);
+      // A gateway can share a tile with a settlement (Southmill is also the road
+      // south to Fenmarch); name it so the dual purpose is not confusing.
+      const here = settlementAtTileIn(this.region, tile.x, tile.y);
+      const where = here === undefined ? `The road ahead leads to ${other}` : `${here.name} is the road to ${other}`;
+      this.hint.setText(`${base}  ${where}: press T to travel.`);
       return;
     }
     const target = this.atSettlement(this.region.home)
@@ -999,7 +1009,7 @@ export class MapScene extends Phaser.Scene {
         .setDepth(DEPTH_MARKER);
       const destName = getRegion(gateway.to).name;
       this.add
-        .text(center.x, center.y - TILE_SIZE * 0.55, `to ${destName}`, {
+        .text(center.x, center.y - TILE_SIZE * 0.55, `road to ${destName}`, {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#6fd0e0',
@@ -1084,12 +1094,24 @@ export class MapScene extends Phaser.Scene {
   private addHud(): void {
     const line = (y: number, color: string): Phaser.GameObjects.Text =>
       this.add
-        .text(8, y, '', { fontFamily: 'monospace', fontSize: '12px', color })
+        .text(8, y, '', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color,
+          backgroundColor: HUD_BG,
+          padding: HUD_PAD,
+        })
         .setScrollFactor(0)
         .setDepth(DEPTH_HUD);
 
     this.add
-      .text(8, 8, GAME_TITLE, { fontFamily: 'monospace', fontSize: '14px', color: '#e8e8e8' })
+      .text(8, 8, GAME_TITLE, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e8e8e8',
+        backgroundColor: HUD_BG,
+        padding: HUD_PAD,
+      })
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
     this.wallet = line(28, '#e8e8e8');
@@ -1098,7 +1120,13 @@ export class MapScene extends Phaser.Scene {
     this.fordStatus = line(82, '#e8e8e8');
     this.weatherLine = line(100, '#a9c7e8');
     this.hint = this.add
-      .text(8, GAME_HEIGHT - 22, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8a8a8a' })
+      .text(8, GAME_HEIGHT - 24, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#d0d0d0',
+        backgroundColor: HUD_BG,
+        padding: HUD_PAD,
+      })
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
 
