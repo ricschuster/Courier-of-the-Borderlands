@@ -1126,14 +1126,16 @@ export class MapScene extends Phaser.Scene {
     this.openDialogue(dialogue);
   }
 
-  private openDialogue(dialogue: Dialogue): void {
+  /** Open a conversation. Returns false (without opening) if its start is dangling. */
+  private openDialogue(dialogue: Dialogue): boolean {
     const start = startDialogue(dialogue);
     if (start === undefined) {
-      return;
+      return false;
     }
     this.activeDialogue = dialogue;
     this.dialogueNodeId = start.id;
     this.showDialogueNode();
+    return true;
   }
 
   /**
@@ -1162,8 +1164,12 @@ export class MapScene extends Phaser.Scene {
     if (encounter === undefined) {
       return;
     }
-    this.activeEncounter = encounter;
-    this.openDialogue(encounter.dialogue);
+    // Only mark the encounter active if its dialogue actually opened, so a
+    // malformed dialogue cannot leave a stale activeEncounter that would then
+    // apply outcomes to the next (settlement) conversation.
+    if (this.openDialogue(encounter.dialogue)) {
+      this.activeEncounter = encounter;
+    }
   }
 
   /**
@@ -1188,8 +1194,15 @@ export class MapScene extends Phaser.Scene {
   private applyEncounterOutcome(outcome: EncounterOutcome): void {
     const parts: string[] = [];
     if (outcome.coins !== undefined && outcome.coins !== 0) {
+      // Report the coins actually moved, not the nominal amount: addCoins clamps
+      // at zero, so a broke courier who pays a toll loses only what they have,
+      // and the toast should say so rather than overstate the cost.
+      const before = this.state.ledger.coins;
       this.state.ledger = addCoins(this.state.ledger, outcome.coins);
-      parts.push(outcome.coins > 0 ? `+${outcome.coins} coins` : `${outcome.coins} coins`);
+      const delta = this.state.ledger.coins - before;
+      if (delta !== 0) {
+        parts.push(delta > 0 ? `+${delta} coins` : `${delta} coins`);
+      }
     }
     if (outcome.reputationId !== undefined && outcome.reputation !== undefined && outcome.reputation !== 0) {
       this.state.ledger = addReputation(this.state.ledger, outcome.reputationId, outcome.reputation);
