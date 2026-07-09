@@ -12,7 +12,11 @@ import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
-import { bearingLabel } from '../systems/bearing';
+import {
+  objectiveText,
+  type ObjectiveContractView,
+  type ObjectiveView,
+} from '../systems/objective';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
 import {
   createFog,
@@ -1590,83 +1594,54 @@ export class MapScene extends Phaser.Scene {
     this.hud.setFordStatus(fordUnlockId === undefined ? null : isUnlocked(this.state, fordUnlockId));
   }
 
-  /** Compass heading from the courier to a target tile, or '' when standing on it. */
-  private headingTo(target: { x: number; y: number }): string {
-    return bearingLabel(this.courierTile(), target) ?? '';
-  }
-
-  /** Heading toward the closest region gateway, for the cleared-region prompt. */
-  private nearestGatewayHeading(): string {
-    const here = this.courierTile();
-    let best: { x: number; y: number } | undefined;
-    let bestDist = Infinity;
-    for (const gateway of this.region.gateways) {
-      const dist = (gateway.tile.x - here.x) ** 2 + (gateway.tile.y - here.y) ** 2;
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = gateway.tile;
-      }
-    }
-    return best === undefined ? '' : this.headingTo(best);
-  }
-
   private refreshObjective(): void {
+    this.hud.setObjective(objectiveText(this.objectiveView()));
+  }
+
+  /** Gathers the plain inputs the pure objective logic needs from scene state. */
+  private objectiveView(): ObjectiveView {
     const contract = this.activeContract;
     const progress = this.progress;
 
-    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
-    if (contract === undefined || progress === undefined) {
-      // With no cargo in hand, lead with the spine: the active mission step is
-      // the strategic through-line. Fall back to tactical guidance when no
-      // mission is active (for example after the arc resolves).
-      const objective = activeObjective(MISSIONS, this.missionState(), this.region.id);
-      if (objective !== null) {
-        const count = stepRequirementCount(objective.step, this.missionState());
-        const progressNote = count.total > 1 ? ` (${count.done}/${count.total})` : '';
-        this.hud.setObjective(`Mission: ${objective.step.summary}${progressNote}`);
-      } else if (this.boardContracts().length === 0) {
-        const other = this.gatewayDestinationNames();
-        const dir = this.nearestGatewayHeading();
-        const lead = dir === '' ? 'Travel to the gateway' : `Head ${dir} to the gateway`;
-        this.hud.setObjective(`${this.region.name} cleared. ${lead} (press T) to reach ${other}.`);
-      } else if (this.atSettlement(this.region.home)) {
-        this.hud.setObjective('Choose a contract from the board.');
-      } else {
-        this.hud.setObjective(`Return to ${homeName} for a new contract.`);
-      }
-      return;
+    let contractView: ObjectiveContractView | null = null;
+    if (contract !== undefined && progress !== undefined) {
+      const destination = this.region.settlements[contract.destinationId];
+      const pickup = this.region.settlements[contract.pickupId];
+      const path = this.currentPath;
+      const pathNote =
+        path === null ? '' : path.reachable ? ` (${path.distance} tiles)` : ' (no route yet)';
+      contractView = {
+        title: contract.title,
+        cargo: contract.cargo,
+        status: progress.status,
+        pickupName: pickup?.name ?? contract.pickupId,
+        pickupTile: pickup?.tile ?? null,
+        destinationName: destination?.name ?? contract.destinationId,
+        destinationTile: destination?.tile ?? null,
+        pathNote,
+      };
     }
 
-    const destination = this.region.settlements[contract.destinationId];
-    const pickup = this.region.settlements[contract.pickupId];
-    const destinationName = destination?.name ?? contract.destinationId;
-    const pickupName = pickup?.name ?? contract.pickupId;
-
-    switch (progress.status) {
-      case 'accepted': {
-        // Spell out both legs and point the way to the pickup: a player could not
-        // tell which direction to drive to a still-fogged place, nor where the
-        // cargo was ultimately bound (see docs/design/05_playtest_notes.md).
-        const pickupDir = pickup === undefined ? '' : this.headingTo(pickup.tile);
-        const pickupWhere = pickupDir === '' ? pickupName : `${pickupName} (${pickupDir})`;
-        this.hud.setObjective(
-          `${contract.title}: collect ${contract.cargo} at ${pickupWhere}, then deliver to ${destinationName}`,
-        );
-        break;
-      }
-      case 'carrying': {
-        const path = this.currentPath;
-        const via =
-          path === null ? '' : path.reachable ? ` (${path.distance} tiles)` : ' (no route yet)';
-        const dir = destination === undefined ? '' : this.headingTo(destination.tile);
-        const heading = dir === '' ? '' : ` - head ${dir}`;
-        this.hud.setObjective(`${contract.title}: deliver to ${destinationName}${heading}${via}`);
-        break;
-      }
-      case 'delivered':
-        this.hud.setObjective(`${contract.title}: delivered. Well driven.`);
-        break;
+    // The active mission step is the strategic spine shown when empty-handed.
+    const objective = activeObjective(MISSIONS, this.missionState(), this.region.id);
+    let missionSummary: string | null = null;
+    if (objective !== null) {
+      const count = stepRequirementCount(objective.step, this.missionState());
+      const progressNote = count.total > 1 ? ` (${count.done}/${count.total})` : '';
+      missionSummary = `${objective.step.summary}${progressNote}`;
     }
+
+    return {
+      courierTile: this.courierTile(),
+      contract: contractView,
+      regionName: this.region.name,
+      homeName: this.region.settlements[this.region.home]?.name ?? this.region.home,
+      missionSummary,
+      boardEmpty: this.boardContracts().length === 0,
+      atHome: this.atSettlement(this.region.home),
+      gatewayNames: this.gatewayDestinationNames(),
+      gatewayTiles: this.region.gateways.map((g) => g.tile),
+    };
   }
 
   /** On first arrival at a settlement, surface its existing lore note. */
