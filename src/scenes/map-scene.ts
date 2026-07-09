@@ -1466,13 +1466,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   /** Toast a story message and keep it in the journal's re-readable recent log. */
-  private logEvent(message: string, y?: number): void {
+  private logEvent(message: string, slot = 0): void {
     this.recentEvents = pushEvent(this.recentEvents, message);
-    if (y === undefined) {
-      this.hud.showToast(message);
-    } else {
-      this.hud.showToast(message, y);
-    }
+    this.hud.showToast(message, slot);
   }
 
   /** Journal lines for the recent story log, newest first. Empty until anything happens. */
@@ -1585,7 +1581,7 @@ export class MapScene extends Phaser.Scene {
       this.achievements.add(id);
       if (announce) {
         const def = ACHIEVEMENTS.find((a) => a.id === id);
-        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`, 140);
+        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`, 2);
       }
     }
   }
@@ -1653,7 +1649,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.visited.add(settlement.id);
-    this.logEvent(`${settlement.name}. ${settlement.note}`, 104);
+    this.logEvent(`${settlement.name}. ${settlement.note}`, 1);
     this.refreshAchievements(true);
     this.save();
   }
