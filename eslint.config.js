@@ -21,4 +21,20 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    // Plain-JS Node scripts (dev tooling) run under Node, not the browser, so
+    // give them the Node/runtime globals they use.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        URL: 'readonly',
+        // Referenced inside a page.waitForFunction callback (runs in the browser).
+        window: 'readonly',
+      },
+    },
+  },
 );

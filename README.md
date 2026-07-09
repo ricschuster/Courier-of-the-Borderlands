@@ -124,6 +124,17 @@ Preview the production build locally:
 npm run preview
 ```
 
+Capture a screenshot for visual verification of a UI change:
+
+```bash
+npm run shot -- <name> [key]     # e.g. npm run shot -- journal j
+```
+
+This builds, starts its own preview server, boots the game, optionally presses a
+key (for example `j` to open the journal), writes `tmp-screenshots/<name>.png`,
+and tears the server down again. Add `--no-build` to reuse the current `dist/`.
+Output is gitignored.
+
 ## Project structure
 
 ```text
