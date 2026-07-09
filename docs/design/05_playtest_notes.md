@@ -249,10 +249,12 @@ The friction this session is UX and legibility, not stakes. Grouped:
      both legs ("collect X at Ironhollow, then deliver to Mirewatch"). Striking
      the connected place names from the list is a further option if the count
      alone does not read clearly next session (needs per-item labels in data).
-   - Re-readable story text *(still to do)*: route delivery, contract-accept, and
-     encounter text into a recall surface (the journal already exists) so nothing
-     is lost after one read. This also lets encounters be re-read. This is the
-     remaining half of the "text vanishes too fast" complaint.
+   - Re-readable story text *(landed in feat/journal-recent-events)*: delivery,
+     pickup, contract-accept, settlement-arrival, and encounter-outcome messages
+     now also write to a "Recent" section in the journal (newest first, last 6),
+     so a message that faded can be re-read. In-session only (not saved). Note:
+     this recalls the outcome lines, not the full encounter narrative text; full
+     encounter-story recall is a further step if the outcome line is not enough.
 4. **Design calls for the owner (small, flagged in 04_storyline / 06):** the
    ford's concrete payoff, richer upgrade descriptions, gateway marker placement
    out of towns and edge-label clamping, and whether the postmaster's return
