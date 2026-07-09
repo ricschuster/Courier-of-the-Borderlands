@@ -1270,7 +1270,7 @@ export class MapScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x6fd0e0)
         .setDepth(DEPTH_MARKER);
       const destName = getRegion(gateway.to).name;
-      this.add
+      const label = this.add
         .text(center.x, center.y - TILE_SIZE * 0.55, `road to ${destName}`, {
           fontFamily: 'monospace',
           fontSize: '10px',
@@ -1278,6 +1278,15 @@ export class MapScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_MARKER);
+      // Keep the whole label inside the map bounds so an edge gateway name is not
+      // cut off ("road to Salt" ran off the screen at the map edge; see
+      // docs/design/05_playtest_notes.md). The camera clamps to these same bounds.
+      const worldW = this.map.width * TILE_SIZE;
+      const worldH = this.map.height * TILE_SIZE;
+      const halfW = label.width / 2 + 2;
+      const halfH = label.height / 2 + 2;
+      label.setX(Phaser.Math.Clamp(label.x, halfW, worldW - halfW));
+      label.setY(Phaser.Math.Clamp(label.y, this.mapOriginY + halfH, this.mapOriginY + worldH - halfH));
     }
   }
 
