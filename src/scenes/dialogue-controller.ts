@@ -18,6 +18,7 @@ import {
   availableChoices,
   chooseOption,
   getNode,
+  nodeText,
   END_DIALOGUE,
   type Dialogue,
   type DialogueChoice,
@@ -173,10 +174,11 @@ export class DialogueController {
       this.closeDialogue();
       return;
     }
-    this.dialogueChoices = availableChoices(node, this.host.effectiveFlags());
+    const flags = this.host.effectiveFlags();
+    this.dialogueChoices = availableChoices(node, flags);
     this.host.getHud().setDialogue({
       speaker: node.speaker,
-      text: node.text,
+      text: nodeText(node, flags),
       choices: this.dialogueChoices.map((c) => c.label),
     });
   }

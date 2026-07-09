@@ -43,6 +43,14 @@ const GREYWATER_POSTMASTER: Dialogue = {
       id: 'greeting',
       speaker: 'Greywater Postmaster',
       text: 'Back on the road, courier? Good. Half my letters have nowhere to go these days. Places stop answering, one by one.',
+      // On a return visit, once the courier has reconnected the home region, the
+      // postmaster should not repeat the cold opening line (Session 3 playtest).
+      textVariants: [
+        {
+          requires: { allOf: [FLAG_HOME_RECONNECTED] },
+          text: 'You came back, and you brought the roads with you. Letters are landing in places that went dark a season ago. That is your doing, courier. Tell me what the roads have told you.',
+        },
+      ],
       choices: [
         {
           label: 'What is happening to the roads?',
