@@ -227,7 +227,8 @@ Shipped (cont.):
       than loose extra work. Reads world-state (delivery history + flags); no HUD
       objective or balance impact; no save change.
 
-Still to do:
+Still to do (specced in `docs/design/06_world_state_remainder.md`, playtest-gated
+by Session 2 in `docs/design/05_playtest_notes.md`):
 - [ ] Further consequences: withdrawn contracts, price and reward shifts,
       deeper settlement changes (reward tuning is best set from a playtest)
 - [ ] Missions proper read and write world-state (a mission step gated on an
