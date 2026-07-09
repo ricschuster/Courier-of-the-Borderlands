@@ -46,6 +46,8 @@ export interface DialogueHost {
   setLedger(ledger: Ledger): void;
   save(): void;
   refreshWallet(): void;
+  /** Toast a story message and keep it in the journal's re-readable recent log. */
+  logEvent(message: string): void;
   getTalkKey(): Phaser.Input.Keyboard.Key;
   getEscapeKey(): Phaser.Input.Keyboard.Key;
   getNumberKeys(): readonly Phaser.Input.Keyboard.Key[];
@@ -253,7 +255,8 @@ export class DialogueController {
     }
     this.host.refreshWallet();
     if (parts.length > 0) {
-      this.host.getHud().showToast(parts.join(', '));
+      const title = this.activeEncounter?.title;
+      this.host.logEvent(title === undefined ? parts.join(', ') : `${title}: ${parts.join(', ')}`);
     }
   }
 }

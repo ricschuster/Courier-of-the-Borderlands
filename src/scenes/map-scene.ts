@@ -98,6 +98,7 @@ import {
   type RegionGateway,
 } from '../systems/region-system';
 import { hiddenRoadProgress, hiddenRoadJournalLines } from '../systems/story-threads';
+import { pushEvent } from '../systems/event-log';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
@@ -265,6 +266,9 @@ export class MapScene extends Phaser.Scene {
   // player dismisses it with Esc; it then stays hidden for the session instead
   // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
   private summaryDismissed = false;
+  // The most recent story messages, mirrored from their toasts so they can be
+  // re-read in the journal after the toast fades (Session 2 playtest).
+  private recentEvents: readonly string[] = [];
 
   constructor() {
     super({ key: 'MapScene' });
@@ -340,6 +344,7 @@ export class MapScene extends Phaser.Scene {
       },
       save: () => this.save(),
       refreshWallet: () => this.refreshWallet(),
+      logEvent: (message) => this.logEvent(message),
       getTalkKey: () => this.talkKey,
       getEscapeKey: () => this.escapeKey,
       getNumberKeys: () => this.numberKeys,
@@ -877,7 +882,7 @@ export class MapScene extends Phaser.Scene {
 
     if (canPickUp(progress, contract, settlement.id)) {
       this.progress = pickUp(progress);
-      this.hud.showToast(`Collected ${contract.cargo} at ${settlement.name}.`);
+      this.logEvent(`Collected ${contract.cargo} at ${settlement.name}.`);
       this.refreshObjective();
       this.save();
     } else if (canDeliver(progress, contract, settlement.id)) {
@@ -920,7 +925,7 @@ export class MapScene extends Phaser.Scene {
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
-    this.hud.showToast(
+    this.logEvent(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
         `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}`,
     );
@@ -986,7 +991,7 @@ export class MapScene extends Phaser.Scene {
     // Reset per-contract bonus tracking.
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
-    this.hud.showToast(`Accepted: ${contract.title}. ${contract.note}`);
+    this.logEvent(`Accepted: ${contract.title}. ${contract.note}`);
     this.refreshObjective();
     this.save();
   }
@@ -1393,6 +1398,24 @@ export class MapScene extends Phaser.Scene {
     return { title: contract.title, detail };
   }
 
+  /** Toast a story message and keep it in the journal's re-readable recent log. */
+  private logEvent(message: string, y?: number): void {
+    this.recentEvents = pushEvent(this.recentEvents, message);
+    if (y === undefined) {
+      this.hud.showToast(message);
+    } else {
+      this.hud.showToast(message, y);
+    }
+  }
+
+  /** Journal lines for the recent story log, newest first. Empty until anything happens. */
+  private recentEventLines(): string[] {
+    if (this.recentEvents.length === 0) {
+      return [];
+    }
+    return ['Recent:', ...[...this.recentEvents].reverse().map((m) => `  ${m}`), ''];
+  }
+
   private refreshJournal(): void {
     const status = this.worldState();
     const model = buildJournal({
@@ -1422,6 +1445,7 @@ export class MapScene extends Phaser.Scene {
       '',
       ...this.missionJournalLines(),
       ...this.hiddenRoadJournalLines(),
+      ...this.recentEventLines(),
       'Places:',
     ];
     for (const place of model.places) {
@@ -1563,7 +1587,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.visited.add(settlement.id);
-    this.hud.showToast(`${settlement.name}. ${settlement.note}`, 104);
+    this.logEvent(`${settlement.name}. ${settlement.note}`, 104);
     this.refreshAchievements(true);
     this.save();
   }
