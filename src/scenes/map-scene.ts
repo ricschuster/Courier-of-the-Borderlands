@@ -82,6 +82,7 @@ import {
   activeObjective,
   activeMission,
   missionProgress,
+  stepRequirementCount,
   type MissionState,
 } from '../systems/mission-system';
 import { MISSIONS } from '../data/missions';
@@ -1358,7 +1359,9 @@ export class MapScene extends Phaser.Scene {
     const lines = ['Story:', `  ${mission.title}`];
     progress.steps.forEach((entry, i) => {
       const mark = entry.done ? '[x]' : i === progress.currentStepIndex ? '[>]' : '[ ]';
-      lines.push(`    ${mark} ${entry.step.summary}`);
+      const count = stepRequirementCount(entry.step, state);
+      const progressNote = !entry.done && count.total > 1 ? ` (${count.done}/${count.total})` : '';
+      lines.push(`    ${mark} ${entry.step.summary}${progressNote}`);
     });
     lines.push('');
     return lines;
@@ -1512,7 +1515,9 @@ export class MapScene extends Phaser.Scene {
       // mission is active (for example after the arc resolves).
       const objective = activeObjective(MISSIONS, this.missionState(), this.region.id);
       if (objective !== null) {
-        this.hud.setObjective(`Mission: ${objective.step.summary}`);
+        const count = stepRequirementCount(objective.step, this.missionState());
+        const progressNote = count.total > 1 ? ` (${count.done}/${count.total})` : '';
+        this.hud.setObjective(`Mission: ${objective.step.summary}${progressNote}`);
       } else if (this.boardContracts().length === 0) {
         const other = this.gatewayDestinationNames();
         this.hud.setObjective(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
@@ -1531,7 +1536,11 @@ export class MapScene extends Phaser.Scene {
 
     switch (progress.status) {
       case 'accepted':
-        this.hud.setObjective(`${contract.title}: collect ${contract.cargo} at ${pickupName}`);
+        // Spell out both legs: a player picking up cargo elsewhere could not tell
+        // where it was ultimately bound (see docs/design/05_playtest_notes.md).
+        this.hud.setObjective(
+          `${contract.title}: collect ${contract.cargo} at ${pickupName}, then deliver to ${destinationName}`,
+        );
         break;
       case 'carrying': {
         const path = this.currentPath;

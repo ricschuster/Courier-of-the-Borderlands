@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   requirementMet,
   stepDone,
+  stepRequirementCount,
   missionAvailable,
   missionComplete,
   missionProgress,
@@ -123,6 +124,32 @@ describe('stepDone', () => {
     expect(
       stepDone(step, makeState({ completedContractIds: ['letters-to-eastwatch'] })),
     ).toBe(true);
+  });
+});
+
+describe('stepRequirementCount', () => {
+  it('counts satisfied vs total ids for a multi-contract step', () => {
+    const step = SPINE_MISSION.steps[2]!; // requires supplies-north and supplies-south
+    expect(stepRequirementCount(step, makeState())).toEqual({ done: 0, total: 2 });
+    expect(
+      stepRequirementCount(step, makeState({ completedContractIds: ['supplies-north'] })),
+    ).toEqual({ done: 1, total: 2 });
+    expect(
+      stepRequirementCount(
+        step,
+        makeState({ completedContractIds: ['supplies-north', 'supplies-south'] }),
+      ),
+    ).toEqual({ done: 2, total: 2 });
+  });
+
+  it('reports total 1 for a single-id step, across facets', () => {
+    expect(stepRequirementCount(SPINE_MISSION.steps[0]!, makeState())).toEqual({
+      done: 0,
+      total: 1,
+    });
+    expect(
+      stepRequirementCount(OTHER_REGION_MISSION.steps[0]!, makeState({ visitedIds: ['eastwatch'] })),
+    ).toEqual({ done: 1, total: 1 });
   });
 });
 
