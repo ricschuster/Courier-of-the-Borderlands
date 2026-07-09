@@ -97,3 +97,59 @@ The playtest confirms the hypothesis and points at one slice.
   that wants the regional story arc (missions, M5.3) to give them stakes.
 - The spine is written into the journal but cannot yet be *spoken*; NPC
   dialogue (M5.2) is the next enabler.
+
+---
+
+## Session 2 plan (to run next)
+
+Purpose: since Session 1, the stakes fix has actually shipped (arc-gated
+contracts, road encounters, the Hidden Road journal thread, and the mission
+spine spoken through NPC dialogue). This session tests the one question that
+gates the rest of M5.4: **do the stakes now land?** Same rule as before: play as
+a player, no fixing or reading source, note reactions in the moment.
+
+Two outputs from this session unblock the M5.4 remainder, specced in
+`docs/design/06_world_state_remainder.md`: (a) a yes/no on whether reconnecting
+now feels worth it, and (b) rough numbers for how much rewards should shift.
+
+### Suggested path (about 20 to 30 minutes)
+
+1. Start fresh (reset save). Note the opening framing: is it still confusing, or
+   does the journal now carry you?
+2. In Greywater, talk to the postmaster (E). Read the Act 1 setup. Accept and
+   run the three standing Greybridge contracts.
+3. Reconnect Greybridge. Watch for: the map/minimap recolour, the reconnection
+   note in the journal, and the new arc-gated "unsigned letters" contract
+   appearing on the board.
+4. Take the arc contract. Open the journal Story section and confirm the Hidden
+   Road thread has begun and reads as one through-line.
+5. Travel a spoke (Saltreach or Fenmarch). Hit at least one road encounter and
+   make a choice. Note the coin/reputation swing and whether it felt meaningful
+   or like a speed bump.
+6. Reconnect that spoke; talk to its NPC (Tidewatch or Mossgate). Confirm the
+   spoke's arc contract opens and the thread advances.
+7. If time allows, run the second spoke and the Greywater capstone.
+
+### Watch for (the decisions this session sets)
+
+- **Stakes, the headline.** After reconnecting the first region, is there a
+  clear reason to keep delivering? Compare directly to Session 1's disengage
+  moment at Tidewatch. One sentence: fixed, better, or still flat?
+- **Reward feel (sets the 06 numbers).** When a place reconnects, do standing
+  contracts there feel like they should pay *more* (safer road, grateful town)
+  or *less* (routine now)? By roughly how much: a little (+/-10 to 20 percent)
+  or a lot (+/-50 percent)? Note any contract that felt over- or under-paid.
+- **Withdrawn contracts.** Did any contract feel like it should *disappear*
+  once the world moved on (for example a "get word out" job that no longer makes
+  sense after reconnection)? If yes, which, and on what event?
+- **Encounter intrusiveness.** The first Greybridge encounter sits on the main
+  east road, so it is mandatory on the first eastbound trip. Intrusive, or good
+  tension? Did any encounter outcome feel unfair?
+- **Arc legibility.** Do the unsigned-letters contracts and the Hidden Road
+  thread read as a deliberate arc, or as loose extra work?
+- **Regressions from Session 1.** Onboarding text dump, re-readable journal,
+  HUD contrast over discovered tiles, Southmill travel clarity: still fixed?
+
+### Notes (fill in while playing)
+
+_(leave blank until the session)_
