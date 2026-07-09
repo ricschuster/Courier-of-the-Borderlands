@@ -11,8 +11,10 @@ import {
   availableChoices,
   chooseOption,
   validateDialogue,
+  nodeText,
   END_DIALOGUE,
   type Dialogue,
+  type DialogueNode,
   type StoryFlags,
 } from '../../src/systems/dialogue';
 
@@ -136,6 +138,28 @@ describe('dialogue: node lookup and choice gating', () => {
 
   it('returns undefined for a missing node id', () => {
     expect(getNode(POSTMASTER_DIALOGUE, 'nowhere')).toBeUndefined();
+  });
+
+  it('nodeText picks the first matching variant, else the base text', () => {
+    const node: DialogueNode = {
+      id: 'greet',
+      speaker: 'Postmaster',
+      text: 'base line',
+      textVariants: [
+        { requires: { allOf: ['a', 'b'] }, text: 'both a and b' },
+        { requires: { allOf: ['a'] }, text: 'just a' },
+      ],
+      choices: [],
+    };
+    expect(nodeText(node, emptyFlags())).toBe('base line');
+    expect(nodeText(node, flagsFromArray(['a']))).toBe('just a');
+    // First matching variant wins even though the second also matches.
+    expect(nodeText(node, flagsFromArray(['a', 'b']))).toBe('both a and b');
+  });
+
+  it('nodeText returns base text when a node has no variants', () => {
+    const node = startDialogue(POSTMASTER_DIALOGUE)!;
+    expect(nodeText(node, emptyFlags())).toBe(node.text);
   });
 
   it('hides gated choices until the required flag is set', () => {

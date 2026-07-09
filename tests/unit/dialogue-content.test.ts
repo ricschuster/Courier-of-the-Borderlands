@@ -18,6 +18,7 @@ import {
   setFlags,
   hasFlag,
   getNode,
+  nodeText,
   END_DIALOGUE,
 } from '../../src/systems/dialogue';
 
@@ -53,6 +54,23 @@ describe('dialogue-content', () => {
     const result = chooseOption(emptyFlags(), roadsChoice);
     expect(hasFlag(result.flags, FLAG_MET_POSTMASTER)).toBe(true);
     expect(result.next).toBe('roads');
+  });
+
+  it('greets differently on a return visit once the region is reconnected', () => {
+    const dialogue = dialogueForSettlement('greywater');
+    if (dialogue === undefined) {
+      throw new Error('expected the postmaster dialogue');
+    }
+    const greeting = startDialogue(dialogue);
+    if (greeting === undefined) {
+      throw new Error('expected a greeting node');
+    }
+    const first = nodeText(greeting, emptyFlags());
+    const returning = nodeText(greeting, setFlags(emptyFlags(), [FLAG_HOME_RECONNECTED]));
+    expect(returning).not.toBe(first);
+    // The base opening line is only for the first meeting.
+    expect(first).toContain('Back on the road');
+    expect(returning).not.toContain('Back on the road');
   });
 
   it('hides the reveal until the region is reconnected, then unlocks it once', () => {

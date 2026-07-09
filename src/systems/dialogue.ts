@@ -84,10 +84,27 @@ export interface DialogueChoice {
   readonly next: string | EndDialogue;
 }
 
+/**
+ * An alternate line for a node, shown when its condition is met. Lets one node
+ * greet differently on a return visit (for example the postmaster acknowledging
+ * that the roads are answering again) without duplicating the node and its
+ * choices. See docs/design/05_playtest_notes.md.
+ */
+export interface NodeTextVariant {
+  readonly requires: FlagCondition;
+  readonly text: string;
+}
+
 export interface DialogueNode {
   readonly id: string;
   readonly speaker: string;
   readonly text: string;
+  /**
+   * Optional conditional lines, tried in order before the base `text`. The first
+   * whose condition matches the current flags wins; the base `text` is the
+   * fallback when none match.
+   */
+  readonly textVariants?: readonly NodeTextVariant[];
   readonly choices: readonly DialogueChoice[];
 }
 
@@ -104,6 +121,19 @@ export function getNode(dialogue: Dialogue, nodeId: string): DialogueNode | unde
 /** The start node of a dialogue, or undefined if the start id is dangling. */
 export function startDialogue(dialogue: Dialogue): DialogueNode | undefined {
   return getNode(dialogue, dialogue.start);
+}
+
+/**
+ * The line to show for a node under the current flags: the first matching
+ * conditional variant, or the base text when none match. Does not mutate.
+ */
+export function nodeText(node: DialogueNode, flags: StoryFlags): string {
+  for (const variant of node.textVariants ?? []) {
+    if (conditionMet(flags, variant.requires)) {
+      return variant.text;
+    }
+  }
+  return node.text;
 }
 
 /**
