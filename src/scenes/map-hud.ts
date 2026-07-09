@@ -320,8 +320,29 @@ export class MapHud {
     return show;
   }
 
-  toggleLegend(): void {
-    this.legendPanel.setVisible(!this.legendPanel.visible);
+  /** Toggle the terrain codex; returns the new visibility so callers can close siblings. */
+  toggleLegend(): boolean {
+    const show = !this.legendPanel.visible;
+    this.legendPanel.setVisible(show);
+    return show;
+  }
+
+  /**
+   * Hide the mutually exclusive blocking overlays, keeping the named one open.
+   * The journal, skills, and codex all sit centre or side and read badly stacked
+   * on top of each other, so only one is shown at a time (the minimap is a
+   * non-blocking corner map and is left alone). See docs/design/05_playtest_notes.md.
+   */
+  closeOverlaysExcept(keep: 'journal' | 'skills' | 'legend'): void {
+    if (keep !== 'journal') {
+      this.journalPanel.setVisible(false);
+    }
+    if (keep !== 'skills') {
+      this.skillPanel.setVisible(false);
+    }
+    if (keep !== 'legend') {
+      this.legendPanel.setVisible(false);
+    }
   }
 
   /** Toggle the minimap; returns the new visibility so the scene can redraw on open. */
@@ -403,6 +424,9 @@ export class MapHud {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
-    this.scene.time.delayedCall(3500, () => toast.destroy());
+    // Hold longer for longer messages: at a flat 3.5s players could not finish
+    // reading delivery and story toasts (see docs/design/05_playtest_notes.md).
+    const duration = Math.min(9000, Math.max(4500, 1500 + message.length * 55));
+    this.scene.time.delayedCall(duration, () => toast.destroy());
   }
 }
