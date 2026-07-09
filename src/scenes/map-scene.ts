@@ -1220,6 +1220,18 @@ export class MapScene extends Phaser.Scene {
 
   private addGatewayMarkers(): void {
     for (const gateway of this.region.gateways) {
+      // A gateway can share a tile with a border town (Southmill is also the road
+      // to Fenmarch). The floating "road to X" sign reads oddly stacked on the
+      // town's own marker and name, while the travel hint already names the
+      // destination when the courier stands there. So skip the sign on town tiles
+      // and keep it only for open-road crossings, which read well.
+      // See docs/design/05_playtest_notes.md.
+      const onSettlement = Object.values(this.region.settlements).some(
+        (s) => s.tile.x === gateway.tile.x && s.tile.y === gateway.tile.y,
+      );
+      if (onSettlement) {
+        continue;
+      }
       const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
       this.add
         .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
