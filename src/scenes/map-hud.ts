@@ -5,6 +5,7 @@ import { buildLegend } from '../systems/legend';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
+import { ScrollablePanel } from './scrollable-panel';
 
 // Depth layer for every HUD and overlay object: always drawn on top of the
 // map, markers, and fog.
@@ -69,8 +70,8 @@ export class MapHud {
   private readonly weatherLine: Phaser.GameObjects.Text;
   private readonly hint: Phaser.GameObjects.Text;
   private readonly board: Phaser.GameObjects.Text;
-  private readonly journalPanel: Phaser.GameObjects.Text;
-  private readonly skillPanel: Phaser.GameObjects.Text;
+  private readonly journalPanel: ScrollablePanel;
+  private readonly skillPanel: ScrollablePanel;
   private readonly summaryPanel: Phaser.GameObjects.Text;
   private readonly legendPanel: Phaser.GameObjects.Text;
   private readonly dialoguePanel: Phaser.GameObjects.Text;
@@ -121,7 +122,7 @@ export class MapHud {
     this.board = scene.add
       .text(8, 118, '', {
         fontFamily: 'monospace',
-        fontSize: '13px',
+        fontSize: '12px',
         color: '#f2efe4',
         backgroundColor: '#0b0b0bcc',
         padding: { x: 10, y: 8 },
@@ -131,16 +132,16 @@ export class MapHud {
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
-    // Journal panel (toggled with J), centred near the top.
-    this.journalPanel = this.centeredPanel();
-    // Skills panel (toggled with K), centred near the top.
-    this.skillPanel = this.centeredPanel();
+    // Journal panel (toggled with J): a scrollable, screen-filling reference box.
+    this.journalPanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
+    // Skills panel (toggled with K): same scrollable box.
+    this.skillPanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
 
     // Run summary panel, shown when the region is cleared.
     this.summaryPanel = scene.add
       .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
         fontFamily: 'monospace',
-        fontSize: '14px',
+        fontSize: '13px',
         color: '#f2efe4',
         backgroundColor: '#0b0b0bee',
         padding: { x: 16, y: 14 },
@@ -181,7 +182,7 @@ export class MapHud {
     this.dialoguePanel = scene.add
       .text(GAME_WIDTH / 2, GAME_HEIGHT - 36, '', {
         fontFamily: 'monospace',
-        fontSize: '13px',
+        fontSize: '12px',
         color: '#f2efe4',
         backgroundColor: '#0b0b0bee',
         padding: { x: 14, y: 12 },
@@ -190,24 +191,6 @@ export class MapHud {
         wordWrap: { width: GAME_WIDTH - 120 },
       })
       .setOrigin(0.5, 1)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
-  }
-
-  /** A left-aligned dark panel centred near the top, used for the toggled overlays. */
-  private centeredPanel(): Phaser.GameObjects.Text {
-    return this.scene.add
-      .text(GAME_WIDTH / 2, 40, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#f2efe4',
-        backgroundColor: '#0b0b0bdd',
-        padding: { x: 12, y: 10 },
-        lineSpacing: 4,
-        align: 'left',
-      })
-      .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
@@ -304,6 +287,15 @@ export class MapHud {
 
   isMinimapVisible(): boolean {
     return this.minimapVisible;
+  }
+
+  /** Route a mouse-wheel delta to whichever scrollable overlay is currently open. */
+  handleScroll(deltaY: number): void {
+    if (this.journalPanel.visible) {
+      this.journalPanel.scrollBy(deltaY);
+    } else if (this.skillPanel.visible) {
+      this.skillPanel.scrollBy(deltaY);
+    }
   }
 
   /** Toggle the journal; returns the new visibility so the scene can refresh on open. */
