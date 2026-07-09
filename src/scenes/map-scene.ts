@@ -1311,6 +1311,15 @@ export class MapScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.SIX,
     ];
     this.numberKeys = numberCodes.map((code) => keyboard.addKey(code));
+
+    // Mouse wheel scrolls the open journal or skills panel, whose content is
+    // taller than the screen. Harmless when no scrollable overlay is open.
+    this.input.on(
+      Phaser.Input.Events.POINTER_WHEEL,
+      (_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
+        this.hud.handleScroll(dy);
+      },
+    );
   }
 
   private redrawMinimap(): void {
@@ -1337,7 +1346,7 @@ export class MapScene extends Phaser.Scene {
     const prog = levelProgress(this.courierXp());
     const points = availablePoints(prog.level, this.skills);
     const lines = [
-      'COURIER SKILLS   (K to close)',
+      'COURIER SKILLS   (K to close, mouse wheel to scroll)',
       `Level ${prog.level}   XP ${prog.xpIntoLevel} / ${prog.xpForNextLevel}`,
       `Skill points to spend: ${points}`,
       '',
@@ -1434,7 +1443,7 @@ export class MapScene extends Phaser.Scene {
       activeObjective: this.journalObjective(),
     });
     const lines = [
-      'DISCOVERIES JOURNAL   (J to close)',
+      'DISCOVERIES JOURNAL   (J to close, mouse wheel to scroll)',
       `Title: ${courierTitle(this.achievementStat())}`,
       '',
       'Current objective:',
