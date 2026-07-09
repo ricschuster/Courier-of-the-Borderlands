@@ -1214,11 +1214,8 @@ export class MapScene extends Phaser.Scene {
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
-      // A gateway can share a tile with a settlement (Southmill is also the road
-      // south to Fenmarch); name it so the dual purpose is not confusing.
-      const here = settlementAtTileIn(this.region, tile.x, tile.y);
-      const where = here === undefined ? `The road ahead leads to ${other}` : `${here.name} is the road to ${other}`;
-      this.hud.setHint(`${base}  ${where}: press T to travel.`);
+      // Gateways sit on open road, off any town, so the hint is unambiguous.
+      this.hud.setHint(`${base}  The road ahead leads to ${other}: press T to travel.`);
       return;
     }
     const target = this.atSettlement(this.region.home)
@@ -1256,24 +1253,16 @@ export class MapScene extends Phaser.Scene {
 
   private addGatewayMarkers(): void {
     for (const gateway of this.region.gateways) {
-      // A gateway can share a tile with a border town (Southmill is also the road
-      // to Fenmarch). On an open-road tile the crossing gets its own outline box;
-      // on a town tile the town already has a marker, so skip the box to avoid
-      // stacking two on one tile. Either way keep the "road to X" label above the
-      // tile (clear of the town name, which sits below) so the crossing is always
-      // discoverable from the map, not only when the courier happens to stand on
-      // it. Suppressing the label entirely hid the way to Fenmarch/Mossgate.
+      // Every gateway sits on an open-road tile toward the map edge, off any town
+      // (the Fenmarch crossing was moved south off Southmill, per playtest), so
+      // each gets its own outline box and a "road to X" label above the tile. The
+      // marker is what makes the way out of the region discoverable on the map.
       // See docs/design/05_playtest_notes.md.
-      const onSettlement = Object.values(this.region.settlements).some(
-        (s) => s.tile.x === gateway.tile.x && s.tile.y === gateway.tile.y,
-      );
       const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
-      if (!onSettlement) {
-        this.add
-          .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-          .setStrokeStyle(2, 0x6fd0e0)
-          .setDepth(DEPTH_MARKER);
-      }
+      this.add
+        .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
+        .setStrokeStyle(2, 0x6fd0e0)
+        .setDepth(DEPTH_MARKER);
       const destName = getRegion(gateway.to).name;
       const label = this.add
         .text(center.x, center.y - TILE_SIZE * 0.55, `road to ${destName}`, {
