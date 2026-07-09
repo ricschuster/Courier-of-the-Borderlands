@@ -12,6 +12,7 @@ import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
 import { computeVelocity, type MoveInput } from '../systems/movement';
+import { bearingLabel } from '../systems/bearing';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
 import {
   createFog,
@@ -1580,6 +1581,26 @@ export class MapScene extends Phaser.Scene {
     this.hud.setFordStatus(fordUnlockId === undefined ? null : isUnlocked(this.state, fordUnlockId));
   }
 
+  /** Compass heading from the courier to a target tile, or '' when standing on it. */
+  private headingTo(target: { x: number; y: number }): string {
+    return bearingLabel(this.courierTile(), target) ?? '';
+  }
+
+  /** Heading toward the closest region gateway, for the cleared-region prompt. */
+  private nearestGatewayHeading(): string {
+    const here = this.courierTile();
+    let best: { x: number; y: number } | undefined;
+    let bestDist = Infinity;
+    for (const gateway of this.region.gateways) {
+      const dist = (gateway.tile.x - here.x) ** 2 + (gateway.tile.y - here.y) ** 2;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = gateway.tile;
+      }
+    }
+    return best === undefined ? '' : this.headingTo(best);
+  }
+
   private refreshObjective(): void {
     const contract = this.activeContract;
     const progress = this.progress;
@@ -1596,7 +1617,9 @@ export class MapScene extends Phaser.Scene {
         this.hud.setObjective(`Mission: ${objective.step.summary}${progressNote}`);
       } else if (this.boardContracts().length === 0) {
         const other = this.gatewayDestinationNames();
-        this.hud.setObjective(`${this.region.name} cleared. Travel to ${other} (gateway, press T).`);
+        const dir = this.nearestGatewayHeading();
+        const lead = dir === '' ? 'Travel to the gateway' : `Head ${dir} to the gateway`;
+        this.hud.setObjective(`${this.region.name} cleared. ${lead} (press T) to reach ${other}.`);
       } else if (this.atSettlement(this.region.home)) {
         this.hud.setObjective('Choose a contract from the board.');
       } else {
@@ -1611,18 +1634,24 @@ export class MapScene extends Phaser.Scene {
     const pickupName = pickup?.name ?? contract.pickupId;
 
     switch (progress.status) {
-      case 'accepted':
-        // Spell out both legs: a player picking up cargo elsewhere could not tell
-        // where it was ultimately bound (see docs/design/05_playtest_notes.md).
+      case 'accepted': {
+        // Spell out both legs and point the way to the pickup: a player could not
+        // tell which direction to drive to a still-fogged place, nor where the
+        // cargo was ultimately bound (see docs/design/05_playtest_notes.md).
+        const pickupDir = pickup === undefined ? '' : this.headingTo(pickup.tile);
+        const pickupWhere = pickupDir === '' ? pickupName : `${pickupName} (${pickupDir})`;
         this.hud.setObjective(
-          `${contract.title}: collect ${contract.cargo} at ${pickupName}, then deliver to ${destinationName}`,
+          `${contract.title}: collect ${contract.cargo} at ${pickupWhere}, then deliver to ${destinationName}`,
         );
         break;
+      }
       case 'carrying': {
         const path = this.currentPath;
         const via =
           path === null ? '' : path.reachable ? ` (${path.distance} tiles)` : ' (no route yet)';
-        this.hud.setObjective(`${contract.title}: deliver to ${destinationName}${via}`);
+        const dir = destination === undefined ? '' : this.headingTo(destination.tile);
+        const heading = dir === '' ? '' : ` - head ${dir}`;
+        this.hud.setObjective(`${contract.title}: deliver to ${destinationName}${heading}${via}`);
         break;
       }
       case 'delivered':
