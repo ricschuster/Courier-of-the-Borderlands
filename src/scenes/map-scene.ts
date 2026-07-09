@@ -260,6 +260,10 @@ export class MapScene extends Phaser.Scene {
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   private usedFordThisContract = false;
+  // The region-cleared summary panel blocks the centre of the screen, so the
+  // player dismisses it with Esc; it then stays hidden for the session instead
+  // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
+  private summaryDismissed = false;
 
   constructor() {
     super({ key: 'MapScene' });
@@ -644,6 +648,7 @@ export class MapScene extends Phaser.Scene {
     this.handleBoardInput();
     this.handlePurchaseInput();
     this.handleResetInput();
+    this.handleSummaryInput();
     this.handleTravelInput();
     this.dialogue.handleTalk();
     this.dialogue.handleEncounters();
@@ -1091,14 +1096,29 @@ export class MapScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.mapKey) && this.hud.toggleMinimap()) {
       this.redrawMinimap();
     }
+    // Opening a blocking overlay closes the others, so only one is up at a time.
     if (Phaser.Input.Keyboard.JustDown(this.journalKey) && this.hud.toggleJournal()) {
+      this.hud.closeOverlaysExcept('journal');
       this.refreshJournal();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
-      this.hud.toggleLegend();
+    if (Phaser.Input.Keyboard.JustDown(this.legendKey) && this.hud.toggleLegend()) {
+      this.hud.closeOverlaysExcept('legend');
     }
     if (Phaser.Input.Keyboard.JustDown(this.skillKey) && this.hud.toggleSkills()) {
+      this.hud.closeOverlaysExcept('skills');
       this.refreshSkillPanel();
+    }
+  }
+
+  /** Dismiss the region-cleared summary panel with Esc so it stops blocking play. */
+  private handleSummaryInput(): void {
+    if (
+      !this.summaryDismissed &&
+      this.regionCleared() &&
+      Phaser.Input.Keyboard.JustDown(this.escapeKey)
+    ) {
+      this.summaryDismissed = true;
+      this.hud.setSummary(null);
     }
   }
 
@@ -1427,7 +1447,7 @@ export class MapScene extends Phaser.Scene {
       fordUnlocked: this.regionFordUnlocked(),
       upgradesOwned: this.state.upgrades.size,
     });
-    if (!summary.complete) {
+    if (!summary.complete || this.summaryDismissed) {
       this.hud.setSummary(null);
       return;
     }
@@ -1439,7 +1459,7 @@ export class MapScene extends Phaser.Scene {
       `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
       '',
       `Reach the gateway and press T to travel to ${otherNames}.`,
-      'Press N for a new run.',
+      'Press N for a new run.  Esc to dismiss this panel.',
     ];
     this.hud.setSummary(lines.join('\n'));
   }

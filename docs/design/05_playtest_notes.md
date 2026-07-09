@@ -150,6 +150,108 @@ now feels worth it, and (b) rough numbers for how much rewards should shift.
 - **Regressions from Session 1.** Onboarding text dump, re-readable journal,
   HUD contrast over discovered tiles, Southmill travel clarity: still fixed?
 
-### Notes (fill in while playing)
+### Results (played 2026-07-08)
 
-_(leave blank until the session)_
+Headline: **the stakes now land.** The Session 1 disengage moment did not
+recur. Key player moments: "Saw story in the journal for the first time. Now I
+know what my mission is. I can do this!", the road encounters landed ("very
+cool!", "Great story"), and "Great progress from last time." The fantasy plus
+the arc now carry the player through a full region clear and into the Greywater
+capstone. This confirms the north star and unblocks the M5.4 remainder.
+
+The friction this session is UX and legibility, not stakes. Grouped:
+
+#### The blocker (endgame becomes unplayable)
+
+- **"Region Cleared" popup never dismisses and blocks the view.** Once the
+  region cleared, the centred summary panel stayed up over everything: "The
+  popup doesn't go away anymore and blocks my view", "Popup still there. This is
+  making it hard to play now", and finally "No use in continuing play so I will
+  stop here." A regression that ends the session. *(Fixed: Esc dismisses it and
+  it stays dismissed for the session.)*
+
+#### Text vanishes too fast (recurring, highest-frequency complaint)
+
+- Delivery text: "started to read text. Could not get through as it disappeared
+  too fast. A bit frustrating."
+- Settlement arrival text: "Went to Southmill. Text vanished too quickly again."
+- Contract accept text: "Accepted 'Follow the letters'. Text didn't stay long
+  enough to read."
+- Opening framing: wants more text, held longer, "Maybe even wait for key press."
+  *(Partially fixed: toast hold time now scales with message length, roughly 4.5
+  to 9 seconds. A dismiss-on-keypress panel for important story beats is a
+  follow-up, tracked below.)*
+
+#### Overlapping panels (one thing at a time)
+
+- "Opened journal. Opens right over skills. Should not happen. One thing open at
+  a time would be better." Also text overlap at the opening screen. *(Fixed:
+  opening the journal, skills, or codex now closes the other blocking overlays.)*
+
+#### Mission and objective clarity
+
+- Completed step still shown: after connecting Southmill, "Looking at the mission
+  again. I still see Southmill mentioned. A bit confusing that it's still
+  mentioned there."
+- Multi-step pickup confusing: "A Secret for Mirewatch: collect a sealed tube at
+  Ironhollow. Am I supposed to go to Ironhollow next? Not sure." Had to guess the
+  pickup-then-deliver order.
+- Reconnection meaning unclear: "Ironhollow turned yellow. I think the others
+  might have too, but not sure. Does that mean they are connected again? Checking
+  the journal. Not sure." The recolour is noticed but its meaning is not taught.
+
+#### Onboarding and framing
+
+- Opening better than Session 1 but still wants more of the why: "More
+  explanation of what's happening or why our courier is here might be good."
+- Controls hint: wants a tooltip pointing at the bottom help text, or that text
+  moved somewhere more discoverable.
+
+#### Signposts and gateways
+
+- Gateway marker inside a town read as strange: "road to Fenmarch. No idea what
+  that is and a bit strange that the road would be in town." Later, a gateway on
+  the open road read better: "this road-to sign makes more sense than the one in
+  the town."
+- Gateway label truncated at the map edge: saw "road to Salt", the rest of
+  "Saltreach" ran off screen.
+
+#### Encounters (loved, want more feedback)
+
+- Both encounters landed as story highlights. Two wishes, repeated: a **visual of
+  the thing on the road**, and the ability to **review the encounter text** after
+  the dialogue closes ("Once the dialog was over I don't know if I can get the
+  text back or review").
+
+#### Smaller notes
+
+- Ford key: still no felt purpose ("Not quite sure what that's good for"). Known
+  from Session 1; wants a concrete payoff.
+- Upgrades: "Not entirely sure what some of them are for. Can't really tell from
+  the little bit of text." Descriptions too thin.
+- Postmaster repeats the opening line on return before offering the new "region
+  is answering again" branch: "Postmaster text same as in the beginning. That's
+  weird."
+
+### Takeaways and actions
+
+1. **Stakes: confirmed fixed.** Do not re-open this; protect it. The remaining
+   work is making the now-good arc legible and unblocked, not adding stakes.
+2. **Landed this session (fix/playtest-2-ux):** the region-cleared popup is
+   dismissible, only one blocking overlay opens at a time, and toasts hold longer
+   for longer messages. These clear the session-ending blocker and the
+   highest-frequency complaint.
+3. **Next UX slice (highest value, no design calls needed):**
+   - Re-readable story text: route delivery, contract-accept, and encounter text
+     into a recall surface (the journal already exists) so nothing is lost after
+     one read. This also lets encounters be re-read.
+   - Objective clarity: the active mission line should reflect completed steps
+     (drop connected places) and spell out a pickup-then-deliver step.
+4. **Design calls for the owner (small, flagged in 04_storyline / 06):** the
+   ford's concrete payoff, richer upgrade descriptions, gateway marker placement
+   out of towns and edge-label clamping, and whether the postmaster's return
+   greeting should differ from the opening.
+5. **M5.4 remainder (06):** reward-shift direction and magnitude did not get a
+   clean read this session because the popup ended play early; the withdrawn-
+   contract signal was also inconclusive. Fold a short reward-feel check into the
+   next session once the UX fixes are in.
