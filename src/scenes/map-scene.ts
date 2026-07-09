@@ -1257,22 +1257,23 @@ export class MapScene extends Phaser.Scene {
   private addGatewayMarkers(): void {
     for (const gateway of this.region.gateways) {
       // A gateway can share a tile with a border town (Southmill is also the road
-      // to Fenmarch). The floating "road to X" sign reads oddly stacked on the
-      // town's own marker and name, while the travel hint already names the
-      // destination when the courier stands there. So skip the sign on town tiles
-      // and keep it only for open-road crossings, which read well.
+      // to Fenmarch). On an open-road tile the crossing gets its own outline box;
+      // on a town tile the town already has a marker, so skip the box to avoid
+      // stacking two on one tile. Either way keep the "road to X" label above the
+      // tile (clear of the town name, which sits below) so the crossing is always
+      // discoverable from the map, not only when the courier happens to stand on
+      // it. Suppressing the label entirely hid the way to Fenmarch/Mossgate.
       // See docs/design/05_playtest_notes.md.
       const onSettlement = Object.values(this.region.settlements).some(
         (s) => s.tile.x === gateway.tile.x && s.tile.y === gateway.tile.y,
       );
-      if (onSettlement) {
-        continue;
-      }
       const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
-      this.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-        .setStrokeStyle(2, 0x6fd0e0)
-        .setDepth(DEPTH_MARKER);
+      if (!onSettlement) {
+        this.add
+          .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
+          .setStrokeStyle(2, 0x6fd0e0)
+          .setDepth(DEPTH_MARKER);
+      }
       const destName = getRegion(gateway.to).name;
       const label = this.add
         .text(center.x, center.y - TILE_SIZE * 0.55, `road to ${destName}`, {
