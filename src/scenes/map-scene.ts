@@ -262,6 +262,10 @@ export class MapScene extends Phaser.Scene {
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   private usedFordThisContract = false;
+  // True while the courier sits beside a still-locked ford, so the "ford is
+  // blocked" hint fires once per approach instead of every frame. Reset when the
+  // courier steps away (see docs/design/05_playtest_notes.md).
+  private atLockedFordHinted = false;
   // The region-cleared summary panel blocks the centre of the screen, so the
   // player dismisses it with Esc; it then stays hidden for the session instead
   // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
@@ -650,6 +654,7 @@ export class MapScene extends Phaser.Scene {
     this.revealAroundCourier();
     this.updateDelivery();
     this.checkArrival();
+    this.handleFordHint();
     this.handleSkillInput();
     this.handleBoardInput();
     this.handlePurchaseInput();
@@ -714,6 +719,32 @@ export class MapScene extends Phaser.Scene {
       start: this.courierTile(),
       goal: { x: destination.tile.x, y: destination.tile.y },
     });
+  }
+
+  /**
+   * When the courier reaches a still-locked ford, explain the block on the spot.
+   * Players hit the ford from the far bank and could not tell why it stopped them
+   * (see docs/design/05_playtest_notes.md). Fires once per approach, from either
+   * bank, then re-arms when the courier steps away.
+   */
+  private handleFordHint(): void {
+    const { x, y } = this.courierTile();
+    const beside = [
+      { x: x + 1, y },
+      { x: x - 1, y },
+      { x, y: y + 1 },
+      { x, y: y - 1 },
+    ].some((n) => {
+      const id = getTerrainIdAt(this.map, n.x, n.y);
+      const unlockId = id === undefined ? undefined : getTerrain(id)?.unlockId;
+      return unlockId !== undefined && !isUnlocked(this.state, unlockId);
+    });
+    if (beside && !this.atLockedFordHinted) {
+      this.atLockedFordHinted = true;
+      this.hud.showToast('The ford is blocked. Reach the ford-key signpost to open this shortcut.');
+    } else if (!beside) {
+      this.atLockedFordHinted = false;
+    }
   }
 
   private terrainUnderCourier(): string | undefined {
