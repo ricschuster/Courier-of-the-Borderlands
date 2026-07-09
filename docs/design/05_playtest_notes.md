@@ -339,6 +339,12 @@ become undiscoverable. All four items were addressed across four PRs.
   (home: Mossgate), so the spoke looked absent. Fix keeps #64's no-double-box on
   town tiles but restores the "road to X" label above the tile, clear of the town
   name below. Both gateways are visible on the map again.
+- Follow-up (owner): "Get back the outline if you leave it in town. My suggestion
+  early was to move that waymarker out of town and toward the edge of the map."
+  Moved the Fenmarch gateway off Southmill to the southern terminus of the
+  east-bank road (21,18), so it is a normal open-road crossing with its outline
+  box and label restored, reading as a way out of the region. The town-tile
+  special case is gone; no gateway shares a settlement tile now.
 
 ### Toasts over the status column (fixed: reposition toasts, #74)
 

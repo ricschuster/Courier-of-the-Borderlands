@@ -15,7 +15,8 @@
 //   Northcairn (5,3)   hill-clan settlement on the northern road
 //   Ironhollow (4,18)  mining hollow in the south-west mountains
 //   Eastwatch  (19,8)  watchtower on the main road, east of the river
-//   Southmill  (21,14) mill on the south-east reeds (also the Fenmarch gateway)
+//   Southmill  (21,14) mill on the south-east reeds
+//   Fenmarch gateway (21,18) southern terminus of the east-bank road, off Southmill
 //   Mirewatch  (24,20) stilt-village off the road, deep in the south-east marsh
 //              (reached only by wading south through the reeds from the row-18 road)
 // Crossings: north bridge row 3, main bridge row 8, ford row 14 (cols 14-15).
