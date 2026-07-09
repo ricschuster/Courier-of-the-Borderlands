@@ -88,6 +88,31 @@ export function stepDone(step: MissionStep, state: MissionState): boolean {
   return requirementMet(step.requires, state);
 }
 
+/** How many of a step's individual requirement ids are satisfied, and how many there are. */
+export interface StepCount {
+  readonly done: number;
+  readonly total: number;
+}
+
+/**
+ * Count the satisfied vs total individual ids a step requires, across contracts,
+ * flags, and visits. Lets a multi-part step (for example "reconnect these four
+ * places") show partial progress, so a player who completes one part can see it
+ * counted rather than the whole list still reading as untouched (see
+ * docs/design/05_playtest_notes.md, Session 2).
+ */
+export function stepRequirementCount(step: MissionStep, state: MissionState): StepCount {
+  const req = step.requires;
+  const completed = new Set(state.completedContractIds);
+  const visited = new Set(state.visitedIds);
+  const items: boolean[] = [
+    ...(req.contractsCompleted ?? []).map((id) => completed.has(id)),
+    ...(req.flags ?? []).map((id) => state.flags.has(id)),
+    ...(req.visited ?? []).map((id) => visited.has(id)),
+  ];
+  return { done: items.filter(Boolean).length, total: items.length };
+}
+
 /** True when the mission's top-level requirement is met, or it has none. */
 export function missionAvailable(mission: Mission, state: MissionState): boolean {
   if (mission.requires === undefined) {

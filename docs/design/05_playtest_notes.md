@@ -242,11 +242,17 @@ The friction this session is UX and legibility, not stakes. Grouped:
    for longer messages. These clear the session-ending blocker and the
    highest-frequency complaint.
 3. **Next UX slice (highest value, no design calls needed):**
-   - Re-readable story text: route delivery, contract-accept, and encounter text
-     into a recall surface (the journal already exists) so nothing is lost after
-     one read. This also lets encounters be re-read.
-   - Objective clarity: the active mission line should reflect completed steps
-     (drop connected places) and spell out a pickup-then-deliver step.
+   - Objective clarity *(landed in fix/objective-clarity)*: a multi-part mission
+     step now shows a progress count (for example "Reconnect the rest of
+     Greybridge... (1/4)") so a completed part reads as counted, in both the HUD
+     objective and the journal; and the accepted-contract line now spells out
+     both legs ("collect X at Ironhollow, then deliver to Mirewatch"). Striking
+     the connected place names from the list is a further option if the count
+     alone does not read clearly next session (needs per-item labels in data).
+   - Re-readable story text *(still to do)*: route delivery, contract-accept, and
+     encounter text into a recall surface (the journal already exists) so nothing
+     is lost after one read. This also lets encounters be re-read. This is the
+     remaining half of the "text vanishes too fast" complaint.
 4. **Design calls for the owner (small, flagged in 04_storyline / 06):** the
    ford's concrete payoff, richer upgrade descriptions, gateway marker placement
    out of towns and edge-label clamping, and whether the postmaster's return
