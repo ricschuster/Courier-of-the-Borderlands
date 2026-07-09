@@ -263,3 +263,64 @@ The friction this session is UX and legibility, not stakes. Grouped:
    clean read this session because the popup ended play early; the withdrawn-
    contract signal was also inconclusive. Fold a short reward-feel check into the
    next session once the UX fixes are in.
+
+## Session 3 (played 2026-07-09)
+
+Headline: the Session 2 UX fixes held (the dismissible region-cleared panel was
+called out as working), and the friction moved to the toggled overlays and to
+wayfinding. Every item below was addressed this session across five PRs.
+
+### Journal and popups (fixed: scrollable overlays, #62)
+
+- Journal drew off screen to the left, "can't read a lot of it"; with shorter
+  content it re-centred. Root cause: a centred Text with no width bound, so wide
+  lines pushed the block off-side.
+- "Only see 2 Recent items, the rest spill off the screen." Same block had no
+  height bound and always overflowed the bottom; the Recent section sits mid-way
+  down, so it was cut.
+- "Most popup text covers the always-on status column." The semi-transparent
+  panel overlapped the left HUD lines.
+- "Reduce font size of most text. Rather large right now."
+
+Fix: a reusable `ScrollablePanel` (src/scenes/scrollable-panel.ts) backs the
+journal and skills overlays with an opaque, screen-height box, wraps text to the
+box width (no side spill), clips it with a geometry mask, and scrolls with the
+mouse wheel (the mask tracks the camera when it follows the courier). Overlay
+fonts trimmed: journal/skills 12 -> 11, board 13 -> 12, dialogue 13 -> 12,
+summary 14 -> 13. The box sits right of the status column, so it no longer covers it.
+
+### Ford (fixed: locked-ford hint, #63)
+
+- "Would be nice to have a popup when approaching the ford from the far bank to
+  say the ford is blocked." Standing beside a still-locked ford now toasts "The
+  ford is blocked. Reach the ford-key signpost to open this shortcut," once per
+  approach, from either bank. Separate from the ford *payoff* design call.
+
+### Gateways (fixed: hide in-town sign, #64)
+
+- "Road to Fenmarch still shows on Southmill." The floating "road to X" sign is
+  now suppressed on tiles that also hold a town; the travel hint still names the
+  destination when the courier stands there, and open-road signs are unchanged.
+
+### Wayfinding (fixed: compass heading, #65)
+
+- "A Secret for Mirewatch: not clear what needs doing on the main screen" and
+  "went to Eastwatch, not clear what to do next." The HUD named the target but
+  nothing pointed at it, often while the place was still fogged. Added a pure
+  `bearingLabel` (eight-point compass from tile coordinates, so it works under
+  fog) threaded into the objective: "collect X at Ironhollow (NE), then deliver
+  to Mirewatch"; "deliver to Mirewatch - head SE (12 tiles)"; and the
+  cleared-region prompt now points to the nearest gateway ("Head E to the gateway").
+
+### Postmaster (fixed: return greeting, #66)
+
+- "Postmaster text same as in the beginning. That's weird." Added conditional
+  node text to the dialogue engine (a node's `textVariants`, first matching flag
+  condition wins, base text is the fallback) and gave the postmaster a distinct
+  return greeting gated on the home-reconnected flag. First meeting keeps its
+  opening line; a return acknowledges the roads are answering again.
+
+### Still open (unchanged)
+
+- Ford concrete payoff; richer upgrade descriptions; edge-gateway label clamp
+  ("road to Salt" truncated at the map edge); M5.4 remainder reward-feel numbers (06).
