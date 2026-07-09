@@ -33,6 +33,15 @@ const HUD_PAD = { x: 4, y: 1 } as const;
 const MINIMAP_CELL = 6;
 const MINIMAP_MAX_PX = 192;
 
+// Toasts are centred horizontally but must clear the top-left status column
+// (title through weather ends near y=116); at the old y=60 they sat on top of
+// the Coins/objective/Terrain lines. Toasts are top-anchored at TOAST_TOP, just
+// below that column, so a tall multi-line toast grows downward into the map
+// rather than up over the status. TOAST_GAP stacks simultaneous toasts (arrival,
+// achievement, delivery). See docs/design/05_playtest_notes.md.
+const TOAST_TOP = 120;
+const TOAST_GAP = 40;
+
 /** Wallet line inputs, assembled into the top status line by the HUD. */
 export interface WalletView {
   readonly coins: number;
@@ -401,8 +410,12 @@ export class MapHud {
 
   // --- Toast ------------------------------------------------------------
 
-  /** Transient centred message that fades after a few seconds. */
-  showToast(message: string, y = 60): void {
+  /**
+   * Transient centred message that fades after a few seconds. `slot` stacks
+   * simultaneous toasts (0 = first, below the status column; 1, 2 sit under it).
+   */
+  showToast(message: string, slot = 0): void {
+    const y = TOAST_TOP + slot * TOAST_GAP;
     const toast = this.scene.add
       .text(GAME_WIDTH / 2, y, message, {
         fontFamily: 'monospace',
@@ -413,7 +426,7 @@ export class MapHud {
         align: 'center',
         wordWrap: { width: GAME_WIDTH - 80 },
       })
-      .setOrigin(0.5)
+      .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
     // Hold longer for longer messages: at a flat 3.5s players could not finish
