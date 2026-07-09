@@ -324,3 +324,42 @@ summary 14 -> 13. The box sits right of the status column, so it no longer cover
 
 - Ford concrete payoff; richer upgrade descriptions; edge-gateway label clamp
   ("road to Salt" truncated at the map edge); M5.4 remainder reward-feel numbers (06).
+
+## Session 4 (played 2026-07-09)
+
+Headline: the Session 3 fixes held ("all working as far as I can tell"). Remaining
+friction was small UI polish plus one real content gap: the Fenmarch spoke had
+become undiscoverable. All four items were addressed across four PRs.
+
+### Gateway discoverability (fixed: signpost the Fenmarch gateway, #73)
+
+- "No idea where Mossgate is. Seems like one of the regions is missing, I can only
+  travel to Saltreach." Regression from #64: suppressing the whole gateway marker
+  on town tiles removed the only on-map cue that Southmill is the road to Fenmarch
+  (home: Mossgate), so the spoke looked absent. Fix keeps #64's no-double-box on
+  town tiles but restores the "road to X" label above the tile, clear of the town
+  name below. Both gateways are visible on the map again.
+
+### Toasts over the status column (fixed: reposition toasts, #74)
+
+- "Popups still show over the permanent items such as Coins, Mission, Terrain."
+  Toasts rendered centred at y=60, on top of the top-left status lines. They are
+  now top-anchored just below that column (y=120) so even tall multi-line toasts
+  grow downward into the map. Verified with a boot screenshot.
+
+### Overlay scroll cue and help line (fixed: scroll affordance, #75)
+
+- "Journal scrolling: some indication that one should scroll would be good." Added
+  a footer cue that names whichever directions still have hidden content ("scroll
+  down to read more", "^ scroll up") and hides when everything fits.
+- "Opening Journal blocks the help text at the bottom of the screen." Shortened the
+  panel (bottom margin 8 -> 40) so the bottom help line stays visible.
+
+### Also shipped this session
+
+- Richer upgrade descriptions that name each effect (#70) - clears the standing
+  "descriptions too thin" item.
+
+### Still open (unchanged)
+
+- Ford concrete payoff; M5.4 remainder reward-feel numbers (06).
