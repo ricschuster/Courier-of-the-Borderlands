@@ -27,6 +27,7 @@
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
+import { reconnectedFlag } from '../systems/world-state';
 import { FLAG_FENMARCH_COST } from './dialogue-content';
 
 // ---------------------------------------------------------------------------
@@ -160,6 +161,34 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     note: 'The warden asks one more run of you. Duskmere let its water go dark; carry this up the corridor and give them a reason to light the lamps again. No seal. They will know the hand.',
     cargoType: 'secrets',
     requires: { allOf: [FLAG_FENMARCH_COST] },
+    arc: true,
+  },
+  // Second-wave fen work, opening as the mist road revives (M5.4, Session 5).
+  {
+    id: 'fenmarch-dusk-relay',
+    title: 'Duskmere Lights Up',
+    cargo: 'a crate of lamp-oil',
+    pickupId: 'duskmere',
+    destinationId: 'thornwick',
+    reward: 68,
+    reputation: 2,
+    minReputation: 0,
+    note: 'Duskmere has its lamps lit again, and enough oil to spare a crate for Thornwick, who barred its gate and never reopened it. Bring them the means to see past their own wall.',
+    cargoType: 'goods',
+    requires: { allOf: [reconnectedFlag('duskmere')] },
+  },
+  {
+    id: 'fenmarch-thorn-relay',
+    title: 'Thornwick Opens the Gate',
+    cargo: 'a peace-token',
+    pickupId: 'thornwick',
+    destinationId: 'hollowfen',
+    reward: 74,
+    reputation: 3,
+    minReputation: 0,
+    note: 'Thornwick has unbarred its gate at last, and sends a token down to Hollowfen, which waited longest of all. Carry it the length of the fen. Some letters are worth more than their weight.',
+    cargoType: 'letters',
+    requires: { allOf: [reconnectedFlag('thornwick')] },
   },
 ];
 

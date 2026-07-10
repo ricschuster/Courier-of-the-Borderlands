@@ -26,19 +26,35 @@ function contract(id: string, overrides: Partial<Contract> = {}): Contract {
 const REGIONS: ThreadRegion[] = [
   {
     name: 'Alpha',
-    contracts: [contract('a-standing'), contract('a-arc', { title: 'Letters A', requires: { allOf: ['reveal_a'] } })],
+    contracts: [contract('a-standing'), contract('a-arc', { title: 'Letters A', requires: { allOf: ['reveal_a'] }, arc: true })],
   },
   {
     name: 'Beta',
-    contracts: [contract('b-standing'), contract('b-arc', { title: 'Letters B', requires: { allOf: ['reveal_b'] } })],
+    contracts: [contract('b-standing'), contract('b-arc', { title: 'Letters B', requires: { allOf: ['reveal_b'] }, arc: true })],
   },
 ];
 
 describe('hiddenRoadProgress', () => {
-  it('counts only arc (flag-gated) contracts, ignoring standing routes', () => {
+  it('counts only arc contracts, ignoring standing routes', () => {
     const p = hiddenRoadProgress(REGIONS, new Set(), emptyFlags());
     expect(p.total).toBe(2);
     expect(p.entries.map((e) => e.contractTitle)).toEqual(['Letters A', 'Letters B']);
+  });
+
+  it('ignores gated work that is not arc work (second-wave reconnection routes)', () => {
+    const withSecondWave: ThreadRegion[] = [
+      {
+        name: 'Alpha',
+        contracts: [
+          contract('a-arc', { title: 'Letters A', requires: { allOf: ['reveal_a'] }, arc: true }),
+          // Gated, but not arc: must stay out of the Hidden Road count.
+          contract('a-relay', { title: 'Relay A', requires: { allOf: ['reconnected_x'] } }),
+        ],
+      },
+    ];
+    const p = hiddenRoadProgress(withSecondWave, new Set(), flagsFromArray(['reveal_a', 'reconnected_x']));
+    expect(p.total).toBe(1);
+    expect(p.entries.map((e) => e.contractTitle)).toEqual(['Letters A']);
   });
 
   it('is not started until an arc contract is revealed or delivered', () => {

@@ -40,7 +40,7 @@ function contract(id: string, overrides: Partial<Contract> = {}): Contract {
 const THREAD_REGIONS: ThreadRegion[] = [
   {
     name: 'Greybridge',
-    contracts: [contract('standing'), contract('arc', { title: 'Unsigned Letters', requires: { allOf: ['reveal'] } })],
+    contracts: [contract('standing'), contract('arc', { title: 'Unsigned Letters', requires: { allOf: ['reveal'] }, arc: true })],
   },
 ];
 

@@ -240,6 +240,12 @@ direction):
       happens, so the arc no longer ends on a plain dialogue box (`capstoneText`
       in `src/systems/panel-text.ts`; Session 5 playtest). Shown exactly once via
       a load-time flag check, no new save field.
+- [x] New work opens as a region reconnects: a reconnected place emits a derived
+      `reconnected_<id>` flag (`reconnectedFlag` in `src/systems/world-state.ts`),
+      and two second-wave lateral routes per region gate on it, so the board keeps
+      refreshing with new deliveries as the region revives instead of emptying out
+      (Session 5 "repeat-mode" note). Arc contracts are now marked `arc: true` so
+      the Hidden Road thread counts only them, not this ordinary gated work.
 - [ ] Withdrawn contracts (Item 1): hide a contract once a flag makes it moot,
       the inverse of the arc gate. Needs a content decision on what withdraws.
 - [ ] Missions proper read and write world-state (a mission step gated on an

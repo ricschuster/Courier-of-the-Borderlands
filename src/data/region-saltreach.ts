@@ -25,6 +25,7 @@
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
+import { reconnectedFlag } from '../systems/world-state';
 import { FLAG_SALTREACH_METHOD } from './dialogue-content';
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,34 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     note: 'Now you know why the roads were left to rot. Carry this to Reedford by wheel, ahead of whatever Cormorant Rock sends by wing. Every letter that beats a bird is a road they do not own.',
     cargoType: 'secrets',
     requires: { allOf: [FLAG_SALTREACH_METHOD] },
+    arc: true,
+  },
+  // Second-wave coast work, opening as the salt road revives (M5.4, Session 5).
+  {
+    id: 'saltreach-reed-relay',
+    title: 'The Reed-Cutters Repay',
+    cargo: 'baled reed',
+    pickupId: 'reedford',
+    destinationId: 'saltkeep',
+    reward: 66,
+    reputation: 2,
+    minReputation: 0,
+    note: 'Reedford is answering again, and it owes the Keep a winter of thatch. Haul the bales up the coast road while the tide is out.',
+    cargoType: 'goods',
+    requires: { allOf: [reconnectedFlag('reedford')] },
+  },
+  {
+    id: 'saltreach-keep-relay',
+    title: "The Keep's Reply",
+    cargo: 'a sealed dispatch',
+    pickupId: 'saltkeep',
+    destinationId: 'cormorant-rock',
+    reward: 72,
+    reputation: 3,
+    minReputation: 0,
+    note: 'With the Keep back on the map, the garrison has orders to send on to the watch at Cormorant Rock. Carry them the honest way, by road, and let the birds wonder.',
+    cargoType: 'letters',
+    requires: { allOf: [reconnectedFlag('saltkeep')] },
   },
 ];
 

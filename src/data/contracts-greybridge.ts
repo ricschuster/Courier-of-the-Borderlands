@@ -1,4 +1,5 @@
 import type { Contract } from '../systems/contract-system';
+import { reconnectedFlag } from '../systems/world-state';
 import { FLAG_GREYBRIDGE_REVEAL } from './dialogue-content';
 
 export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
@@ -78,5 +79,36 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     note: 'The postmaster slides one more letter across the counter, no seal, no name. It goes to Eastwatch, and then Eastwatch will know where to send the next. You are on the hidden road now.',
     cargoType: 'secrets',
     requires: { allOf: [FLAG_GREYBRIDGE_REVEAL] },
+    arc: true,
+  },
+  // Second-wave work: opens once Eastwatch is back on the map, so reconnecting a
+  // place visibly puts new deliveries on the board (M5.4, Session 5). A lateral
+  // spoke route, not home-and-back, and its reconnected destination pays the
+  // reconnection premium.
+  {
+    id: 'greybridge-eastwatch-relay',
+    title: 'Eastwatch Sends Word',
+    cargo: 'a mill-order',
+    pickupId: 'eastwatch',
+    destinationId: 'southmill',
+    reward: 60,
+    reputation: 2,
+    minReputation: 0,
+    note: 'Eastwatch is answering again, and the first thing it does is send an order to Southmill for a season of flour. Carry it across; the road between them has been quiet too long.',
+    cargoType: 'goods',
+    requires: { allOf: [reconnectedFlag('eastwatch')] },
+  },
+  {
+    id: 'greybridge-northcairn-relay',
+    title: 'Down from Northcairn',
+    cargo: 'a bundle of hill-wool',
+    pickupId: 'northcairn',
+    destinationId: 'ironhollow',
+    reward: 65,
+    reputation: 3,
+    minReputation: 0,
+    note: 'With the northern passes open again, Northcairn has wool to trade and Ironhollow has coin for it. The clans will not carry it down themselves. That is what couriers are for.',
+    cargoType: 'goods',
+    requires: { allOf: [reconnectedFlag('northcairn')] },
   },
 ];

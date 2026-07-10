@@ -35,6 +35,13 @@ export interface Contract {
    * the board never shows "one you cannot see".
    */
   readonly requires?: FlagCondition;
+  /**
+   * Marks a contract as part of the Blockade story arc (the hidden network's
+   * unsigned letters), so the Hidden Road journal thread counts it. Ordinary
+   * gated work (for example a route that opens once a place is reconnected) is
+   * not arc work and is left unmarked. Omitted means not an arc contract.
+   */
+  readonly arc?: boolean;
 }
 
 export interface ContractProgress {

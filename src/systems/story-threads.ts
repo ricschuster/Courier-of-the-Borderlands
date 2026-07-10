@@ -7,9 +7,9 @@
 // borderland. Fully derived from completed contracts and story flags, matching
 // world-state, missions, and experience: no new save state.
 //
-// It is data-driven: any contract with a `requires` gate counts, so new arc
-// contracts join the thread automatically. No Phaser or DOM here, so it can be
-// unit tested directly.
+// It is data-driven: any contract marked `arc: true` counts, so new arc
+// contracts join the thread automatically while ordinary reconnection-gated work
+// stays out of it. No Phaser or DOM here, so it can be unit tested directly.
 
 import { isContractAvailable, type Contract } from './contract-system';
 import type { StoryFlags } from './dialogue';
@@ -51,7 +51,9 @@ export function hiddenRoadProgress(
   let started = false;
   for (const region of regions) {
     for (const contract of region.contracts) {
-      if (contract.requires === undefined) {
+      // Only the arc contracts (the unsigned letters) belong to the thread.
+      // Ordinary reconnection-gated work is gated too but is not arc work.
+      if (contract.arc !== true) {
         continue;
       }
       const done = completedIds.has(contract.id);
