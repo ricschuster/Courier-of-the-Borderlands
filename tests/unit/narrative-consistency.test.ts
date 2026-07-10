@@ -4,6 +4,7 @@ import { ENCOUNTERS } from '../../src/data/encounters';
 import { MISSIONS } from '../../src/data/missions';
 import { REGIONS } from '../../src/systems/region-system';
 import { SKILLS, skillFlag } from '../../src/systems/skills';
+import { reconnectedFlag } from '../../src/systems/world-state';
 import type { Dialogue, FlagCondition } from '../../src/systems/dialogue';
 
 // Cross-module narrative consistency. These catch the class of bug that would
@@ -40,11 +41,17 @@ for (const encounter of ENCOUNTERS) {
 }
 
 // Flags the scene provides at runtime without persisting them: the world-state
-// derived flag and the per-skill flags granted while a skill is owned.
+// derived flags (home reconnected, plus a per-settlement reconnected flag) and
+// the per-skill flags granted while a skill is owned.
 const derivedFlags = new Set<string>([
   FLAG_HOME_RECONNECTED,
   ...SKILLS.map((s) => skillFlag(s.id)),
 ]);
+for (const region of Object.values(REGIONS)) {
+  for (const id of Object.keys(region.settlements)) {
+    derivedFlags.add(reconnectedFlag(id));
+  }
+}
 
 const knownFlags = new Set<string>([...settableFlags, ...derivedFlags]);
 
@@ -117,13 +124,17 @@ describe('narrative flag consistency', () => {
     // A contract gate on a purely derived flag would work, but the shipped arc
     // contracts intentionally gate on the reveal flags the NPCs set. Guard that
     // those flags are persisted-settable, not only derived, so a save reload
-    // keeps the contract available.
+    // keeps the contract available. Ordinary second-wave work gates on the
+    // derived reconnected flags instead, so it is excluded here.
     for (const region of Object.values(REGIONS)) {
       for (const contract of region.contracts) {
+        if (contract.arc !== true) {
+          continue;
+        }
         for (const flag of flagsInCondition(contract.requires)) {
           expect(
             settableFlags.has(flag),
-            `contract "${contract.id}" gates on "${flag}", which no dialogue choice sets`,
+            `arc contract "${contract.id}" gates on "${flag}", which no dialogue choice sets`,
           ).toBe(true);
         }
       }

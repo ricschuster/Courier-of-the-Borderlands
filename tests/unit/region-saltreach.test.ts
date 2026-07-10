@@ -111,11 +111,13 @@ describe('Saltreach gateway', () => {
 });
 
 describe('Saltreach contracts', () => {
-  it('has three standing contracts plus one arc-gated contract', () => {
+  it('has three standing contracts, one arc contract, and two reconnection-gated routes', () => {
     const standing = SALTREACH_CONTRACTS.filter((c) => c.requires === undefined);
-    const gated = SALTREACH_CONTRACTS.filter((c) => c.requires !== undefined);
+    const arc = SALTREACH_CONTRACTS.filter((c) => c.arc === true);
+    const secondWave = SALTREACH_CONTRACTS.filter((c) => c.requires !== undefined && c.arc !== true);
     expect(standing).toHaveLength(3);
-    expect(gated).toHaveLength(1);
+    expect(arc).toHaveLength(1);
+    expect(secondWave).toHaveLength(2);
   });
 
   it('have unique ids', () => {

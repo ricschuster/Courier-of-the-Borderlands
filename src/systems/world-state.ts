@@ -53,6 +53,16 @@ export function reconnectedCount(state: Record<string, SettlementStatus>): numbe
   return Object.values(state).filter((s) => s === 'reconnected').length;
 }
 
+/**
+ * Derived story-flag id meaning "this settlement is reconnected". The scene folds
+ * one of these into the flags handed to the contract gate for every reconnected
+ * place, so second-wave work can require a place to be back on the map. Derived,
+ * never persisted, mirroring the other world-state flags.
+ */
+export function reconnectedFlag(settlementId: string): string {
+  return `reconnected_${settlementId}`;
+}
+
 // A reconnected place is safer and more grateful, so a further delivery to it
 // pays a premium over the flat silent-era rate. This keeps reconnection paying
 // off past the first delivery, the gap Session 5 flagged in the later regions

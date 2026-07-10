@@ -42,6 +42,7 @@ import { buildJournalText } from '../systems/journal-text';
 import {
   computeWorldState,
   reconnectionRewardMultiplier,
+  reconnectedFlag,
   type SettlementStatus,
 } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
@@ -1215,6 +1216,13 @@ export class MapScene extends Phaser.Scene {
     const derived: string[] = [...derivedSkillFlags(this.skills)];
     if (this.regionCleared()) {
       derived.push(FLAG_HOME_RECONNECTED);
+    }
+    // A reconnected place emits its own flag, so second-wave work can open on the
+    // board the moment a region starts reviving (M5.4, Session 5).
+    for (const [id, status] of Object.entries(this.worldState())) {
+      if (status === 'reconnected') {
+        derived.push(reconnectedFlag(id));
+      }
     }
     return setFlags(this.storyFlags, derived);
   }
