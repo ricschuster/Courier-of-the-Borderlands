@@ -3,7 +3,8 @@ import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND } from '../../src/data/greybridge-map';
 import { SETTLEMENTS, settlementAtTile } from '../../src/data/settlements-greybridge';
 import { CONTRACTS_GREYBRIDGE } from '../../src/data/contracts-greybridge';
-import { isPassable } from '../../src/systems/terrain-system';
+import { isPassable, isPassableWith } from '../../src/systems/terrain-system';
+import { findPath } from '../../src/systems/pathfinding';
 import { CARGO_CATEGORIES } from '../../src/systems/cargo-types';
 
 const map = createTileMap(GREYBRIDGE_ROWS, GREYBRIDGE_LEGEND);
@@ -28,13 +29,59 @@ describe('Greybridge settlements', () => {
     expect(settlementAtTile(-1, -1)).toBeUndefined();
   });
 
-  it('contains all six expected settlements', () => {
+  it('contains all seven expected settlements', () => {
     expect(SETTLEMENTS.greywater).toBeDefined();
     expect(SETTLEMENTS.northcairn).toBeDefined();
     expect(SETTLEMENTS.eastwatch).toBeDefined();
     expect(SETTLEMENTS.southmill).toBeDefined();
     expect(SETTLEMENTS.ironhollow).toBeDefined();
     expect(SETTLEMENTS.mirewatch).toBeDefined();
+    expect(SETTLEMENTS.reedgrave).toBeDefined();
+  });
+});
+
+describe('Greybridge deep-mire pocket (Reedgrave)', () => {
+  const mirewatch = SETTLEMENTS.mirewatch!;
+  const reedgrave = SETTLEMENTS.reedgrave!;
+  // The single gated crossing over the black channel that walls off the pocket.
+  const crossing = { x: 26, y: 19 };
+
+  // The premium contract runs Mirewatch -> Reedgrave: both sit at the pocket's
+  // latitude, so the channel blocks the direct line and the mire is a real
+  // shortcut (a start from the north-west would approach round the top for free).
+  function routeLength(keys: ReadonlySet<string>): number | null {
+    const path = findPath({
+      width: map.width,
+      height: map.height,
+      isPassable: (x, y) => {
+        const id = getTerrainIdAt(map, x, y);
+        return id !== undefined && isPassableWith(id, keys);
+      },
+      start: mirewatch.tile,
+      goal: reedgrave.tile,
+    });
+    return path.reachable ? path.path.length : null;
+  }
+
+  it('walls the pocket with a single deep-mire crossing tile', () => {
+    expect(getTerrainIdAt(map, crossing.x, crossing.y)).toBe('deep-mire');
+  });
+
+  it('keeps the crossing blocked for the base wagon, open with mire-crossing', () => {
+    const id = getTerrainIdAt(map, crossing.x, crossing.y) as string;
+    expect(isPassableWith(id, new Set())).toBe(false);
+    expect(isPassableWith(id, new Set(['mire-crossing']))).toBe(true);
+  });
+
+  it('reaches Reedgrave the long way round without the mire, and shorter with it', () => {
+    const base = routeLength(new Set());
+    const withMire = routeLength(new Set(['mire-crossing']));
+    // The base wagon can still get there (the reeds are reached round the north
+    // end of the channel), so the premium contract is never soft-locked.
+    expect(base).not.toBeNull();
+    expect(withMire).not.toBeNull();
+    // Marsh Treads / off-road opens the direct crossing: a strictly shorter run.
+    expect(withMire!).toBeLessThan(base!);
   });
 });
 

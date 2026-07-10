@@ -45,6 +45,12 @@ export const SETTLEMENTS: Readonly<Record<string, Settlement>> = {
     tile: { x: 24, y: 20 },
     note: 'A stilt-village deep in the salt marsh, reached only by those the reeds allow.',
   },
+  reedgrave: {
+    id: 'reedgrave',
+    name: 'Reedgrave',
+    tile: { x: 28, y: 19 },
+    note: 'A drowned cairn in the far reeds, walled off by a black channel. The marsh keeps what it is given, and gives little back.',
+  },
 };
 
 export function settlementAtTile(x: number, y: number): Settlement | undefined {
