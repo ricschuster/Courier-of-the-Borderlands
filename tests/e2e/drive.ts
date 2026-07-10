@@ -145,9 +145,14 @@ export async function driveToTile(
 /**
  * Boot the built game with the `?e2e` hook attached and the canvas focused so
  * key events reach Phaser. Resolves once `window.__courier` is available.
+ *
+ * Pass `{ turbo: true }` to also set `?turbo`, which doubles the wagon speed
+ * (test-only) so a long multi-delivery drive finishes in about half the
+ * wall-clock. Movement stays real key input on the same paths; only the speed
+ * scales.
  */
-export async function bootE2E(page: Page): Promise<void> {
-  await page.goto('./?e2e=1');
+export async function bootE2E(page: Page, options: { turbo?: boolean } = {}): Promise<void> {
+  await page.goto(options.turbo ? './?e2e=1&turbo=1' : './?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   // Focus the canvas so key events reach the game.
   await page.locator('#game canvas').click();
