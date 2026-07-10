@@ -63,6 +63,18 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     note: 'Ironhollow presses a sealed tube into your hands: carry it south to Mirewatch, and take the ford if the reeds allow. Ask the way once. Do not ask twice.',
     cargoType: 'secrets',
   },
+  {
+    id: 'secret-to-reedgrave',
+    title: 'The Drowned Cache',
+    cargo: 'a lead-sealed casket',
+    pickupId: 'mirewatch',
+    destinationId: 'reedgrave',
+    reward: 120,
+    reputation: 4,
+    minReputation: 8,
+    note: 'Mirewatch gives you a casket heavy for its size and colder than the day, bound for Reedgrave across the black channel. Marsh Treads or a marsh-wise hand find the short way over; everyone else wades the long way round the head of the reeds. Whatever is inside, the marsh has been promised it.',
+    cargoType: 'secrets',
+  },
   // Arc-gated: appears only after the postmaster's reveal (greybridge_reveal),
   // once the region is answering again. The courier begins carrying the hidden
   // network's unsigned letters. A world-state consequence: reconnecting the

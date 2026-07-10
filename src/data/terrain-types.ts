@@ -36,6 +36,18 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   // Marsh: passable but the slowest open terrain, so the southern reeds punish
   // anyone who leaves the road for a straight line.
   marsh: { id: 'marsh', name: 'Marsh', color: 0x4a6a4a, passable: true, speedModifier: 0.45 },
+  // Deep mire: sodden ground the base wagon cannot cross at all. It opens as a
+  // shortcut only once the courier holds the "mire-crossing" capability (the
+  // Marsh Treads upgrade, or an off-road skill rank). Slower than marsh once
+  // open. See src/systems/traversal.ts and docs/design/07_roads_gate_the_wagon.md.
+  'deep-mire': {
+    id: 'deep-mire',
+    name: 'Deep Mire',
+    color: 0x3b4a38,
+    passable: false,
+    speedModifier: 0.4,
+    unlockId: 'mire-crossing',
+  },
   // Ford: a shallow crossing that starts blocked and opens as an unlockable
   // shortcut. Slower than the bridge, but a shorter route across the south.
   // Each region has its own ford terrain and unlock id so opening one
