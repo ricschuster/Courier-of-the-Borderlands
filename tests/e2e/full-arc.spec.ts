@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, pressUntil, travelTo, type Arrow } from './drive';
+import { bootE2E, collectErrors, driveToTile, travelTo, type Arrow } from './drive';
 
 // End-to-end arc completion: boot the real built game and greedily play the
 // whole three-region arc with genuine key presses until the blockade breaks and
@@ -134,12 +134,21 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
         .join(',');
       const talkKey = `${s.regionId}:${arcFlags}`;
       if (s.regionCleared && !talked.has(talkKey)) {
-        talked.add(talkKey);
-        // Re-press E until the conversation actually opens. A single press can be
-        // dropped under load; without the retry the talk would be marked done
-        // without happening, and the final blockade talk would never fire.
-        await pressUntil(page, 'E', async () => (await readState(page))?.dialogueOpen === true);
-        await walkDialogue(page);
+        // Re-seat on the home tile first (the wagon can coast a tile past it when
+        // a drive ends, and E only opens the conversation while standing on the
+        // settlement), then press E. Only mark the talk done once the dialogue
+        // actually opened: a missed or off-tile press then just retries on the
+        // next loop instead of being marked done without happening, which would
+        // otherwise leave the final blockade talk unfired. Self-correcting, with
+        // no hard per-press timeout (a stuck talk fails via the step budget with
+        // a clear "blockade not broken", not an opaque 15s predicate timeout).
+        await driveToTile(page, held, s.home.tileX, s.home.tileY);
+        await page.keyboard.press('E');
+        await page.waitForTimeout(250);
+        if ((await readState(page))?.dialogueOpen) {
+          talked.add(talkKey);
+          await walkDialogue(page);
+        }
         continue;
       }
       if (s.availableContractIds.length > 0) {
