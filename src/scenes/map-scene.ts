@@ -38,7 +38,7 @@ import {
 } from '../systems/upgrade-system';
 import { computeRunSummary } from '../systems/run-summary';
 import { buildMinimap } from '../systems/minimap';
-import { buildJournal, statusLabel } from '../systems/journal';
+import { buildJournalText } from '../systems/journal-text';
 import { computeWorldState, type SettlementStatus } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { totalXp, levelForXp, levelProgress } from '../systems/experience';
@@ -85,8 +85,6 @@ import { dialogueForSettlement, FLAG_HOME_RECONNECTED } from '../data/dialogue-c
 import { DialogueController, type DialogueHost } from './dialogue-controller';
 import {
   activeObjective,
-  activeMission,
-  missionProgress,
   stepRequirementCount,
   type MissionState,
 } from '../systems/mission-system';
@@ -103,7 +101,6 @@ import {
   type Region,
   type RegionGateway,
 } from '../systems/region-system';
-import { hiddenRoadProgress, hiddenRoadJournalLines } from '../systems/story-threads';
 import { pushEvent } from '../systems/event-log';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
@@ -1331,35 +1328,6 @@ export class MapScene extends Phaser.Scene {
     this.hud.setSkillText(lines.join('\n'));
   }
 
-  /** Story-spine lines for the journal: the active mission and its step progress. */
-  private missionJournalLines(): string[] {
-    const state = this.missionState();
-    const mission = activeMission(MISSIONS, state, this.region.id);
-    if (mission === null) {
-      return ['Story:', '  No mission calls just now. The borderland holds its breath.', ''];
-    }
-    const progress = missionProgress(mission, state);
-    const lines = ['Story:', `  ${mission.title}`];
-    progress.steps.forEach((entry, i) => {
-      const mark = entry.done ? '[x]' : i === progress.currentStepIndex ? '[>]' : '[ ]';
-      const count = stepRequirementCount(entry.step, state);
-      const progressNote = !entry.done && count.total > 1 ? ` (${count.done}/${count.total})` : '';
-      lines.push(`    ${mark} ${entry.step.summary}${progressNote}`);
-    });
-    lines.push('');
-    return lines;
-  }
-
-  /**
-   * Journal lines for the cross-region Hidden Road thread (the arc-gated
-   * contracts), derived from delivery history. Empty until the thread starts, so
-   * it never pre-announces the arc.
-   */
-  private hiddenRoadJournalLines(): string[] {
-    const regions = Object.values(REGIONS).map((r) => ({ name: r.name, contracts: r.contracts }));
-    return hiddenRoadJournalLines(hiddenRoadProgress(regions, this.completed, this.effectiveFlags()));
-  }
-
   /** The active objective as re-readable text for the journal, or null. */
   private journalObjective(): { title: string; detail: string } | null {
     const contract = this.activeContract;
@@ -1382,60 +1350,40 @@ export class MapScene extends Phaser.Scene {
     this.hud.showToast(message, slot);
   }
 
-  /** Journal lines for the recent story log, newest first. Empty until anything happens. */
-  private recentEventLines(): string[] {
-    if (this.recentEvents.length === 0) {
-      return [];
-    }
-    return ['Recent:', ...[...this.recentEvents].reverse().map((m) => `  ${m}`), ''];
-  }
-
   private refreshJournal(): void {
     const status = this.worldState();
-    const model = buildJournal({
-      settlements: Object.values(this.region.settlements).map((s) => ({
-        id: s.id,
-        name: s.name,
-        note: s.note,
-        status: status[s.id] ?? 'silent',
-        reconnectedNote: reconnectedNoteFor(s.id),
-      })),
-      visitedIds: [...this.visited],
-      delivered: this.deliveredInRegion(),
-      totalContracts: this.contractsInPlayCount(),
-      reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-      fordUnlocked: this.regionFordUnlocked(),
-      activeObjective: this.journalObjective(),
-    });
-    const lines = [
-      'DISCOVERIES JOURNAL   (J to close, mouse wheel to scroll)',
-      `Title: ${courierTitle(this.achievementStat())}`,
-      '',
-      'Current objective:',
-      ...model.objectiveLines.map((l) => `  ${l}`),
-      '',
-      ...model.summaryLines,
-      `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
-      '',
-      ...this.missionJournalLines(),
-      ...this.hiddenRoadJournalLines(),
-      ...this.recentEventLines(),
-      'Places:',
-    ];
-    for (const place of model.places) {
-      const label = statusLabel(place.status);
-      const tag = label ? ` [${label}]` : '';
-      lines.push(`  ${place.name}${tag} - ${place.note}`);
-      if (place.statusNote) {
-        lines.push(`      ${place.statusNote}`);
-      }
-    }
-    lines.push('', 'Achievements:');
-    for (const achievement of ACHIEVEMENTS) {
-      const got = this.achievements.has(achievement.id);
-      lines.push(`  ${got ? '[x]' : '[ ]'} ${achievement.name}`);
-    }
-    this.hud.setJournalText(lines.join('\n'));
+    this.hud.setJournalText(
+      buildJournalText({
+        journal: {
+          settlements: Object.values(this.region.settlements).map((s) => ({
+            id: s.id,
+            name: s.name,
+            note: s.note,
+            status: status[s.id] ?? 'silent',
+            reconnectedNote: reconnectedNoteFor(s.id),
+          })),
+          visitedIds: [...this.visited],
+          delivered: this.deliveredInRegion(),
+          totalContracts: this.contractsInPlayCount(),
+          reputationTier: tierFor(totalReputation(this.state.ledger)).name,
+          fordUnlocked: this.regionFordUnlocked(),
+          activeObjective: this.journalObjective(),
+        },
+        title: courierTitle(this.achievementStat()),
+        distanceText: formatDistance(this.trip.distanceTiles),
+        mission: { missions: MISSIONS, state: this.missionState(), regionId: this.region.id },
+        threads: {
+          regions: Object.values(REGIONS).map((r) => ({ name: r.name, contracts: r.contracts })),
+          completedIds: this.completed,
+          flags: this.effectiveFlags(),
+        },
+        recentEvents: this.recentEvents,
+        achievements: ACHIEVEMENTS.map((a) => ({
+          name: a.name,
+          earned: this.achievements.has(a.id),
+        })),
+      }),
+    );
   }
 
   private refreshSummary(): void {
