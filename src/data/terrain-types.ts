@@ -38,7 +38,7 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   marsh: { id: 'marsh', name: 'Marsh', color: 0x4a6a4a, passable: true, speedModifier: 0.45 },
   // Deep mire: sodden ground the base wagon cannot cross at all. It opens as a
   // shortcut only once the courier holds the "mire-crossing" capability (the
-  // Marsh Treads upgrade, or an off-road skill rank). Slower than marsh once
+  // Marsh Treads upgrade, or Off-road rank 2). Slower than marsh once
   // open. See src/systems/traversal.ts and docs/design/07_roads_gate_the_wagon.md.
   'deep-mire': {
     id: 'deep-mire',

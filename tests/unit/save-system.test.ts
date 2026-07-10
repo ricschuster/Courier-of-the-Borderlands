@@ -22,7 +22,7 @@ const SNAPSHOT: GameSnapshot = {
   distanceTiles: 42.5,
   deliveries: 1,
   achievements: ['first-delivery', 'ford-finder'],
-  skills: { teamster: 2, wayfinder: 1 },
+  skills: { 'off-road': 2, wayfinder: 1 },
   storyFlags: ['greybridge_reveal', 'met_postmaster'],
 };
 
@@ -68,7 +68,7 @@ describe('save-system', () => {
   });
 
   it('round-trips chosen skill ranks', () => {
-    expect(deserialize(serialize(SNAPSHOT))?.skills).toEqual({ teamster: 2, wayfinder: 1 });
+    expect(deserialize(serialize(SNAPSHOT))?.skills).toEqual({ 'off-road': 2, wayfinder: 1 });
   });
 
   it('defaults skills to empty for a save made before skills existed', () => {
@@ -80,9 +80,9 @@ describe('save-system', () => {
     const parsed = deserialize({
       version: SAVE_VERSION,
       coins: 10,
-      skills: { teamster: 2, bad: 'x', zero: 0, negative: -1, frac: 1.9 },
+      skills: { 'off-road': 2, bad: 'x', zero: 0, negative: -1, frac: 1.9 },
     });
-    expect(parsed?.skills).toEqual({ teamster: 2, frac: 1 });
+    expect(parsed?.skills).toEqual({ 'off-road': 2, frac: 1 });
   });
 
   it('round-trips story flags', () => {

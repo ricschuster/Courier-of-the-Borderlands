@@ -27,13 +27,15 @@ export interface CapabilityGrant {
 export type CapabilityGrants = Readonly<Record<string, CapabilityGrant>>;
 
 // Canonical grant map. A capability is held if the player owns any listed
-// upgrade or has any listed skill at its rank. Skill grants are added as skills
-// are repurposed into keys (see the slice plan in the design note); an upgrade
-// alone is enough to start.
+// upgrade or has any listed skill at its rank. This is the coins-vs-points
+// choice: the same route opens for a bought upgrade or an invested skill rank.
 export const CAPABILITY_GRANTS: CapabilityGrants = {
-  // Deep mire is crossable with the wide webbed Marsh Treads. A skill key is
-  // added in a later slice.
-  'mire-crossing': { upgrades: ['marsh-treads'] },
+  // Deep mire is crossable with the wide webbed Marsh Treads (coins), or by
+  // ranking Off-road to 2 (skill points). Either key opens the same shortcut.
+  'mire-crossing': {
+    upgrades: ['marsh-treads'],
+    skills: [{ id: 'off-road', minRank: 2 }],
+  },
 };
 
 /** True when any single source of the grant is satisfied. */
