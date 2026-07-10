@@ -12,6 +12,13 @@ import { bootE2E, collectErrors, driveToTile, travelTo, type Arrow } from './dri
 // specs, so all movement is real input through Phaser. The greedy driver
 // mirrors scripts/autoplay.mjs (the screenshotting dev tool); this version just
 // asserts the finish instead of capturing images.
+//
+// This is the heavy guard (~3m of real-time driving), so it does not run on
+// every PR: in CI it is skipped unless RUN_ARC is set, which only the dedicated
+// nightly / on-merge `arc` job does (a docs or pure-logic PR cannot break the
+// arc, and per-PR it would add flake surface for little signal). It still runs
+// by default locally, so `npx playwright test full-arc` works as expected.
+const arcTest = process.env.CI && !process.env.RUN_ARC ? test.skip : test;
 
 type State = NonNullable<Awaited<ReturnType<typeof readState>>>;
 
@@ -56,7 +63,7 @@ async function walkDialogue(page: Page): Promise<void> {
   await page.waitForTimeout(120);
 }
 
-test('drives the whole arc to the blockade-broken capstone', async ({ page }) => {
+arcTest('drives the whole arc to the blockade-broken capstone', async ({ page }) => {
   // The full arc is ~20 deliveries across three regions at real driving speed.
   test.setTimeout(300_000);
 
