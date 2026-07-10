@@ -24,6 +24,7 @@ describe('boardText', () => {
       homeName: 'Greybridge',
       contracts: [contract('c1', { title: 'Letters to Ashford', reward: 40, reputation: 3 })],
       reputation: 0,
+      worldStatus: {},
     });
     expect(text).toContain('GREYBRIDGE BOARD  (press number to accept)');
     expect(text).toContain('[1] Letters to Ashford  -  40c, +3 rep');
@@ -31,7 +32,7 @@ describe('boardText', () => {
   });
 
   it('shows a quiet-frontier line when there are no contracts', () => {
-    const text = boardText({ homeName: 'Greybridge', contracts: [], reputation: 0 });
+    const text = boardText({ homeName: 'Greybridge', contracts: [], reputation: 0, worldStatus: {} });
     expect(text).toContain('No contracts remain');
   });
 
@@ -40,8 +41,32 @@ describe('boardText', () => {
       homeName: 'Greybridge',
       contracts: [contract('c1', { minReputation: 10 })],
       reputation: 0,
+      worldStatus: {},
     });
     expect(text).toContain('[needs 10 rep]');
+  });
+
+  it('shows the reconnection premium and boosted reward for a reconnected destination', () => {
+    const text = boardText({
+      homeName: 'Greybridge',
+      contracts: [contract('c1', { title: 'Back to Reedford', reward: 100, destinationId: 'reedford' })],
+      reputation: 0,
+      worldStatus: { reedford: 'reconnected' },
+    });
+    // 100 base + 20% reconnection premium.
+    expect(text).toContain('120c');
+    expect(text).toContain('(+20% reconnected)');
+  });
+
+  it('leaves the reward flat for a silent destination', () => {
+    const text = boardText({
+      homeName: 'Greybridge',
+      contracts: [contract('c1', { reward: 100, destinationId: 'reedford' })],
+      reputation: 0,
+      worldStatus: { reedford: 'silent' },
+    });
+    expect(text).toContain('100c');
+    expect(text).not.toContain('reconnected');
   });
 });
 

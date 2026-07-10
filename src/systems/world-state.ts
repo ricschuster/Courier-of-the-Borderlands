@@ -53,6 +53,24 @@ export function reconnectedCount(state: Record<string, SettlementStatus>): numbe
   return Object.values(state).filter((s) => s === 'reconnected').length;
 }
 
+// A reconnected place is safer and more grateful, so a further delivery to it
+// pays a premium over the flat silent-era rate. This keeps reconnection paying
+// off past the first delivery, the gap Session 5 flagged in the later regions
+// (see docs/design/06_world_state_remainder.md, Item 2).
+export const RECONNECTED_REWARD_BONUS = 0.2;
+
+/**
+ * Reward multiplier for a delivery, given the destination's current status.
+ * 1.0 for a silent destination (the reconnecting delivery itself) or the home
+ * hub; a premium once the destination is already reconnected, so repeat and arc
+ * work to a revived place pays better. Pure: derived from world-state, no save.
+ */
+export function reconnectionRewardMultiplier(
+  destinationStatus: SettlementStatus | undefined,
+): number {
+  return destinationStatus === 'reconnected' ? 1 + RECONNECTED_REWARD_BONUS : 1;
+}
+
 /** Count settlements still silent, awaiting their delivery. */
 export function silentCount(state: Record<string, SettlementStatus>): number {
   return Object.values(state).filter((s) => s === 'silent').length;

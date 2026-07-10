@@ -39,7 +39,11 @@ import {
 import { boardText, summaryText, skillPanelText } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournalText } from '../systems/journal-text';
-import { computeWorldState, type SettlementStatus } from '../systems/world-state';
+import {
+  computeWorldState,
+  reconnectionRewardMultiplier,
+  type SettlementStatus,
+} from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { totalXp, levelForXp, levelProgress } from '../systems/experience';
 import {
@@ -903,9 +907,13 @@ export class MapScene extends Phaser.Scene {
   }
 
   private completeDelivery(contract: Contract, settlementId: string, settlementName: string): void {
+    // A delivery to an already-reconnected place pays a premium. World-state is
+    // read before this contract is marked completed, so the delivery that first
+    // reconnects a place pays the flat rate and only later work to it is boosted.
+    const reconnectMult = reconnectionRewardMultiplier(this.worldState()[contract.destinationId]);
     // Cargo type scales the base reward before reputation is applied.
     const cargoCategory = getCargoCategory(contract.cargoType);
-    const baseReward = cargoPayout(contract.reward, contract.cargoType);
+    const baseReward = Math.round(cargoPayout(contract.reward, contract.cargoType) * reconnectMult);
     // Higher standing pays better; the reward scales with total reputation.
     const reputation = totalReputation(this.state.ledger);
     const payout = applyRewardBonus(baseReward, reputation);
@@ -937,9 +945,10 @@ export class MapScene extends Phaser.Scene {
     const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
+    const reconnectNote = reconnectMult > 1 ? ' The reconnected road pays better.' : '';
     this.logEvent(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}`,
+        `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
     this.refreshObjective();
     this.refreshWallet();
@@ -1079,6 +1088,7 @@ export class MapScene extends Phaser.Scene {
         homeName: this.region.settlements[this.region.home]?.name ?? this.region.home,
         contracts: this.boardContracts(),
         reputation: totalReputation(this.state.ledger),
+        worldStatus: this.worldState(),
       }),
     );
   }

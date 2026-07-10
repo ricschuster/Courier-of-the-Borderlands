@@ -91,17 +91,20 @@ export function reconnectionRewardMultiplier(
 Applied to `contract.reward` at delivery, and reflected on the board so the
 player sees the new figure. No save change (world-state is already derived).
 
-### Open (Session 2 sets these)
+### Resolved and built (Session 5 playtest)
 
-- **Direction.** Does a reconnected place pay *more* (reward the arc) or *less*
-  (routine work, push the player onward)? Plausibly more early to reward
-  reconnecting, then the interesting content is the arc contracts, not the
-  standing ones.
-- **Magnitude.** Proposed default to test: **+20 percent** on standing contracts
-  whose destination is reconnected. Small enough not to break the economy,
-  visible enough to notice. Session 2 confirms or replaces this.
-- **Scope.** All standing contracts to a reconnected place, or only some? Start
-  with all; narrow only if it feels off.
+Session 5 flagged that reconnecting stops paying off in the later regions and
+chose "the world reacts" as the direction to invest in. Item 2 shipped with:
+
+- **Direction: more.** A reconnected destination pays a premium, rewarding the
+  arc and repeat work to a revived place.
+- **Magnitude: +20 percent**, the proposed default (`RECONNECTED_REWARD_BONUS`
+  in `src/systems/world-state.ts`).
+- **Scope: any delivery** whose destination is already reconnected. World-state
+  is read before the current contract is marked complete, so the delivery that
+  first reconnects a place still pays the flat rate; only later work to it is
+  boosted (this is where it fires most, since most places host one standing
+  route). Surfaced on the board and in the delivery note; no save change.
 
 ## Build order once unblocked
 

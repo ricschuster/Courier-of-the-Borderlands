@@ -227,10 +227,16 @@ Shipped (cont.):
       than loose extra work. Reads world-state (delivery history + flags); no HUD
       objective or balance impact; no save change.
 
-Still to do (specced in `docs/design/06_world_state_remainder.md`, playtest-gated
-by Session 2 in `docs/design/05_playtest_notes.md`):
-- [ ] Further consequences: withdrawn contracts, price and reward shifts,
-      deeper settlement changes (reward tuning is best set from a playtest)
+Still to do (specced in `docs/design/06_world_state_remainder.md`, unblocked by
+the Session 5 playtest, which chose "the world reacts" as the progression
+direction):
+- [x] Reward shift on reconnection (Item 2): a delivery to an already-reconnected
+      place pays a +20% premium, shown on the board and in the delivery note, so
+      reconnecting keeps paying off in the later regions (`reconnectionRewardMultiplier`
+      in `src/systems/world-state.ts`). Session 5 set the direction (more) and
+      magnitude (+20%).
+- [ ] Withdrawn contracts (Item 1): hide a contract once a flag makes it moot,
+      the inverse of the arc gate. Needs a content decision on what withdraws.
 - [ ] Missions proper read and write world-state (a mission step gated on an
       arc-gated contract, once the spine shape is confirmed by a playtest)
 - [x] Progression that does not flatline: coin sink (more upgrades) plus the

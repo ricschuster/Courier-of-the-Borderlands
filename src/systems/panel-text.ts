@@ -10,12 +10,15 @@ import { getCargoCategory } from './cargo-types';
 import { bonusFor, describeBonus } from './contract-bonus';
 import { computeRunSummary } from './run-summary';
 import { rankOf, type Skill, type SkillRanks } from './skills';
+import { reconnectionRewardMultiplier, type SettlementStatus } from './world-state';
 
 export interface BoardTextInput {
   readonly homeName: string;
   /** Contracts currently offerable, in board order. */
   readonly contracts: readonly Contract[];
   readonly reputation: number;
+  /** Connection status per settlement, so a reconnected destination shows its premium. */
+  readonly worldStatus: Record<string, SettlementStatus>;
 }
 
 /** The contract board: a header and one line per offerable contract. */
@@ -29,8 +32,13 @@ export function boardText(input: BoardTextInput): string {
       ? ''
       : `   [needs ${contract.minReputation} rep]`;
     const cargoTag = getCargoCategory(contract.cargoType).tag;
+    // A reconnected destination pays a premium; show the boosted figure and by
+    // how much, so the board reflects the world reacting to past deliveries.
+    const mult = reconnectionRewardMultiplier(input.worldStatus[contract.destinationId]);
+    const reward = Math.round(contract.reward * mult);
+    const reconnectTag = mult > 1 ? `  (+${Math.round((mult - 1) * 100)}% reconnected)` : '';
     lines.push(
-      `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>`,
+      `  [${i + 1}] ${contract.title}  -  ${reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>${reconnectTag}`,
     );
     const bonus = bonusFor(contract.id);
     if (bonus !== undefined) {
