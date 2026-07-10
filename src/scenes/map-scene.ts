@@ -146,6 +146,15 @@ interface E2EState {
   readonly destination:
     | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
     | null;
+  /**
+   * Tile of the active contract's pickup settlement while the cargo is still
+   * unclaimed (status 'accepted'). Null once carrying, or when there is no
+   * active contract. Lets a driver navigate the two-leg (pickup then deliver)
+   * contracts whose pickup is not the home town.
+   */
+  readonly pickup:
+    | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
+    | null;
   readonly fordUnlocked: boolean;
   readonly unlocks: readonly string[];
   readonly upgrades: readonly string[];
@@ -524,13 +533,26 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
+  /**
+   * Test-only wagon speed multiplier. The full-arc e2e drives ~20 deliveries at
+   * real wheel speed, which is slow; `?turbo` doubles the speed so the CI arc
+   * check finishes in about half the wall-clock. Kept to 2x on purpose: the
+   * drive loop samples position every ~80ms, and 2x still moves the wagon less
+   * than one tile per sample, so goal-tile detection stays reliable. Never set
+   * in normal play. Gated behind `?e2e` so a stray URL param cannot speed up the
+   * real game.
+   */
+  private speedFactor(): number {
+    return this.isE2E() && new URLSearchParams(window.location.search).has('turbo') ? 2 : 1;
+  }
+
   /** Attach the read-plus-navigate test API to window, gated on `?e2e`. */
   private maybeExposeE2EApi(): void {
     if (!this.isE2E()) {
       return;
     }
     globalThis.__courier = {
-      version: 10,
+      version: 11,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -553,6 +575,16 @@ export class MapScene extends Phaser.Scene {
       destSettlement === undefined
         ? null
         : this.tileCenter(destSettlement.tile.x, destSettlement.tile.y);
+    // Pickup leg: only meaningful while the cargo is still unclaimed. Once the
+    // status is 'carrying' the pickup is done, so this reports null.
+    const pickupSettlement =
+      this.activeContract === undefined || this.progress?.status !== 'accepted'
+        ? undefined
+        : this.region.settlements[this.activeContract.pickupId];
+    const pickupCenter =
+      pickupSettlement === undefined
+        ? null
+        : this.tileCenter(pickupSettlement.tile.x, pickupSettlement.tile.y);
     const signpostTile = this.region.signpost;
     const signpostCenter =
       signpostTile === undefined ? null : this.tileCenter(signpostTile.x, signpostTile.y);
@@ -573,6 +605,10 @@ export class MapScene extends Phaser.Scene {
         destSettlement === undefined || destCenter === null
           ? null
           : { tileX: destSettlement.tile.x, tileY: destSettlement.tile.y, x: destCenter.x, y: destCenter.y },
+      pickup:
+        pickupSettlement === undefined || pickupCenter === null
+          ? null
+          : { tileX: pickupSettlement.tile.x, tileY: pickupSettlement.tile.y, x: pickupCenter.x, y: pickupCenter.y },
       fordUnlocked: this.regionFordUnlocked(),
       unlocks: [...this.state.unlocks],
       upgrades: [...this.state.upgrades],
@@ -670,7 +706,8 @@ export class MapScene extends Phaser.Scene {
     );
     const upgradeModifier =
       speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE) + skillSpeedBonus(this.skills);
-    const speed = COURIER_SPEED * terrainModifier * upgradeModifier * this.weather.speedMultiplier;
+    const speed =
+      COURIER_SPEED * terrainModifier * upgradeModifier * this.weather.speedMultiplier * this.speedFactor();
     const velocity = computeVelocity(input, speed);
     this.courier.setVelocity(velocity.x, velocity.y);
 
