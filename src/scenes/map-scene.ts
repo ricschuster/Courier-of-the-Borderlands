@@ -164,6 +164,8 @@ interface E2EState {
   readonly regionCleared: boolean;
   /** Whether the skills panel is currently open. */
   readonly skillPanelOpen: boolean;
+  /** Whether the region-cleared summary panel is currently shown. */
+  readonly summaryVisible: boolean;
   /** Active mission id for the current region, or null when none is active. */
   readonly activeMissionId: string | null;
   /** The active mission's current step id, or null. */
@@ -503,7 +505,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 8,
+      version: 9,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -564,6 +566,7 @@ export class MapScene extends Phaser.Scene {
       activeEncounterId: this.dialogue.activeEncounterId(),
       regionCleared: this.regionCleared(),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
+      summaryVisible: this.hud.isSummaryVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,
       activeMissionStepId: e2eObjective?.step.id ?? null,
     };
@@ -970,6 +973,15 @@ export class MapScene extends Phaser.Scene {
     return contractsInPlay(this.region.contracts, this.completed, this.effectiveFlags()).length;
   }
 
+  /** Delivered and total counts for the region's standing (ungated) routes. */
+  private baseContractCounts(): { delivered: number; total: number } {
+    const base = baseContracts(this.region.contracts);
+    return {
+      delivered: base.filter((c) => this.completed.has(c.id)).length,
+      total: base.length,
+    };
+  }
+
   /**
    * The region is "cleared" once its standing (ungated) routes are all
    * delivered. Deliberately ignores gated contracts: the derived
@@ -978,8 +990,8 @@ export class MapScene extends Phaser.Scene {
    * opened new work.
    */
   private regionCleared(): boolean {
-    const base = baseContracts(this.region.contracts);
-    return base.length > 0 && base.every((c) => this.completed.has(c.id));
+    const { delivered, total } = this.baseContractCounts();
+    return total > 0 && delivered === total;
   }
 
   private atSettlement(id: string): boolean {
@@ -1384,6 +1396,11 @@ export class MapScene extends Phaser.Scene {
       this.hud.setSummary(null);
       return;
     }
+    // The cleared panel fires on the standing (ungated) routes, so every region
+    // shows it at the natural end of its work. Basing it on in-play contracts
+    // suppressed the panel on the spokes, whose arc-gated contract is revealed
+    // and left undelivered as the mission climax (Session 5 playtest).
+    const base = this.baseContractCounts();
     // summaryText returns null until the region is cleared, so setSummary(null)
     // keeps the panel hidden in that case.
     this.hud.setSummary(
@@ -1392,8 +1409,8 @@ export class MapScene extends Phaser.Scene {
         coins: this.state.ledger.coins,
         totalReputation: totalReputation(this.state.ledger),
         reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-        delivered: this.deliveredInRegion(),
-        totalContracts: this.contractsInPlayCount(),
+        delivered: base.delivered,
+        totalContracts: base.total,
         fordUnlocked: this.regionFordUnlocked(),
         upgradesOwned: this.state.upgrades.size,
         distanceText: formatDistance(this.trip.distanceTiles),

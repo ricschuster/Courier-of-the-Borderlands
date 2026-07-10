@@ -289,6 +289,10 @@ export class MapHud {
     return this.dialoguePanel.visible;
   }
 
+  isSummaryVisible(): boolean {
+    return this.summaryPanel.visible;
+  }
+
   isJournalVisible(): boolean {
     return this.journalPanel.visible;
   }
