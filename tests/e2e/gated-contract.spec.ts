@@ -17,6 +17,7 @@ const BASE_GREYBRIDGE_CONTRACTS = [
   'rumours-to-ironhollow',
   'writ-to-northcairn',
   'secret-to-mirewatch',
+  'secret-to-reedgrave',
 ];
 
 test('an arc-gated contract appears after the reveal without re-locking the region', async ({
