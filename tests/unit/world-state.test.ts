@@ -4,6 +4,8 @@ import {
   settlementStatus,
   reconnectedCount,
   silentCount,
+  reconnectionRewardMultiplier,
+  RECONNECTED_REWARD_BONUS,
   type WorldStateInput,
 } from '../../src/systems/world-state';
 
@@ -82,5 +84,17 @@ describe('counts', () => {
     // reconnected: north (delivered) + outpost (no inbound); silent: east
     expect(reconnectedCount(state)).toBe(2);
     expect(silentCount(state)).toBe(1);
+  });
+});
+
+describe('reconnectionRewardMultiplier', () => {
+  it('pays a premium to a reconnected destination', () => {
+    expect(reconnectionRewardMultiplier('reconnected')).toBe(1 + RECONNECTED_REWARD_BONUS);
+  });
+
+  it('pays the flat rate to a silent or home destination, or an unknown place', () => {
+    expect(reconnectionRewardMultiplier('silent')).toBe(1);
+    expect(reconnectionRewardMultiplier('home')).toBe(1);
+    expect(reconnectionRewardMultiplier(undefined)).toBe(1);
   });
 });
