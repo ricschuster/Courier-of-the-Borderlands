@@ -91,7 +91,8 @@ import {
   type MissionState,
 } from '../systems/mission-system';
 import { MISSIONS } from '../data/missions';
-import { MapHud, STATUS_COLOR } from './map-hud';
+import { MapHud } from './map-hud';
+import { MapMarkers } from './map-markers';
 import {
   getRegion,
   arrivalTile,
@@ -191,8 +192,8 @@ declare global {
   var __courier: CourierE2EApi | undefined;
 }
 
-// Depth layers, from bottom to top. HUD depth lives in map-hud.ts.
-const DEPTH_MARKER = 1;
+// Depth layers, from bottom to top. HUD depth lives in map-hud.ts and marker
+// depth in map-markers.ts.
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
 
@@ -246,9 +247,8 @@ export class MapScene extends Phaser.Scene {
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
   private achievements = new Set<string>();
-  // Main-map settlement marker rectangles, keyed by settlement id, so their
-  // fill can be recoloured when a delivery reconnects a place.
-  private settlementMarkers = new Map<string, Phaser.GameObjects.Rectangle>();
+  // Presentation layer for the map markers (settlements, gateways, signpost).
+  private markers!: MapMarkers;
   // Chosen courier skill ranks. Experience and level are derived from play
   // stats; only these choices are persisted.
   private skills: SkillRanks = {};
@@ -321,16 +321,20 @@ export class MapScene extends Phaser.Scene {
 
     this.setupCamera();
 
+    this.markers = new MapMarkers(this, this.mapOriginY);
     // The signpost only exists in regions that host the ford-unlock mechanic.
     if (
       this.region.signpost !== undefined &&
       this.region.fordUnlockId !== undefined &&
       !isUnlocked(this.state, this.region.fordUnlockId)
     ) {
-      this.addSignpost(this.region.signpost, this.region.fordUnlockId);
+      const fordUnlockId = this.region.fordUnlockId;
+      this.markers.addSignpost(this.region.signpost, this.courier.sprite, () =>
+        this.unlockFeature(fordUnlockId),
+      );
     }
-    this.addSettlementMarkers();
-    this.addGatewayMarkers();
+    this.markers.addSettlements(this.region, this.worldState());
+    this.markers.addGateways(this.region, this.map.width, this.map.height);
     this.addFog();
     this.restoreFog();
     this.setupInput();
@@ -850,28 +854,6 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private addSettlementMarkers(): void {
-    const status = this.worldState();
-    this.settlementMarkers.clear();
-    for (const settlement of Object.values(this.region.settlements)) {
-      const center = this.tileCenter(settlement.tile.x, settlement.tile.y);
-      const fill = STATUS_COLOR[status[settlement.id] ?? 'silent'];
-      const marker = this.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, fill)
-        .setStrokeStyle(2, 0x1a1a1a)
-        .setDepth(DEPTH_MARKER);
-      this.settlementMarkers.set(settlement.id, marker);
-      this.add
-        .text(center.x, center.y + TILE_SIZE * 0.5, settlement.name, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#f2efe4',
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH_MARKER);
-    }
-  }
-
   /** Courier experience, derived from cumulative play stats (not stored). */
   private courierXp(): number {
     return totalXp({
@@ -894,14 +876,6 @@ export class MapScene extends Phaser.Scene {
       homeId: this.region.home,
       completedContractIds: [...this.completed],
     });
-  }
-
-  /** Recolour the main-map settlement markers to match current world-state. */
-  private refreshSettlementMarkers(): void {
-    const status = this.worldState();
-    for (const [id, marker] of this.settlementMarkers) {
-      marker.setFillStyle(STATUS_COLOR[status[id] ?? 'silent']);
-    }
   }
 
   private updateDelivery(): void {
@@ -971,7 +945,7 @@ export class MapScene extends Phaser.Scene {
     this.refreshAchievements(true);
     // The delivery reconnects this settlement: recolour its marker (and the
     // minimap if it is open) so the change to the world is immediately visible.
-    this.refreshSettlementMarkers();
+    this.markers.refreshSettlements(this.worldState());
     if (this.hud.isMinimapVisible()) {
       this.redrawMinimap();
     }
@@ -1229,58 +1203,6 @@ export class MapScene extends Phaser.Scene {
       );
     } else {
       this.hud.setHint(base);
-    }
-  }
-
-  private addSignpost(tile: { x: number; y: number }, fordUnlockId: string): void {
-    const center = this.tileCenter(tile.x, tile.y);
-    const signpost = this.add.rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, 0xe8d8b0);
-    this.physics.add.existing(signpost, true);
-    this.add
-      .text(center.x, center.y - TILE_SIZE * 0.6, 'ford key', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#e8d8b0',
-      })
-      .setOrigin(0.5);
-
-    this.physics.add.overlap(this.courier.sprite, signpost, () => {
-      if (this.unlockFeature(fordUnlockId)) {
-        signpost.destroy();
-      }
-    });
-  }
-
-  private addGatewayMarkers(): void {
-    for (const gateway of this.region.gateways) {
-      // Every gateway sits on an open-road tile toward the map edge, off any town
-      // (the Fenmarch crossing was moved south off Southmill, per playtest), so
-      // each gets its own outline box and a "road to X" label above the tile. The
-      // marker is what makes the way out of the region discoverable on the map.
-      // See docs/design/05_playtest_notes.md.
-      const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
-      this.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-        .setStrokeStyle(2, 0x6fd0e0)
-        .setDepth(DEPTH_MARKER);
-      const destName = getRegion(gateway.to).name;
-      const label = this.add
-        .text(center.x, center.y - TILE_SIZE * 0.55, `road to ${destName}`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#6fd0e0',
-        })
-        .setOrigin(0.5)
-        .setDepth(DEPTH_MARKER);
-      // Keep the whole label inside the map bounds so an edge gateway name is not
-      // cut off ("road to Salt" ran off the screen at the map edge; see
-      // docs/design/05_playtest_notes.md). The camera clamps to these same bounds.
-      const worldW = this.map.width * TILE_SIZE;
-      const worldH = this.map.height * TILE_SIZE;
-      const halfW = label.width / 2 + 2;
-      const halfH = label.height / 2 + 2;
-      label.setX(Phaser.Math.Clamp(label.x, halfW, worldW - halfW));
-      label.setY(Phaser.Math.Clamp(label.y, this.mapOriginY + halfH, this.mapOriginY + worldH - halfH));
     }
   }
 
