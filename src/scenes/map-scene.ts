@@ -11,6 +11,7 @@ import {
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
+import { traversalKeys } from '../systems/traversal';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import {
   objectiveText,
@@ -636,12 +637,14 @@ export class MapScene extends Phaser.Scene {
 
   /** World centre of the next tile on the shortest passable path to a goal. */
   private e2eNextStep(tileX: number, tileY: number): { x: number; y: number } | null {
+    // Compute the capability set once per pathfind, not per tile visited.
+    const keys = this.traversalKeys();
     const path = findPath({
       width: this.map.width,
       height: this.map.height,
       isPassable: (x, y) => {
         const id = getTerrainIdAt(this.map, x, y);
-        return id !== undefined && isPassableWith(id, this.state.unlocks);
+        return id !== undefined && isPassableWith(id, keys);
       },
       start: this.courierTile(),
       goal: { x: tileX, y: tileY },
@@ -659,12 +662,13 @@ export class MapScene extends Phaser.Scene {
 
   /** Full shortest passable path to a goal tile, or null if unreachable. */
   private e2ePathTo(tileX: number, tileY: number): { x: number; y: number }[] | null {
+    const keys = this.traversalKeys();
     const path = findPath({
       width: this.map.width,
       height: this.map.height,
       isPassable: (x, y) => {
         const id = getTerrainIdAt(this.map, x, y);
-        return id !== undefined && isPassableWith(id, this.state.unlocks);
+        return id !== undefined && isPassableWith(id, keys);
       },
       start: this.courierTile(),
       goal: { x: tileX, y: tileY },
@@ -678,7 +682,17 @@ export class MapScene extends Phaser.Scene {
   /** Whether a tile is currently drivable, given the active unlock set. */
   private e2eIsPassable(tileX: number, tileY: number): boolean {
     const id = getTerrainIdAt(this.map, tileX, tileY);
-    return id !== undefined && isPassableWith(id, this.state.unlocks);
+    return id !== undefined && isPassableWith(id, this.traversalKeys());
+  }
+
+  /**
+   * The capability tokens that currently open gated terrain: unlocks plus
+   * anything the wagon build or skills grant (a route may need Marsh Treads or
+   * an off-road skill rank, not just an opened ford). Recomputed per query so it
+   * always reflects the latest upgrades and skill ranks.
+   */
+  private traversalKeys(): ReadonlySet<string> {
+    return traversalKeys(this.state.unlocks, this.state.upgrades, this.skills);
   }
 
   update(): void {
@@ -787,12 +801,13 @@ export class MapScene extends Phaser.Scene {
     if (destination === undefined) {
       return null;
     }
+    const keys = this.traversalKeys();
     return findPath({
       width: this.map.width,
       height: this.map.height,
       isPassable: (x, y) => {
         const id = getTerrainIdAt(this.map, x, y);
-        return id !== undefined && isPassableWith(id, this.state.unlocks);
+        return id !== undefined && isPassableWith(id, keys);
       },
       start: this.courierTile(),
       goal: { x: destination.tile.x, y: destination.tile.y },
@@ -873,10 +888,11 @@ export class MapScene extends Phaser.Scene {
 
   private addImpassableColliders(): void {
     this.impassable = this.physics.add.staticGroup();
+    const keys = this.traversalKeys();
     for (let y = 0; y < this.map.height; y++) {
       for (let x = 0; x < this.map.width; x++) {
         const terrainId = getTerrainIdAt(this.map, x, y);
-        if (terrainId === undefined || isPassableWith(terrainId, this.state.unlocks)) {
+        if (terrainId === undefined || isPassableWith(terrainId, keys)) {
           continue;
         }
         const center = this.tileCenter(x, y);
