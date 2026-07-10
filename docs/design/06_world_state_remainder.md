@@ -16,7 +16,18 @@ before the playtest risks setting numbers that feel wrong and reshaping the felt
 critical path blind. So the plan is: play first (Session 2), then implement
 against the observations.
 
-## Item 1: Withdrawn contracts
+## Item 1: Withdrawn contracts (DROPPED)
+
+Dropped 2026-07-09. The mechanism was always playtest-gated (see "Open" below:
+"If the playtest finds nothing that wants to disappear, this item is dropped, not
+built"). The Session 5 full-arc playtest named no contract that wanted to
+withdraw, and the owner judged the idea weak on its own terms: a job vanishing
+off the board reads as "you missed it / it broke," not "the world moved on,"
+especially under the spec's own assumption that it leaves quietly. The
+"board reacts to history" goal is already carried by the shipped reward premium
+(#86) and the new lateral routes that open on reconnection (#88). The proposed
+shape below is kept for the record only; do not build it without a fresh design
+decision and a specific contract that should disappear.
 
 ### Intent
 
@@ -108,10 +119,8 @@ chose "the world reacts" as the direction to invest in. Item 2 shipped with:
 
 ## Build order once unblocked
 
-1. Withdrawn contracts (Item 1): smallest, purely additive, no numbers needed
-   beyond the content decision. Ship first if the playtest finds a withdrawal.
-2. Reward shift (Item 2): implement the multiplier as a no-op, then set the
-   number from the playtest, then surface it on the board.
+1. ~~Withdrawn contracts (Item 1)~~: dropped 2026-07-09 (see Item 1 above).
+2. Reward shift (Item 2): shipped Session 5 (#86).
 3. Only after both feel right: consider a mission step gated on an arc contract
    (the "missions read and write world-state" bullet), since that reshapes the
    felt critical path and wants the spine confirmed in play first.
