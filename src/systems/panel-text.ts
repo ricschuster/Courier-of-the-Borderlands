@@ -1,0 +1,113 @@
+// Pure text builders for the remaining HUD panels: the contract board, the
+// region-cleared summary, and the courier skills panel. Each takes plain input,
+// composes the relevant pure systems, and returns the string the HUD renders.
+// No Phaser or DOM here, so the formatting is unit testable. The scene keeps the
+// show/hide decisions and the live state gathering. See journal-text.ts for the
+// same pattern applied to the discoveries journal.
+
+import { canAccept, type Contract } from './contract-system';
+import { getCargoCategory } from './cargo-types';
+import { bonusFor, describeBonus } from './contract-bonus';
+import { computeRunSummary } from './run-summary';
+import { rankOf, type Skill, type SkillRanks } from './skills';
+
+export interface BoardTextInput {
+  readonly homeName: string;
+  /** Contracts currently offerable, in board order. */
+  readonly contracts: readonly Contract[];
+  readonly reputation: number;
+}
+
+/** The contract board: a header and one line per offerable contract. */
+export function boardText(input: BoardTextInput): string {
+  const lines = [`${input.homeName.toUpperCase()} BOARD  (press number to accept)`];
+  if (input.contracts.length === 0) {
+    lines.push('  No contracts remain. The frontier is quiet, for now.');
+  }
+  input.contracts.forEach((contract, i) => {
+    const locked = canAccept(contract, input.reputation)
+      ? ''
+      : `   [needs ${contract.minReputation} rep]`;
+    const cargoTag = getCargoCategory(contract.cargoType).tag;
+    lines.push(
+      `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>`,
+    );
+    const bonus = bonusFor(contract.id);
+    if (bonus !== undefined) {
+      lines.push(`      ${describeBonus(bonus)}`);
+    }
+  });
+  return lines.join('\n');
+}
+
+export interface SummaryTextInput {
+  readonly regionName: string;
+  readonly coins: number;
+  readonly totalReputation: number;
+  readonly reputationTier: string;
+  readonly delivered: number;
+  readonly totalContracts: number;
+  readonly fordUnlocked: boolean;
+  readonly upgradesOwned: number;
+  readonly distanceText: string;
+  /** Names of the regions reachable from here, for the travel prompt. */
+  readonly gatewayNames: string;
+}
+
+/**
+ * The region-cleared summary panel, or null when the region is not yet cleared
+ * (all standing contracts delivered). The scene still owns whether a cleared
+ * summary has been dismissed.
+ */
+export function summaryText(input: SummaryTextInput): string | null {
+  const summary = computeRunSummary({
+    coins: input.coins,
+    totalReputation: input.totalReputation,
+    reputationTier: input.reputationTier,
+    delivered: input.delivered,
+    totalContracts: input.totalContracts,
+    fordUnlocked: input.fordUnlocked,
+    upgradesOwned: input.upgradesOwned,
+  });
+  if (!summary.complete) {
+    return null;
+  }
+  const lines = [
+    `${input.regionName} Cleared`,
+    '',
+    ...summary.lines,
+    `Distance driven: ${input.distanceText}`,
+    '',
+    `Reach the gateway and press T to travel to ${input.gatewayNames}.`,
+    'Press N for a new run.  Esc to dismiss this panel.',
+  ];
+  return lines.join('\n');
+}
+
+export interface SkillPanelTextInput {
+  readonly level: number;
+  readonly xpIntoLevel: number;
+  readonly xpForNextLevel: number;
+  readonly points: number;
+  readonly skills: readonly Skill[];
+  readonly ranks: SkillRanks;
+}
+
+/** The courier skills panel: level, points to spend, and each skill's rank. */
+export function skillPanelText(input: SkillPanelTextInput): string {
+  const lines = [
+    'COURIER SKILLS   (K to close, mouse wheel to scroll)',
+    `Level ${input.level}   XP ${input.xpIntoLevel} / ${input.xpForNextLevel}`,
+    `Skill points to spend: ${input.points}`,
+    '',
+    'Press the number to invest a point:',
+  ];
+  input.skills.forEach((skill, i) => {
+    const rank = rankOf(input.ranks, skill.id);
+    const maxed = rank >= skill.maxRank ? '  (max)' : '';
+    lines.push(`  [${i + 1}] ${skill.name}  rank ${rank}/${skill.maxRank}${maxed}`);
+    lines.push(`        ${skill.description}`);
+  });
+  lines.push('', 'Level up by delivering, exploring, and covering ground.');
+  return lines.join('\n');
+}

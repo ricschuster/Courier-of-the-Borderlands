@@ -36,7 +36,7 @@ import {
   cheapestUnpurchased,
   terrainSpeedFactor,
 } from '../systems/upgrade-system';
-import { computeRunSummary } from '../systems/run-summary';
+import { boardText, summaryText, skillPanelText } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournalText } from '../systems/journal-text';
 import { computeWorldState, type SettlementStatus } from '../systems/world-state';
@@ -73,7 +73,7 @@ import {
 } from '../systems/achievements';
 import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
-import { bonusFor, bonusAchieved, describeBonus } from '../systems/contract-bonus';
+import { bonusFor, bonusAchieved } from '../systems/contract-bonus';
 import {
   setFlags,
   flagsToArray,
@@ -1060,27 +1060,13 @@ export class MapScene extends Phaser.Scene {
       this.hud.setBoard(null);
       return;
     }
-    const reputation = totalReputation(this.state.ledger);
-    const list = this.boardContracts();
-    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
-    const lines = [`${homeName.toUpperCase()} BOARD  (press number to accept)`];
-    if (list.length === 0) {
-      lines.push('  No contracts remain. The frontier is quiet, for now.');
-    }
-    list.forEach((contract, i) => {
-      const locked = canAccept(contract, reputation)
-        ? ''
-        : `   [needs ${contract.minReputation} rep]`;
-      const cargoTag = getCargoCategory(contract.cargoType).tag;
-      lines.push(
-        `  [${i + 1}] ${contract.title}  -  ${contract.reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>`,
-      );
-      const bonus = bonusFor(contract.id);
-      if (bonus !== undefined) {
-        lines.push(`      ${describeBonus(bonus)}`);
-      }
-    });
-    this.hud.setBoard(lines.join('\n'));
+    this.hud.setBoard(
+      boardText({
+        homeName: this.region.settlements[this.region.home]?.name ?? this.region.home,
+        contracts: this.boardContracts(),
+        reputation: totalReputation(this.state.ledger),
+      }),
+    );
   }
 
   private handlePurchaseInput(): void {
@@ -1310,22 +1296,16 @@ export class MapScene extends Phaser.Scene {
 
   private refreshSkillPanel(): void {
     const prog = levelProgress(this.courierXp());
-    const points = availablePoints(prog.level, this.skills);
-    const lines = [
-      'COURIER SKILLS   (K to close, mouse wheel to scroll)',
-      `Level ${prog.level}   XP ${prog.xpIntoLevel} / ${prog.xpForNextLevel}`,
-      `Skill points to spend: ${points}`,
-      '',
-      'Press the number to invest a point:',
-    ];
-    SKILLS.forEach((skill, i) => {
-      const rank = rankOf(this.skills, skill.id);
-      const maxed = rank >= skill.maxRank ? '  (max)' : '';
-      lines.push(`  [${i + 1}] ${skill.name}  rank ${rank}/${skill.maxRank}${maxed}`);
-      lines.push(`        ${skill.description}`);
-    });
-    lines.push('', 'Level up by delivering, exploring, and covering ground.');
-    this.hud.setSkillText(lines.join('\n'));
+    this.hud.setSkillText(
+      skillPanelText({
+        level: prog.level,
+        xpIntoLevel: prog.xpIntoLevel,
+        xpForNextLevel: prog.xpForNextLevel,
+        points: availablePoints(prog.level, this.skills),
+        skills: SKILLS,
+        ranks: this.skills,
+      }),
+    );
   }
 
   /** The active objective as re-readable text for the journal, or null. */
@@ -1387,30 +1367,26 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshSummary(): void {
-    const summary = computeRunSummary({
-      coins: this.state.ledger.coins,
-      totalReputation: totalReputation(this.state.ledger),
-      reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-      delivered: this.deliveredInRegion(),
-      totalContracts: this.contractsInPlayCount(),
-      fordUnlocked: this.regionFordUnlocked(),
-      upgradesOwned: this.state.upgrades.size,
-    });
-    if (!summary.complete || this.summaryDismissed) {
+    if (this.summaryDismissed) {
       this.hud.setSummary(null);
       return;
     }
-    const otherNames = this.gatewayDestinationNames();
-    const lines = [
-      `${this.region.name} Cleared`,
-      '',
-      ...summary.lines,
-      `Distance driven: ${formatDistance(this.trip.distanceTiles)}`,
-      '',
-      `Reach the gateway and press T to travel to ${otherNames}.`,
-      'Press N for a new run.  Esc to dismiss this panel.',
-    ];
-    this.hud.setSummary(lines.join('\n'));
+    // summaryText returns null until the region is cleared, so setSummary(null)
+    // keeps the panel hidden in that case.
+    this.hud.setSummary(
+      summaryText({
+        regionName: this.region.name,
+        coins: this.state.ledger.coins,
+        totalReputation: totalReputation(this.state.ledger),
+        reputationTier: tierFor(totalReputation(this.state.ledger)).name,
+        delivered: this.deliveredInRegion(),
+        totalContracts: this.contractsInPlayCount(),
+        fordUnlocked: this.regionFordUnlocked(),
+        upgradesOwned: this.state.upgrades.size,
+        distanceText: formatDistance(this.trip.distanceTiles),
+        gatewayNames: this.gatewayDestinationNames(),
+      }),
+    );
   }
 
   private achievementStat(): AchievementStat {
