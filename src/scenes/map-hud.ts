@@ -86,6 +86,9 @@ export class MapHud {
   private readonly dialoguePanel: Phaser.GameObjects.Text;
   private readonly minimapGfx: Phaser.GameObjects.Graphics;
   private minimapVisible = false;
+  // Active toasts keyed by slot. They persist until the player dismisses them
+  // (no fade timer), so a story or delivery message can be read at any pace.
+  private readonly toasts = new Map<number, Phaser.GameObjects.Text>();
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -411,10 +414,13 @@ export class MapHud {
   // --- Toast ------------------------------------------------------------
 
   /**
-   * Transient centred message that fades after a few seconds. `slot` stacks
-   * simultaneous toasts (0 = first, below the status column; 1, 2 sit under it).
+   * Centred message that stays until the player dismisses it (Space), rather
+   * than fading on a timer that was always either too short or too long (Session
+   * 5 playtest). `slot` stacks simultaneous toasts (0 = first, below the status
+   * column; 1, 2 sit under it); a new toast in a slot replaces the old one.
    */
   showToast(message: string, slot = 0): void {
+    this.toasts.get(slot)?.destroy();
     const y = TOAST_TOP + slot * TOAST_GAP;
     const toast = this.scene.add
       .text(GAME_WIDTH / 2, y, message, {
@@ -429,9 +435,19 @@ export class MapHud {
       .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
-    // Hold longer for longer messages: at a flat 3.5s players could not finish
-    // reading delivery and story toasts (see docs/design/05_playtest_notes.md).
-    const duration = Math.min(9000, Math.max(4500, 1500 + message.length * 55));
-    this.scene.time.delayedCall(duration, () => toast.destroy());
+    this.toasts.set(slot, toast);
+  }
+
+  /** Whether any toast is currently on screen, so the scene can show a dismiss cue. */
+  hasToasts(): boolean {
+    return this.toasts.size > 0;
+  }
+
+  /** Clear every visible toast. Called when the player presses the dismiss key. */
+  dismissToasts(): void {
+    for (const toast of this.toasts.values()) {
+      toast.destroy();
+    }
+    this.toasts.clear();
   }
 }

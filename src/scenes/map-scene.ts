@@ -257,6 +257,7 @@ export class MapScene extends Phaser.Scene {
   private storyFlags: StoryFlags = emptyFlags();
   private talkKey!: Phaser.Input.Keyboard.Key;
   private escapeKey!: Phaser.Input.Keyboard.Key;
+  private dismissKey!: Phaser.Input.Keyboard.Key;
   // Conversation subsystem: settlement talk, road encounters, and the modal
   // dialogue state machine. Constructed fresh each create(), so a scene restart
   // starts with no conversation open.
@@ -665,6 +666,7 @@ export class MapScene extends Phaser.Scene {
     this.handleBoardInput();
     this.handlePurchaseInput();
     this.handleResetInput();
+    this.handleDismissInput();
     this.handleSummaryInput();
     this.handleTravelInput();
     this.dialogue.handleTalk();
@@ -1128,6 +1130,13 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** Clear any on-screen toasts when the player presses the dismiss key (Space). */
+  private handleDismissInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.dismissKey) && this.hud.hasToasts()) {
+      this.hud.dismissToasts();
+    }
+  }
+
   /**
    * Flags handed to the dialogue engine: the persisted story flags plus flags
    * derived from the live world. Derived flags let a choice gate on a real fact
@@ -1167,7 +1176,10 @@ export class MapScene extends Phaser.Scene {
     const here = settlementAtTileIn(this.region, tile.x, tile.y);
     const talk =
       here !== undefined && dialogueForSettlement(here.id) !== undefined ? `  E: talk to ${here.name}` : '';
-    const base = `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.${talk}`;
+    // Only cue the dismiss key while a toast is actually up, so the help line
+    // stays quiet otherwise (Session 5 playtest: messages now hold until Space).
+    const dismiss = this.hud.hasToasts() ? '  Space: dismiss message.' : '';
+    const base = `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.${talk}${dismiss}`;
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
@@ -1250,6 +1262,7 @@ export class MapScene extends Phaser.Scene {
     this.skillKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
     this.talkKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escapeKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.dismissKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
     // Allocate all number keys, not just one per contract: the same keys select
     // contracts, spend skill points, and pick dialogue choices, and a region may
