@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, travelTo, type Arrow } from './drive';
+import { bootE2E, collectErrors, driveToTile, pressUntil, travelTo, type Arrow } from './drive';
 
 // End-to-end arc completion: boot the real built game and greedily play the
 // whole three-region arc with genuine key presses until the blockade breaks and
@@ -64,8 +64,11 @@ async function walkDialogue(page: Page): Promise<void> {
 }
 
 arcTest('drives the whole arc to the blockade-broken capstone', async ({ page }) => {
-  // The full arc is ~20 deliveries across three regions at real driving speed.
-  test.setTimeout(300_000);
+  // The full arc is ~20 deliveries across three regions. With turbo it runs in
+  // ~3m locally, but a loaded CI runner (or a busy dev machine) throttles the
+  // frame loop and slows the drive, so give generous headroom over the clean
+  // time to keep this a signal about the game, not about runner load.
+  test.setTimeout(480_000);
 
   const errors = collectErrors(page);
   // Turbo doubles the wagon speed (test-only) so ~20 deliveries at real driving
@@ -83,7 +86,9 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
   const doneRegions = new Set<string>();
   let lastRegion = (await readState(page))!.regionId;
 
-  for (let step = 0; step < 260; step++) {
+  // A clean run needs ~100 macro-steps; the generous budget is headroom for
+  // dropped-input retries under a loaded runner.
+  for (let step = 0; step < 400; step++) {
     const s = (await readState(page)) as State | null;
     if (!s) break;
 
@@ -130,13 +135,18 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
       const talkKey = `${s.regionId}:${arcFlags}`;
       if (s.regionCleared && !talked.has(talkKey)) {
         talked.add(talkKey);
-        await page.keyboard.press('E');
-        await page.waitForTimeout(220);
-        if ((await readState(page))?.dialogueOpen) await walkDialogue(page);
+        // Re-press E until the conversation actually opens. A single press can be
+        // dropped under load; without the retry the talk would be marked done
+        // without happening, and the final blockade talk would never fire.
+        await pressUntil(page, 'E', async () => (await readState(page))?.dialogueOpen === true);
+        await walkDialogue(page);
         continue;
       }
       if (s.availableContractIds.length > 0) {
-        await page.keyboard.press('1'); // accept the first offered contract
+        // Accept the first offered contract. A dropped press just means the next
+        // loop iteration re-approaches and retries, so a single press is safe
+        // here (unlike the talk above, which is marked done once attempted).
+        await page.keyboard.press('1');
         await page.waitForTimeout(200);
         continue;
       }
