@@ -73,6 +73,28 @@ describe('dialogue-content', () => {
     expect(returning).not.toContain('Back on the road');
   });
 
+  it('greets the courier warmly at each spoke once its region is reconnected', () => {
+    const cases = [
+      { id: 'tidewatch', flag: FLAG_SALTREACH_METHOD, coldOpening: 'You came by the road' },
+      { id: 'mossgate', flag: FLAG_FENMARCH_COST, coldOpening: 'first wheel' },
+    ] as const;
+    for (const { id, flag, coldOpening } of cases) {
+      const dialogue = dialogueForSettlement(id);
+      if (dialogue === undefined) {
+        throw new Error(`expected a dialogue for ${id}`);
+      }
+      const greeting = startDialogue(dialogue);
+      if (greeting === undefined) {
+        throw new Error(`expected a greeting node for ${id}`);
+      }
+      const first = nodeText(greeting, emptyFlags());
+      const returning = nodeText(greeting, setFlags(emptyFlags(), [flag]));
+      expect(first, `${id} cold opening`).toContain(coldOpening);
+      expect(returning, `${id} return greeting differs`).not.toBe(first);
+      expect(returning, `${id} drops the cold opening`).not.toContain(coldOpening);
+    }
+  });
+
   it('hides the reveal until the region is reconnected, then unlocks it once', () => {
     const dialogue = dialogueForSettlement('greywater');
     if (dialogue === undefined) {

@@ -150,6 +150,15 @@ const TIDEWATCH_HARBORMASTER: Dialogue = {
       id: 'greeting',
       speaker: 'Tidewatch Harbormaster',
       text: 'You came by the road? Dry, and still breathing. That is rarer than it used to be. Say your business quick.',
+      // Once the coast is reconnected and the method is known, the harbormaster
+      // should greet the courier as the one who did it, not as a stranger off
+      // the road (Session 5 playtest, mirroring the postmaster fix).
+      textVariants: [
+        {
+          requires: { allOf: [FLAG_SALTREACH_METHOD] },
+          text: 'The road-courier, back on my quay. Reedford to Cormorant Rock, letters landing where the birds used to rule. The coast talks to itself again because of you. Say your business.',
+        },
+      ],
       choices: [
         { label: 'What happened to the last courier?', next: 'courier' },
         { label: 'Any work on the board?', next: 'work' },
@@ -211,6 +220,14 @@ const MOSSGATE_WARDEN: Dialogue = {
       id: 'greeting',
       speaker: 'Mossgate Warden',
       text: 'Keep your lamp lit past the crossroads. The mist here does not wait for evening, and neither does what moves in it. You are the first wheel I have heard on this road in a long while.',
+      // After the fen is reconnected and its cost is understood, the warden knows
+      // the courier's wheels and speaks to what they changed (Session 5 playtest).
+      textVariants: [
+        {
+          requires: { allOf: [FLAG_FENMARCH_COST] },
+          text: 'Your wheels again. I know the sound now. Duskmere to Hollowfen, lamps lit past the crossroads because a cart kept coming through the mist. That is no small thing out here. What do you need?',
+        },
+      ],
       choices: [
         { label: 'What moves in the mist?', next: 'dark' },
         { label: 'Any work on the board?', next: 'work' },
