@@ -8,7 +8,9 @@ export default defineConfig({
   timeout: 30_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // Retry only in CI, where transient timing and the apt/browser install step
+  // can flake. Locally, retries: 0 keeps flakes visible instead of masked.
+  retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
