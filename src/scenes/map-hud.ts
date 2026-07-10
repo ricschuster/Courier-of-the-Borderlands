@@ -82,6 +82,7 @@ export class MapHud {
   private readonly journalPanel: ScrollablePanel;
   private readonly skillPanel: ScrollablePanel;
   private readonly summaryPanel: Phaser.GameObjects.Text;
+  private readonly capstonePanel: Phaser.GameObjects.Text;
   private readonly legendPanel: Phaser.GameObjects.Text;
   private readonly dialoguePanel: Phaser.GameObjects.Text;
   private readonly minimapGfx: Phaser.GameObjects.Graphics;
@@ -158,6 +159,23 @@ export class MapHud {
         backgroundColor: '#0b0b0bee',
         padding: { x: 16, y: 14 },
         lineSpacing: 6,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
+    // End-of-arc capstone panel, shown once when the blockade is broken. Warm
+    // gold title colour and a near-opaque backing so the finale reads as special.
+    this.capstonePanel = scene.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#f2c14e',
+        backgroundColor: '#0b0b0bf7',
+        padding: { x: 22, y: 18 },
+        lineSpacing: 7,
         align: 'center',
       })
       .setOrigin(0.5)
@@ -269,6 +287,19 @@ export class MapHud {
       return;
     }
     this.summaryPanel.setText(text).setVisible(true);
+  }
+
+  /** Show the end-of-arc capstone panel with the given text, or hide it when null. */
+  setCapstone(text: string | null): void {
+    if (text === null) {
+      this.capstonePanel.setVisible(false);
+      return;
+    }
+    this.capstonePanel.setText(text).setVisible(true);
+  }
+
+  isCapstoneVisible(): boolean {
+    return this.capstonePanel.visible;
   }
 
   /** Show a conversation node, or hide the dialogue box when view is null. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { boardText, summaryText, skillPanelText } from '../../src/systems/panel-text';
+import { boardText, summaryText, skillPanelText, capstoneText } from '../../src/systems/panel-text';
 import type { Contract } from '../../src/systems/contract-system';
 import type { Skill, SkillRanks } from '../../src/systems/skills';
 
@@ -127,5 +127,22 @@ describe('skillPanelText', () => {
       ranks: { wayfinder: 2 },
     });
     expect(text).toContain('[2] Wayfinder  rank 2/2  (max)');
+  });
+});
+
+describe('capstoneText', () => {
+  it('renders the finale title, journey numbers, and dismiss hint', () => {
+    const text = capstoneText({
+      courierTitle: 'Roadwarden',
+      deliveries: 18,
+      distanceText: '240 tiles',
+      regionCount: 3,
+    });
+    expect(text).toContain('THE BLOCKADE BROKEN');
+    expect(text).toContain('Regions reconnected: 3 of 3');
+    expect(text).toContain('Deliveries made: 18');
+    expect(text).toContain('Distance driven: 240 tiles');
+    expect(text).toContain('Courier title: Roadwarden');
+    expect(text).toContain('Esc to close');
   });
 });

@@ -235,6 +235,11 @@ direction):
       reconnecting keeps paying off in the later regions (`reconnectionRewardMultiplier`
       in `src/systems/world-state.ts`). Session 5 set the direction (more) and
       magnitude (+20%).
+- [x] End-of-arc capstone panel: breaking the blockade at Greywater shows a
+      ceremonial finale (journey in numbers, closing lines) once, the session it
+      happens, so the arc no longer ends on a plain dialogue box (`capstoneText`
+      in `src/systems/panel-text.ts`; Session 5 playtest). Shown exactly once via
+      a load-time flag check, no new save field.
 - [ ] Withdrawn contracts (Item 1): hide a contract once a flag makes it moot,
       the inverse of the arc gate. Needs a content decision on what withdraws.
 - [ ] Missions proper read and write world-state (a mission step gated on an

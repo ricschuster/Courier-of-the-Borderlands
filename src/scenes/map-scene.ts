@@ -36,7 +36,7 @@ import {
   cheapestUnpurchased,
   terrainSpeedFactor,
 } from '../systems/upgrade-system';
-import { boardText, summaryText, skillPanelText } from '../systems/panel-text';
+import { boardText, summaryText, skillPanelText, capstoneText } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournalText } from '../systems/journal-text';
 import {
@@ -83,9 +83,14 @@ import {
   flagsToArray,
   flagsFromArray,
   emptyFlags,
+  hasFlag,
   type StoryFlags,
 } from '../systems/dialogue';
-import { dialogueForSettlement, FLAG_HOME_RECONNECTED } from '../data/dialogue-content';
+import {
+  dialogueForSettlement,
+  FLAG_HOME_RECONNECTED,
+  FLAG_BLOCKADE_BROKEN,
+} from '../data/dialogue-content';
 import { DialogueController, type DialogueHost } from './dialogue-controller';
 import {
   activeObjective,
@@ -170,6 +175,8 @@ interface E2EState {
   readonly skillPanelOpen: boolean;
   /** Whether the region-cleared summary panel is currently shown. */
   readonly summaryVisible: boolean;
+  /** Whether the end-of-arc capstone panel is currently shown. */
+  readonly capstoneVisible: boolean;
   /** Active mission id for the current region, or null when none is active. */
   readonly activeMissionId: string | null;
   /** The active mission's current step id, or null. */
@@ -279,6 +286,14 @@ export class MapScene extends Phaser.Scene {
   // player dismisses it with Esc; it then stays hidden for the session instead
   // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
   private summaryDismissed = false;
+  // The end-of-arc capstone shows once, the session the courier breaks the
+  // blockade. capstoneDismissed hides it after Esc within that session;
+  // blockadeBrokenAtLoad records whether the flag was already set when the scene
+  // loaded, so the panel never re-appears on a later load or after travel (the
+  // save already carries the flag by then). This gives show-once with no new
+  // save field. See docs/design/05_playtest_notes.md.
+  private capstoneDismissed = false;
+  private blockadeBrokenAtLoad = false;
   // The most recent story messages, mirrored from their toasts so they can be
   // re-read in the journal after the toast fades (Session 2 playtest).
   private recentEvents: readonly string[] = [];
@@ -372,6 +387,7 @@ export class MapScene extends Phaser.Scene {
     this.refreshFordStatus();
     this.refreshHint();
     this.refreshBoard();
+    this.refreshCapstone();
     this.refreshSummary();
 
     // Pick an ambient road condition for this run via a seeded RNG. Seeding
@@ -412,6 +428,7 @@ export class MapScene extends Phaser.Scene {
     this.usedFordThisContract = false;
     this.skills = {};
     this.storyFlags = emptyFlags();
+    this.blockadeBrokenAtLoad = false;
     // The dialogue controller is (re)constructed fresh later in create(), so no
     // conversation state needs resetting here.
 
@@ -430,6 +447,9 @@ export class MapScene extends Phaser.Scene {
     // grant unknown skills or over-max ranks.
     this.skills = sanitizeRanks({ ...snapshot.skills });
     this.storyFlags = flagsFromArray(snapshot.storyFlags);
+    // Recorded per load: if the blockade is already broken in the save, the
+    // capstone was earned in an earlier session and must not re-appear now.
+    this.blockadeBrokenAtLoad = hasFlag(this.storyFlags, FLAG_BLOCKADE_BROKEN);
     for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
       this.fogByRegion[rid] = [...indices];
     }
@@ -509,7 +529,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 9,
+      version: 10,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -571,6 +591,7 @@ export class MapScene extends Phaser.Scene {
       regionCleared: this.regionCleared(),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
       summaryVisible: this.hud.isSummaryVisible(),
+      capstoneVisible: this.hud.isCapstoneVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,
       activeMissionStepId: e2eObjective?.step.id ?? null,
     };
@@ -674,12 +695,16 @@ export class MapScene extends Phaser.Scene {
     this.handlePurchaseInput();
     this.handleResetInput();
     this.handleDismissInput();
+    this.handleCapstoneInput();
     this.handleSummaryInput();
     this.handleTravelInput();
     this.dialogue.handleTalk();
     this.dialogue.handleEncounters();
     this.handleToggles();
     this.refreshBoard();
+    // Detect the blockade breaking, which happens through a dialogue choice
+    // rather than a delivery, so it is checked each frame once dialogue closes.
+    this.refreshCapstone();
     if (this.hud.isMinimapVisible()) {
       this.redrawMinimap();
     }
@@ -1078,7 +1103,12 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshBoard(): void {
-    const show = this.activeContract === undefined && this.atSettlement(this.region.home);
+    // The end-of-arc finale owns the screen; keep the home board from showing
+    // through it (the courier is at the home town when the blockade breaks).
+    const show =
+      this.activeContract === undefined &&
+      this.atSettlement(this.region.home) &&
+      !this.shouldShowCapstone();
     if (!show) {
       this.hud.setBoard(null);
       return;
@@ -1133,8 +1163,25 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** Dismiss the end-of-arc capstone panel with Esc. Takes precedence over the summary. */
+  private handleCapstoneInput(): void {
+    if (
+      !this.capstoneDismissed &&
+      this.hud.isCapstoneVisible() &&
+      Phaser.Input.Keyboard.JustDown(this.escapeKey)
+    ) {
+      this.capstoneDismissed = true;
+      this.hud.setCapstone(null);
+    }
+  }
+
   /** Dismiss the region-cleared summary panel with Esc so it stops blocking play. */
   private handleSummaryInput(): void {
+    // Do not also dismiss the summary on the same Esc that closed the capstone;
+    // the capstone already suppresses the summary while it is up.
+    if (this.hud.isCapstoneVisible()) {
+      return;
+    }
     if (
       !this.summaryDismissed &&
       this.regionCleared() &&
@@ -1397,6 +1444,41 @@ export class MapScene extends Phaser.Scene {
           name: a.name,
           earned: this.achievements.has(a.id),
         })),
+      }),
+    );
+  }
+
+  /**
+   * The finale shows once, the session the courier breaks the blockade, and only
+   * then. blockadeBrokenAtLoad excludes a save that was already broken, so the
+   * panel never re-appears on a later load or after travelling regions.
+   */
+  private shouldShowCapstone(): boolean {
+    return (
+      hasFlag(this.storyFlags, FLAG_BLOCKADE_BROKEN) &&
+      !this.blockadeBrokenAtLoad &&
+      !this.capstoneDismissed
+    );
+  }
+
+  private refreshCapstone(): void {
+    if (!this.shouldShowCapstone()) {
+      this.hud.setCapstone(null);
+      return;
+    }
+    // On the frame the finale first appears, clear any lingering toast so it does
+    // not cross the panel, and retire the region-cleared summary it supersedes.
+    if (!this.hud.isCapstoneVisible()) {
+      this.hud.dismissToasts();
+      this.summaryDismissed = true;
+      this.hud.setSummary(null);
+    }
+    this.hud.setCapstone(
+      capstoneText({
+        courierTitle: courierTitle(this.achievementStat()),
+        deliveries: this.trip.deliveries,
+        distanceText: formatDistance(this.trip.distanceTiles),
+        regionCount: Object.keys(REGIONS).length,
       }),
     );
   }

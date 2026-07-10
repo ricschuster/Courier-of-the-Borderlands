@@ -92,6 +92,38 @@ export function summaryText(input: SummaryTextInput): string | null {
   return lines.join('\n');
 }
 
+export interface CapstoneTextInput {
+  readonly courierTitle: string;
+  readonly deliveries: number;
+  readonly distanceText: string;
+  /** Number of regions in the borderland, all reconnected by the time the arc ends. */
+  readonly regionCount: number;
+}
+
+/**
+ * The end-of-arc capstone panel, shown once when the courier breaks the
+ * blockade. A ceremonial curtain after the resolution conversation: the journey
+ * in numbers and a closing line, so the arc ends on more than a dialogue box
+ * (Session 5 playtest: the ending felt nonceremonial).
+ */
+export function capstoneText(input: CapstoneTextInput): string {
+  return [
+    'THE BLOCKADE BROKEN',
+    '',
+    'Word runs the roads again, coast to fen, because a courier carried it.',
+    '',
+    `Regions reconnected: ${input.regionCount} of ${input.regionCount}`,
+    `Deliveries made: ${input.deliveries}`,
+    `Distance driven: ${input.distanceText}`,
+    `Courier title: ${input.courierTitle}`,
+    '',
+    'Whoever cut these roads has lost the borderland.',
+    'Your wheels are why.',
+    '',
+    'Esc to close.  N for a new run.',
+  ].join('\n');
+}
+
 export interface SkillPanelTextInput {
   readonly level: number;
   readonly xpIntoLevel: number;
