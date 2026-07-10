@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Nightly heartbeat for the heavy full-arc playthrough (see the `arc` job).
+  schedule:
+    - cron: '0 7 * * *'
 
 # Cancel superseded runs for the same ref.
 concurrency:
@@ -13,6 +16,9 @@ concurrency:
 
 jobs:
   check:
+    # Lint/typecheck/test/build add nothing on the nightly heartbeat; that run
+    # exists only to exercise the full-arc playthrough.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,6 +43,9 @@ jobs:
         run: npm run build
 
   e2e:
+    # The fast browser specs run on every PR and push. The full-arc playthrough
+    # skips itself here (it is gated on RUN_ARC), so this stays quick.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -53,3 +62,28 @@ jobs:
 
       - name: Browser smoke test
         run: npm run test:e2e
+
+  arc:
+    # The full three-region playthrough (~3m of real-time driving) is the guard
+    # against a soft-locked critical path. It is too heavy and flake-prone to run
+    # on every PR, so it runs only on merge to main and on the nightly schedule,
+    # never on pull requests.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Full-arc playthrough
+        run: npx playwright test full-arc
+        env:
+          RUN_ARC: '1'
