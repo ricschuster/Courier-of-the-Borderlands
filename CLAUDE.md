@@ -443,6 +443,16 @@ Recommended setup for this project (defaults for effort and fast mode live in
 4. Run `npm run setup` to bootstrap a fresh machine (installs deps and the
    Playwright browser). Node version is pinned in `.nvmrc`.
 
+## Session start
+
+At the start of a session, before diving into the task, glance at open GitHub
+issues with `gh issue list`. If any are relevant to what the owner is asking
+about (or are newly urgent, like a tracked flake that has started firing on
+`main`), surface them briefly at the top of your first substantive reply. Keep
+it to a one-line mention per relevant issue; do not dump the whole list or act
+on issues the owner did not ask about. Issues are the durable tracker between
+sessions, so this is how stale items get resurfaced.
+
 ## Claude Code operating mode
 
 Act as an autonomous coding agent, but keep the project owner in control of design direction.
