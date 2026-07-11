@@ -162,7 +162,7 @@ export async function driveToTile(
   goalTileY: number,
   onTile?: (tile: { x: number; y: number }) => void,
 ): Promise<void> {
-  const maxSteps = 250;
+  const maxSteps = 400;
   for (let step = 0; step < maxSteps; step++) {
     const { state, next } = await readTick(page, goalTileX, goalTileY);
     onTile?.({ x: state.courier.tileX, y: state.courier.tileY });
