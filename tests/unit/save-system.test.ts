@@ -22,6 +22,7 @@ const SNAPSHOT: GameSnapshot = {
   contractStatus: 'carrying',
   distanceTiles: 42.5,
   deliveries: 1,
+  wagonCondition: 73,
   achievements: ['first-delivery', 'ford-finder'],
   skills: { 'off-road': 2, wayfinder: 1 },
   storyFlags: ['greybridge_reveal', 'met_postmaster'],
@@ -34,6 +35,17 @@ describe('save-system', () => {
 
   it('round-trips a valid snapshot', () => {
     expect(deserialize(serialize(SNAPSHOT))).toEqual(SNAPSHOT);
+  });
+
+  it('defaults wagonCondition to full for a save made before it existed', () => {
+    const legacy = { ...serialize(SNAPSHOT) } as unknown as Record<string, unknown>;
+    delete legacy.wagonCondition;
+    expect(deserialize(legacy)?.wagonCondition).toBe(100);
+  });
+
+  it('clamps an out-of-range wagonCondition on load', () => {
+    expect(deserialize({ ...serialize(SNAPSHOT), wagonCondition: 250 })?.wagonCondition).toBe(100);
+    expect(deserialize({ ...serialize(SNAPSHOT), wagonCondition: -10 })?.wagonCondition).toBe(0);
   });
 
   it('rejects a mismatched version', () => {

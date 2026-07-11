@@ -93,6 +93,12 @@ async function spendAtHome(page: Page): Promise<boolean> {
   await tapKey(page, 'B');
   await page.waitForTimeout(150);
 
+  // Repair the wagon at home (travel sink, ADR 0005). A no-op when already full
+  // or broke. Keeps the driver from stranding at 0 condition (limp speed), and
+  // the coins it spends are the recurring sink the mechanic exists to create.
+  await tapKey(page, 'R');
+  await page.waitForTimeout(120);
+
   if (before.skillPoints > 0) {
     await setSkillPanel(page, true);
     // Off-road first (it opens the mire), then the rest, one point per key.

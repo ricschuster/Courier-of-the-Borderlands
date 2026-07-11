@@ -43,7 +43,21 @@ import {
   revealRadius,
   cheapestUnpurchased,
   terrainSpeedFactor,
+  countReliefUpgrades,
 } from '../systems/upgrade-system';
+import {
+  wearPerTile,
+  applyWear,
+  limpMultiplier,
+  isStranded,
+  repair,
+  repairCost,
+  rescue,
+  sanitizeCondition,
+  MAX_CONDITION,
+  WAGON_TUNING,
+  type WagonTuning,
+} from '../systems/wagon-condition';
 import { boardText, summaryText, skillPanelText, capstoneText } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournalText } from '../systems/journal-text';
@@ -146,6 +160,10 @@ interface E2EState {
   readonly reputation: number;
   readonly deliveries: number;
   readonly delivered: number;
+  /** Wagon condition (0-100), the travel sink. Full until worn down. */
+  readonly wagonCondition: number;
+  /** Cumulative condition worn this session (tuning telemetry). */
+  readonly wagonWearTotal: number;
   readonly fogRevealed: number;
   readonly activeContractId: string | null;
   readonly contractStatus: string | null;
@@ -258,6 +276,7 @@ export class MapScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private buyKey!: Phaser.Input.Keyboard.Key;
+  private repairKey!: Phaser.Input.Keyboard.Key;
   // All HUD and overlay GameObjects live in the MapHud presentation layer.
   private hud!: MapHud;
   private fog!: Fog;
@@ -272,6 +291,15 @@ export class MapScene extends Phaser.Scene {
   private trip: TripLog = createTripLog();
   private prevX = 0;
   private prevY = 0;
+  /** Wagon condition (0-100), the travel sink (ADR 0005). Full until worn down. */
+  private wagonCondition = MAX_CONDITION;
+  /** Cumulative condition points worn away this session, for tuning telemetry. */
+  private wagonWearTotal = 0;
+  /**
+   * Difficulty profile for the travel sink. Fixed to standard for now; when a
+   * difficulty selector lands it just chooses another WAGON_TUNING preset here.
+   */
+  private wagonTuning: WagonTuning = WAGON_TUNING.standard;
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
   private achievements = new Set<string>();
@@ -461,6 +489,10 @@ export class MapScene extends Phaser.Scene {
     this.fogDimsByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
+    this.wagonCondition = MAX_CONDITION;
+    // wagonWearTotal is intentionally not reset here: it is session telemetry
+    // (ADR 0005 tuning) that must accumulate across region-travel scene restarts,
+    // and its field initializer already zeroes it once per scene construction.
     this.skills = {};
     this.storyFlags = emptyFlags();
     this.blockadeBrokenAtLoad = false;
@@ -477,6 +509,7 @@ export class MapScene extends Phaser.Scene {
     this.completed = new Set(snapshot.completed);
     this.visited = new Set(snapshot.visited);
     this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
+    this.wagonCondition = sanitizeCondition(snapshot.wagonCondition);
     this.achievements = new Set(snapshot.achievements);
     // Sanitize against the current skill list so a stale or edited save cannot
     // grant unknown skills or over-max ranks.
@@ -544,6 +577,7 @@ export class MapScene extends Phaser.Scene {
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,
       deliveries: this.trip.deliveries,
+      wagonCondition: this.wagonCondition,
       achievements: [...this.achievements],
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
@@ -588,7 +622,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 11,
+      version: 12,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
@@ -632,6 +666,8 @@ export class MapScene extends Phaser.Scene {
       reputation: totalReputation(this.state.ledger),
       deliveries: this.trip.deliveries,
       delivered: this.deliveredInRegion(),
+      wagonCondition: this.wagonCondition,
+      wagonWearTotal: this.wagonWearTotal,
       fogRevealed: revealedIndices(this.fog).length,
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
@@ -756,8 +792,22 @@ export class MapScene extends Phaser.Scene {
     const upgradeModifier =
       speedMultiplier(this.state.upgrades, UPGRADES_GREYBRIDGE) + skillSpeedBonus(this.skills);
     const speed =
-      COURIER_SPEED * terrainModifier * upgradeModifier * this.weather.speedMultiplier * this.speedFactor();
+      COURIER_SPEED *
+      terrainModifier *
+      upgradeModifier *
+      this.weather.speedMultiplier *
+      this.speedFactor() *
+      limpMultiplier(this.wagonCondition, this.wagonTuning);
     const velocity = computeVelocity(input, speed);
+
+    // Wear per tile is computed off the RAW terrain roughness, so relief upgrades
+    // and Off-road cut it through their own weaker floored factors (ADR 0005).
+    const wearRate = wearPerTile(
+      rawTerrainModifier,
+      countReliefUpgrades(this.state.upgrades, UPGRADES_GREYBRIDGE),
+      rankOf(this.skills, 'off-road'),
+      this.wagonTuning,
+    );
     this.courier.setVelocity(velocity.x, velocity.y);
 
     // Track the ford crossing for the via-ford bonus. Compare unlock ids
@@ -771,7 +821,7 @@ export class MapScene extends Phaser.Scene {
       this.usedFordThisContract = true;
     }
 
-    this.trackDistance();
+    this.trackDistance(wearRate);
     this.currentPath = this.destinationPath();
     this.revealAroundCourier();
     this.updateDelivery();
@@ -780,6 +830,7 @@ export class MapScene extends Phaser.Scene {
     this.handleSkillInput();
     this.handleBoardInput();
     this.handlePurchaseInput();
+    this.handleRepairInput();
     this.handleResetInput();
     this.handleDismissInput();
     this.handleCapstoneInput();
@@ -797,11 +848,11 @@ export class MapScene extends Phaser.Scene {
     }
 
     const terrain = terrainId === undefined ? undefined : getTerrain(terrainId);
-    this.hud.setTerrain(
+    const terrainLabel =
       terrain === undefined
         ? 'Terrain: unknown'
-        : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`,
-    );
+        : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`;
+    this.hud.setTerrain(`${terrainLabel}   ${this.wagonConditionLabel()}`);
     this.refreshObjective();
     this.refreshHint();
   }
@@ -810,8 +861,11 @@ export class MapScene extends Phaser.Scene {
     return worldToTile(this.courier.sprite.x, this.courier.sprite.y, TILE_SIZE, 0, this.mapOriginY);
   }
 
-  /** Accumulate distance driven since the previous frame, in tiles. */
-  private trackDistance(): void {
+  /**
+   * Accumulate distance driven since the previous frame, in tiles, and wear the
+   * wagon by `wearRate` per tile for the terrain just crossed (ADR 0005).
+   */
+  private trackDistance(wearRate: number): void {
     const dx = this.courier.sprite.x - this.prevX;
     const dy = this.courier.sprite.y - this.prevY;
     this.prevX = this.courier.sprite.x;
@@ -819,10 +873,87 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(dx, dy) / TILE_SIZE;
     if (tiles > 0) {
       this.trip = addDistance(this.trip, tiles);
+      const worn = applyWear(this.wagonCondition, wearRate * tiles);
+      this.wagonWearTotal += this.wagonCondition - worn;
+      this.wagonCondition = worn;
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
       }
     }
+  }
+
+  /** HUD label for the wagon condition, cueing repair/rescue when it matters. */
+  private wagonConditionLabel(): string {
+    const pct = Math.round(this.wagonCondition);
+    if (isStranded(this.wagonCondition)) {
+      const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
+      return here === undefined
+        ? `Wagon: ${pct}% STRANDED (R: pay ${this.wagonTuning.rescueCost}c rescue, or limp to a town)`
+        : `Wagon: ${pct}% STRANDED (R: repair here)`;
+    }
+    const atSettlement =
+      settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y) !== undefined;
+    const cue = atSettlement && pct < 100 ? '  (R: repair)' : '';
+    return `Wagon: ${pct}%${cue}`;
+  }
+
+  /**
+   * Repair the wagon at a settlement, or pay for a rescue when stranded in the
+   * open. Manual and gold-priced (ADR 0005): the spend is a visible choice.
+   */
+  private handleRepairInput(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.repairKey)) {
+      return;
+    }
+    const tile = this.courierTile();
+    const here = settlementAtTileIn(this.region, tile.x, tile.y);
+    if (here !== undefined) {
+      this.repairAt(here.name);
+      return;
+    }
+    // Not at a settlement. Only meaningful when stranded: pay to be towed home.
+    if (!isStranded(this.wagonCondition)) {
+      return;
+    }
+    const result = rescue(this.state.ledger.coins, this.wagonTuning);
+    if (!result.ok) {
+      this.hud.showToast(
+        `The wagon is stranded, but you cannot afford a rescue (${this.wagonTuning.rescueCost}c). Limp to a settlement.`,
+      );
+      return;
+    }
+    this.state.ledger = { ...this.state.ledger, coins: result.coins };
+    const home = this.region.settlements[this.region.home];
+    const homeTile = home?.tile ?? this.region.spawn;
+    const center = this.tileCenter(homeTile.x, homeTile.y);
+    this.courier.sprite.setPosition(center.x, center.y);
+    this.prevX = center.x;
+    this.prevY = center.y;
+    this.hud.showToast('A passing carter tows you home. Pay to repair before you set out again.');
+    this.refreshWallet();
+    this.save();
+  }
+
+  /** Repair the wagon here, spending coins. Reports the outcome to the player. */
+  private repairAt(placeName: string): void {
+    if (this.wagonCondition >= MAX_CONDITION) {
+      this.hud.showToast('The wagon is in good repair.');
+      return;
+    }
+    const cost = repairCost(this.wagonCondition, this.wagonTuning);
+    const result = repair(this.wagonCondition, this.state.ledger.coins, this.wagonTuning);
+    if (!result.ok) {
+      this.hud.showToast(`Not enough coins to repair the wagon (full repair ${cost}c).`);
+      return;
+    }
+    this.wagonCondition = result.condition;
+    this.state.ledger = { ...this.state.ledger, coins: result.coins };
+    const note = result.full
+      ? `Wagon repaired at ${placeName}.`
+      : `Wagon patched to ${Math.round(result.condition)}% at ${placeName} (all your coin).`;
+    this.hud.showToast(note);
+    this.refreshWallet();
+    this.save();
   }
 
   /** Shortest passable route from the courier to the active destination. */
@@ -1447,6 +1578,7 @@ export class MapScene extends Phaser.Scene {
     this.cursors = keyboard.createCursorKeys();
     this.wasd = keyboard.addKeys('W,A,S,D') as WasdKeys;
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+    this.repairKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);

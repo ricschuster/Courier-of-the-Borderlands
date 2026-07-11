@@ -2,6 +2,7 @@
 // unit tested. The read/write helpers are a thin, guarded wrapper over
 // localStorage so the game keeps running even where storage is unavailable.
 import type { ContractStatus } from './contract-system';
+import { sanitizeCondition } from './wagon-condition';
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = 'courier-of-the-borderlands/save';
@@ -39,6 +40,11 @@ export interface GameSnapshot {
   readonly contractStatus: ContractStatus | null;
   readonly distanceTiles: number;
   readonly deliveries: number;
+  /**
+   * Wagon condition (0-100), the travel sink (ADR 0005). Additive: absent in
+   * saves made before it existed, which load at full condition (100).
+   */
+  readonly wagonCondition: number;
   readonly achievements: readonly string[];
   /**
    * Chosen courier skill ranks, keyed by skill id. Experience and level are
@@ -237,6 +243,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     contractStatus: toContractStatus(data.contractStatus),
     distanceTiles: isFiniteNumber(data.distanceTiles) ? data.distanceTiles : 0,
     deliveries: isFiniteNumber(data.deliveries) ? data.deliveries : 0,
+    wagonCondition: sanitizeCondition(data.wagonCondition),
     achievements: toStringArray(data.achievements),
     skills: toSkillRanks(data.skills),
     storyFlags: toStringArray(data.storyFlags),
