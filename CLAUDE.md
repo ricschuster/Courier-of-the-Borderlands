@@ -303,6 +303,27 @@ Commit style:
 
 Keep commits small and meaningful.
 
+## Issue workflow
+
+GitHub issues are the durable, cross-session tracker. Split work by lifecycle:
+anything that gets opened and later closed (features, bugs, tech debt, open
+"next actions," known smells) belongs in an issue; the narrative of a session
+belongs in a handoff.
+
+Rules:
+
+1. Open an issue when starting a feature or a slice of work. Reference it in the
+   PR body with `Closes #N` so the merge auto-closes it. Open issues are the
+   live roadmap: open = todo, closed = shipped.
+2. Do not retroactively open and close issues for already-shipped work, and do
+   not bulk-migrate old handoffs. Track from here forward.
+3. Keep handoffs thinner: summary, what changed and why, decisions, and the
+   current-state snapshot. Replace inline task lists with links to the relevant
+   open issues rather than duplicating them.
+4. Labels, kept minimal: `bug`, `enhancement` (features), `tech-debt`,
+   `design-call` (needs an owner decision first), `playtest-gated` (blocked on a
+   human playtest signal).
+
 ## Command style
 
 Run shell commands as single, atomic invocations so they can be matched against
