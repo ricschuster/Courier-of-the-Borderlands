@@ -54,6 +54,8 @@ import {
   repairCost,
   rescue,
   sanitizeCondition,
+  maxConditionForLevel,
+  clampCondition,
   MAX_CONDITION,
   WAGON_TUNING,
   type WagonTuning,
@@ -489,7 +491,8 @@ export class MapScene extends Phaser.Scene {
     this.fogDimsByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
-    this.wagonCondition = MAX_CONDITION;
+    // A new game starts with the small level-1 tank; capacity grows with level.
+    this.wagonCondition = maxConditionForLevel(1, this.wagonTuning);
     // wagonWearTotal is intentionally not reset here: it is session telemetry
     // (ADR 0005 tuning) that must accumulate across region-travel scene restarts,
     // and its field initializer already zeroes it once per scene construction.
@@ -509,7 +512,9 @@ export class MapScene extends Phaser.Scene {
     this.completed = new Set(snapshot.completed);
     this.visited = new Set(snapshot.visited);
     this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
-    this.wagonCondition = sanitizeCondition(snapshot.wagonCondition);
+    // Clamp a loaded condition to the tank size the courier's current level
+    // affords, so an edited or pre-capacity save cannot exceed it.
+    this.wagonCondition = clampCondition(sanitizeCondition(snapshot.wagonCondition), this.wagonMax());
     this.achievements = new Set(snapshot.achievements);
     // Sanitize against the current skill list so a stale or edited save cannot
     // grant unknown skills or over-max ranks.
@@ -882,19 +887,25 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** The wagon's current maximum condition, which grows with courier level. */
+  private wagonMax(): number {
+    return maxConditionForLevel(this.courierLevel(), this.wagonTuning);
+  }
+
   /** HUD label for the wagon condition, cueing repair/rescue when it matters. */
   private wagonConditionLabel(): string {
-    const pct = Math.round(this.wagonCondition);
+    const cur = Math.round(this.wagonCondition);
+    const max = this.wagonMax();
     if (isStranded(this.wagonCondition)) {
       const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
       return here === undefined
-        ? `Wagon: ${pct}% STRANDED (R: pay ${this.wagonTuning.rescueCost}c rescue, or limp to a town)`
-        : `Wagon: ${pct}% STRANDED (R: repair here)`;
+        ? `Wagon: ${cur}/${max} STRANDED (R: pay ${this.wagonTuning.rescueCost}c rescue, or limp to a town)`
+        : `Wagon: ${cur}/${max} STRANDED (R: repair here)`;
     }
     const atSettlement =
       settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y) !== undefined;
-    const cue = atSettlement && pct < 100 ? '  (R: repair)' : '';
-    return `Wagon: ${pct}%${cue}`;
+    const cue = atSettlement && this.wagonCondition < max ? '  (R: repair)' : '';
+    return `Wagon: ${cur}/${max}${cue}`;
   }
 
   /**
@@ -936,12 +947,13 @@ export class MapScene extends Phaser.Scene {
 
   /** Repair the wagon here, spending coins. Reports the outcome to the player. */
   private repairAt(placeName: string): void {
-    if (this.wagonCondition >= MAX_CONDITION) {
+    const max = this.wagonMax();
+    if (this.wagonCondition >= max) {
       this.hud.showToast('The wagon is in good repair.');
       return;
     }
-    const cost = repairCost(this.wagonCondition, this.wagonTuning);
-    const result = repair(this.wagonCondition, this.state.ledger.coins, this.wagonTuning);
+    const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
+    const result = repair(this.wagonCondition, this.state.ledger.coins, max, this.wagonTuning);
     if (!result.ok) {
       this.hud.showToast(`Not enough coins to repair the wagon (full repair ${cost}c).`);
       return;
@@ -950,7 +962,7 @@ export class MapScene extends Phaser.Scene {
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     const note = result.full
       ? `Wagon repaired at ${placeName}.`
-      : `Wagon patched to ${Math.round(result.condition)}% at ${placeName} (all your coin).`;
+      : `Wagon patched to ${Math.round(result.condition)}/${max} at ${placeName} (all your coin).`;
     this.hud.showToast(note);
     this.refreshWallet();
     this.save();

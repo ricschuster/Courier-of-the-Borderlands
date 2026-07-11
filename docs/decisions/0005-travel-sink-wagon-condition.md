@@ -34,10 +34,21 @@ staying on the road preserves the wagon, cutting across the mire wears it.
 All numbers below are **starting assumptions to tune in playtest**, not final
 values. They are collected in one table at the end.
 
-### 1. Wagon condition, 0 to 100 percent
+### 1. Wagon condition, with a capacity that grows with level
 
-A single scalar, starts at 100, persists in the save. It is run state like
-`distanceTiles` and `deliveries`, not a per-region value.
+A single scalar (current condition), persisted in the save. Its ceiling is the
+wagon's **max capacity**, which is not fixed at 100 but grows with the courier's
+level (owner call, RPG-style): a fragile early game that you earn your way out
+of, instead of a flat wear tax that nags forever.
+
+- `maxCondition = min(100, startingMaxCondition + (level - 1) * growthPerLevel)`.
+- Starting values: 40 at level 1, +9 per level, reaching the full 100 around
+  level 8 (roughly the end of the three-region arc).
+- Level is already derived from play stats (deliveries, distance, discoveries),
+  so capacity needs no new save state: only current condition is persisted, and
+  it is clamped to the current max on load.
+- Repair fills to the current max; a bigger tank costs more to fill, so repair
+  cost scales with capacity for free.
 
 ### 2. Drains per tile travelled, scaled by terrain roughness
 
@@ -246,6 +257,12 @@ Owner review, 2026-07-11:
    tradeoffs.
 5. **Relief vs wear:** separate, weaker `wearReliefFactor` with a floor (see
    point 4), so a maxed wagon still pays repairs. Lasting teeth.
+6. **Growing capacity (added after the first playtest):** a fixed 100-point tank
+   left region 1 too forgiving (a whole region cleared without a single repair,
+   ending at 41%). Instead the max capacity starts small and grows with level
+   (see point 1), so the early game is genuinely fragile and progression eases it.
+   Growth source: courier level (automatic), not a bought upgrade. Starting
+   fragility: 40 of 100.
 
 ## Measurement (2026-07-11)
 
@@ -310,7 +327,9 @@ illustrative starting points, not yet balanced.
 | Full repair (0 to 100) | 500 gold | Derived from `COST_PER_PERCENT` |
 | `LIMP_SPEED` | 0.35x | Movement multiplier at 0 condition |
 | `RESCUE_COST` | 50 gold | Optional teleport to last settlement |
-| Starting condition | 100 | Full at new game and on legacy load |
+| `startingMaxCondition` | 40 | Tank capacity at level 1 (fragile early game) |
+| `maxConditionGrowthPerLevel` | 9 | Capacity added per level, capped at 100 |
+| Starting condition | level-1 max (40) | New game; legacy load clamps to current max |
 
 ## Consequences (if accepted)
 

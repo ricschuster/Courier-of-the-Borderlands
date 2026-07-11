@@ -12,6 +12,7 @@ import {
   limpMultiplier,
   isStranded,
   rescue,
+  maxConditionForLevel,
   MAX_CONDITION,
   DEFAULT_WAGON_TUNING,
   WAGON_TUNING,
@@ -139,6 +140,27 @@ describe('repairCost', () => {
   });
 });
 
+describe('maxConditionForLevel', () => {
+  it('is the starting tank at level 1', () => {
+    expect(maxConditionForLevel(1)).toBe(T.startingMaxCondition);
+  });
+
+  it('treats level below 1 as level 1', () => {
+    expect(maxConditionForLevel(0)).toBe(T.startingMaxCondition);
+  });
+
+  it('grows by the per-level amount', () => {
+    expect(maxConditionForLevel(2)).toBe(T.startingMaxCondition + T.maxConditionGrowthPerLevel);
+    expect(maxConditionForLevel(3)).toBe(
+      T.startingMaxCondition + 2 * T.maxConditionGrowthPerLevel,
+    );
+  });
+
+  it('caps at the absolute maximum', () => {
+    expect(maxConditionForLevel(50)).toBe(MAX_CONDITION);
+  });
+});
+
 describe('repair', () => {
   it('fully repairs when affordable', () => {
     const r = repair(50, 500);
@@ -146,6 +168,15 @@ describe('repair', () => {
     expect(r.full).toBe(true);
     expect(r.condition).toBe(100);
     expect(r.coins).toBe(500 - 50 * COST_PER_PERCENT);
+  });
+
+  it('fills only to the current max, not past it', () => {
+    // A small level-1 tank of 40: repairing from 10 tops out at 40, not 100.
+    const r = repair(10, 1000, 40);
+    expect(r.ok).toBe(true);
+    expect(r.full).toBe(true);
+    expect(r.condition).toBe(40);
+    expect(r.coins).toBe(1000 - 30 * COST_PER_PERCENT);
   });
 
   it('partially repairs a poor courier', () => {
@@ -211,13 +242,17 @@ describe('difficulty presets', () => {
     expect(wearPerTile(marsh, 0, 0, WAGON_TUNING.demanding)).toBeGreaterThan(
       wearPerTile(marsh, 0, 0, WAGON_TUNING.standard),
     );
-    expect(repairCost(0, WAGON_TUNING.demanding)).toBeGreaterThan(repairCost(0, WAGON_TUNING.standard));
+    expect(repairCost(0, 100, WAGON_TUNING.demanding)).toBeGreaterThan(
+      repairCost(0, 100, WAGON_TUNING.standard),
+    );
   });
 
   it('relaxed wears slower and costs less than standard', () => {
     expect(wearPerTile(marsh, 0, 0, WAGON_TUNING.relaxed)).toBeLessThan(
       wearPerTile(marsh, 0, 0, WAGON_TUNING.standard),
     );
-    expect(repairCost(0, WAGON_TUNING.relaxed)).toBeLessThan(repairCost(0, WAGON_TUNING.standard));
+    expect(repairCost(0, 100, WAGON_TUNING.relaxed)).toBeLessThan(
+      repairCost(0, 100, WAGON_TUNING.standard),
+    );
   });
 });
