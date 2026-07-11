@@ -213,9 +213,20 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
       continue;
     }
 
-    if (s.atHome) {
+    // The wagon coasts up to a tile past the home settlement when a drive ends,
+    // so an atHome read taken after the coast reports false even though home
+    // business is due. On a throttled CI runner the coast is a reliable full
+    // tile, so a strict atHome gate makes the driver oscillate one tile off home
+    // forever (accept never fires, and the position-blind watchdog reads the
+    // oscillation as a stall). Treat "on or one tile from home" as home, and
+    // re-seat onto the tile before each on-home input below, the way the talk
+    // branch already does.
+    const homeDistance =
+      Math.abs(s.courier.tileX - s.home.tileX) + Math.abs(s.courier.tileY - s.home.tileY);
+    if (s.atHome || homeDistance <= 1) {
       // Spend coins and skill points before deciding the next move, then re-read
       // (a real player kits out at home). Bounded, so it stops once broke.
+      if (!s.atHome) await driveToTile(page, held, s.home.tileX, s.home.tileY);
       if (await spendAtHome(page)) continue;
       // Once the region is cleared, talk to the postmaster: this sets the reveal
       // flag (opening the hidden-road arc contract) and, at Greywater with both
@@ -245,9 +256,13 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
         continue;
       }
       if (s.availableContractIds.length > 0) {
-        // Accept the first offered contract. A dropped press just means the next
-        // loop iteration re-approaches and retries, so a single press is safe
-        // here (unlike the talk above, which is marked done once attempted).
+        // Re-seat on the home tile before accepting: the board only takes the
+        // key while the wagon is standing on the settlement, and spendAtHome
+        // above toggles panels long enough for the wagon to coast off. A dropped
+        // press just means the next loop iteration re-approaches and retries, so
+        // a single press is safe here (unlike the talk above, which is marked
+        // done once attempted).
+        await driveToTile(page, held, s.home.tileX, s.home.tileY);
         await tapKey(page, '1');
         await page.waitForTimeout(200);
         continue;

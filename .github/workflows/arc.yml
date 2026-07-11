@@ -11,7 +11,7 @@ name: Arc
 # on-merge run on main is the real signal, minutes later.
 on:
   push:
-    branches: [main]
+    branches: [main, fix/arc-coast-past-home]
     paths:
       - 'src/**'
       - 'tests/e2e/**'
@@ -22,6 +22,10 @@ on:
       - '.github/workflows/arc.yml'
   schedule:
     - cron: '0 7 * * *'
+  # Manual trigger, so the arc can be validated on any branch (it otherwise only
+  # runs post-merge on main). Useful when hardening the driver against a flake:
+  # the stall only reproduces under a loaded CI runner, not locally.
+  workflow_dispatch:
 
 concurrency:
   group: arc-${{ github.ref }}
