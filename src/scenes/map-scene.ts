@@ -892,20 +892,25 @@ export class MapScene extends Phaser.Scene {
     return maxConditionForLevel(this.courierLevel(), this.wagonTuning);
   }
 
-  /** HUD label for the wagon condition, cueing repair/rescue when it matters. */
+  /** HUD label for the wagon condition, cueing repair/rescue and its cost. */
   private wagonConditionLabel(): string {
     const cur = Math.round(this.wagonCondition);
     const max = this.wagonMax();
+    const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
+    const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
     if (isStranded(this.wagonCondition)) {
-      const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
       return here === undefined
         ? `Wagon: ${cur}/${max} STRANDED (R: pay ${this.wagonTuning.rescueCost}c rescue, or limp to a town)`
-        : `Wagon: ${cur}/${max} STRANDED (R: repair here)`;
+        : `Wagon: ${cur}/${max} STRANDED (R: repair ${cost}c)`;
     }
-    const atSettlement =
-      settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y) !== undefined;
-    const cue = atSettlement && this.wagonCondition < max ? '  (R: repair)' : '';
-    return `Wagon: ${cur}/${max}${cue}`;
+    if (this.wagonCondition >= max) {
+      return `Wagon: ${cur}/${max}`;
+    }
+    // Damaged: always show what a full repair would cost, so the player can plan
+    // before reaching a town; press R to do it once on a settlement.
+    return here === undefined
+      ? `Wagon: ${cur}/${max}  (repair ${cost}c at a town)`
+      : `Wagon: ${cur}/${max}  (R: repair ${cost}c)`;
   }
 
   /**

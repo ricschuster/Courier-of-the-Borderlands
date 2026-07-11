@@ -56,9 +56,10 @@ export const DEFAULT_WAGON_TUNING: WagonTuning = {
   costPerPercent: 5,
   rescueCost: 50,
   limpSpeed: 0.35,
-  // Start at 40 of 100 (owner call: a hard, fragile early game), reaching the
-  // full 100 around level 8, roughly the end of the three-region arc.
-  startingMaxCondition: 40,
+  // Start at 25 of 100 (owner call after playtest: a full region cleared with no
+  // repair at 40, so the early tank is smaller than a region's wear, forcing a
+  // mid-journey repair). Grows ~9/level, reaching the full 100 late in the arc.
+  startingMaxCondition: 25,
   maxConditionGrowthPerLevel: 9,
 };
 
@@ -77,7 +78,7 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
     wearBase: 0.03,
     wearCoef: 0.75,
     costPerPercent: 3,
-    startingMaxCondition: 60,
+    startingMaxCondition: 40,
   },
   standard: DEFAULT_WAGON_TUNING,
   demanding: {
@@ -85,7 +86,7 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
     wearBase: 0.1,
     wearCoef: 2.5,
     costPerPercent: 7,
-    startingMaxCondition: 30,
+    startingMaxCondition: 16,
   },
 };
 

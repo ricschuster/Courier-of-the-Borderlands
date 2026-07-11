@@ -42,8 +42,9 @@ level (owner call, RPG-style): a fragile early game that you earn your way out
 of, instead of a flat wear tax that nags forever.
 
 - `maxCondition = min(100, startingMaxCondition + (level - 1) * growthPerLevel)`.
-- Starting values: 40 at level 1, +9 per level, reaching the full 100 around
-  level 8 (roughly the end of the three-region arc).
+- Starting values: 25 at level 1, +9 per level, reaching the full 100 late in
+  the three-region arc. (First tried 40; a second playtest cleared a whole
+  region with no repair, so the starting tank was cut below a region's wear.)
 - Level is already derived from play stats (deliveries, distance, discoveries),
   so capacity needs no new save state: only current condition is persisted, and
   it is clamped to the current max on load.
@@ -262,7 +263,9 @@ Owner review, 2026-07-11:
    ending at 41%). Instead the max capacity starts small and grows with level
    (see point 1), so the early game is genuinely fragile and progression eases it.
    Growth source: courier level (automatic), not a bought upgrade. Starting
-   fragility: 40 of 100.
+   fragility: 25 of 100 (first tried 40, but a second playtest still cleared a
+   whole region without a repair, so the tank was cut below a region's wear).
+   Repair cost is now shown on the HUD whenever the wagon is damaged.
 
 ## Measurement (2026-07-11)
 
@@ -327,9 +330,9 @@ illustrative starting points, not yet balanced.
 | Full repair (0 to 100) | 500 gold | Derived from `COST_PER_PERCENT` |
 | `LIMP_SPEED` | 0.35x | Movement multiplier at 0 condition |
 | `RESCUE_COST` | 50 gold | Optional teleport to last settlement |
-| `startingMaxCondition` | 40 | Tank capacity at level 1 (fragile early game) |
+| `startingMaxCondition` | 25 | Tank capacity at level 1 (fragile early game) |
 | `maxConditionGrowthPerLevel` | 9 | Capacity added per level, capped at 100 |
-| Starting condition | level-1 max (40) | New game; legacy load clamps to current max |
+| Starting condition | level-1 max (25) | New game; legacy load clamps to current max |
 
 ## Consequences (if accepted)
 
