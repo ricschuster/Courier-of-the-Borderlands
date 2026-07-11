@@ -102,6 +102,52 @@ async function walkDialogue(page, before) {
   return gained;
 }
 
+// Ensure the skills panel is closed so number keys reach the contract board.
+async function closeSkillPanel(page) {
+  for (let i = 0; i < 3; i++) {
+    const s = await state(page);
+    if (!s || !s.skillPanelOpen) return;
+    await page.keyboard.press('k');
+    await page.waitForTimeout(120);
+  }
+}
+
+// Spend coins and skill points the way a completionist plays: buy the cheapest
+// affordable upgrade and rank skills (Off-road first, which opens the mire), so
+// the buy/rank flows are exercised and gated content is reachable. Number keys
+// select skills in panel order: 1 Wayfinder, 2 Off-road, 3 Negotiator, 4 Cipher.
+// Returns true if anything was bought or ranked so the caller re-reads. Bounded:
+// finite coins/points, and maxed skills / an unaffordable shop ignore presses.
+async function spendAtHome(page) {
+  await closeSkillPanel(page);
+  const before = await state(page);
+  if (!before) return false;
+
+  await page.keyboard.press('B'); // buy cheapest affordable upgrade (no-op if none)
+  await page.waitForTimeout(150);
+
+  if (before.skillPoints > 0) {
+    await page.keyboard.press('k');
+    await page.waitForTimeout(120);
+    const opened = await state(page);
+    if (opened && opened.skillPanelOpen) {
+      for (const key of ['2', '1', '3', '4']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(110);
+      }
+      await closeSkillPanel(page);
+    }
+  }
+
+  const after = await state(page);
+  if (!after) return false;
+  const bought = after.upgrades.length > before.upgrades.length;
+  const ranked = after.skillPoints < before.skillPoints;
+  if (bought) record('  bought upgrade', { upgrades: after.upgrades, coins: after.coins });
+  if (ranked) record('  ranked skill', { skills: after.skills, points: after.skillPoints });
+  return bought || ranked;
+}
+
 async function shot(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png` });
   record(`  [screenshot ${name}.png]`);
@@ -207,6 +253,8 @@ try {
 
     // No active contract.
     if (s.atHome) {
+      // Kit out at home first: spend coins and skill points, then re-read.
+      if (await spendAtHome(page)) continue;
       // Once the region's standing work is cleared, talk to the postmaster: this
       // is what sets the reveal flag (opening the hidden-road arc contract) and,
       // at Greywater with both spokes revealed, breaks the blockade. Key the talk

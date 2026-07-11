@@ -95,9 +95,11 @@ a discovery gate, separate from the passability gate above.
 3. **Economy tightening.** Retune upgrade costs / reward flow so the first access
    upgrade is a genuine save-up decision. Numbers are playtest-gated; ship the
    levers as data, set them from a play signal.
-4. **Arc driver spends.** Teach the arc e2e driver (and `autoplay.mjs`) to buy an
-   affordable upgrade and rank a skill, so the buy/rank flows stay covered and
-   harder gates become testable.
+4. **Arc driver spends.** SHIPPED. The full-arc e2e driver and `autoplay.mjs`
+   now buy the cheapest affordable upgrade (B) and spend skill points at home
+   (Off-road first, which opens the mire), so the buy/rank input flows are
+   covered by the arc guard and gated content is reachable. The arc asserts it
+   finished with an upgrade owned and Off-road ranked.
 5. **Spread gates + hidden routes.** Once 1-4 feel right, add gated shortcuts and
    reveal-hidden routes across the other regions, and a premium contract or two
    behind a gate.

@@ -63,6 +63,52 @@ async function walkDialogue(page: Page): Promise<void> {
   await page.waitForTimeout(120);
 }
 
+// Ensure the skills panel is closed so number keys reach the contract board
+// again (a left-open panel would swallow the "1" that accepts a contract).
+async function closeSkillPanel(page: Page): Promise<void> {
+  for (let i = 0; i < 3; i++) {
+    if (!(await readState(page))?.skillPanelOpen) return;
+    await page.keyboard.press('k');
+    await page.waitForTimeout(120);
+  }
+}
+
+// Spend coins and skill points the way a completionist player would, so the buy
+// and rank input flows stay covered by the arc guard and gated content (the mire
+// shortcut that Off-road rank 2 opens) becomes reachable in the arc. Number keys
+// select skills in panel order: 1 Wayfinder, 2 Off-road, 3 Negotiator, 4 Cipher
+// (see src/systems/skills.ts). Returns true if anything was bought or ranked, so
+// the caller re-reads before its next move. Bounded: coins and points are finite
+// and a maxed skill or unaffordable shop ignores the press, so once there is
+// nothing left to spend it returns false and the caller falls through to arc
+// progress.
+async function spendAtHome(page: Page): Promise<boolean> {
+  await closeSkillPanel(page);
+  const before = await readState(page);
+  if (!before) return false;
+
+  // Buy the cheapest affordable upgrade (a no-op when none is affordable).
+  await page.keyboard.press('B');
+  await page.waitForTimeout(150);
+
+  if (before.skillPoints > 0) {
+    await page.keyboard.press('k');
+    await page.waitForTimeout(120);
+    if ((await readState(page))?.skillPanelOpen) {
+      // Off-road first (it opens the mire), then the rest, one point per key.
+      for (const key of ['2', '1', '3', '4']) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(110);
+      }
+      await closeSkillPanel(page);
+    }
+  }
+
+  const after = await readState(page);
+  if (!after) return false;
+  return after.upgrades.length > before.upgrades.length || after.skillPoints < before.skillPoints;
+}
+
 arcTest('drives the whole arc to the blockade-broken capstone', async ({ page }) => {
   // The full arc is ~20 deliveries across three regions. With turbo it runs in
   // ~3m locally, but a loaded CI runner (or a busy dev machine) throttles the
@@ -124,6 +170,9 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
     }
 
     if (s.atHome) {
+      // Spend coins and skill points before deciding the next move, then re-read
+      // (a real player kits out at home). Bounded, so it stops once broke.
+      if (await spendAtHome(page)) continue;
       // Once the region is cleared, talk to the postmaster: this sets the reveal
       // flag (opening the hidden-road arc contract) and, at Greywater with both
       // spoke reveals known, breaks the blockade. Key on the arc-flag set so the
@@ -182,5 +231,10 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
   for (const status of Object.values(end.worldState)) {
     expect(['home', 'reconnected']).toContain(status);
   }
+  // The driver spent like a player: it bought at least one upgrade and ranked
+  // Off-road (which also opens the mire shortcut), so the buy and rank input
+  // flows stay covered by this guard as gates spread to more content.
+  expect(end.upgrades.length).toBeGreaterThan(0);
+  expect(end.skills['off-road'] ?? 0).toBeGreaterThan(0);
   expect(errors, `runtime errors during the arc:\n${errors.join('\n')}`).toEqual([]);
 });
