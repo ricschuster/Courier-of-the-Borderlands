@@ -12,17 +12,18 @@ Your progress is saved locally in the browser and resumes when you return.
 
 ## Status
 
-Playable and deployed, with grey-box art. Two regions are open (the Greybridge Region and Saltreach), connected by travel. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
+Playable and deployed, with grey-box art. Three regions are open (Greybridge, Saltreach, and Fenmarch), connected by travel. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
 
 Features so far:
 
-- Two regions with travel between them, each with its own map, settlements, and contracts
+- Three regions with travel between them, each with its own map, settlements, and contracts
 - Smooth top-down driving with terrain-based speed (roads and bridges fast, forest slow, water and mountains impassable)
 - Fog-of-war exploration, tracked per region
 - Reputation-gated contract board, with optional bonus objectives for extra pay
 - Currency and reputation that raise your standing (and your delivery rates) across regions
-- Three vehicle upgrades (speed, wider fog reveal, smoother rough terrain), bought at the home town
-- An unlockable ford shortcut across the river
+- Seven vehicle upgrades (speed, wider fog reveal, rough-terrain relief, and treads and runners that let you cross deep mire and tidal flats), bought at the home town
+- Unlockable ford shortcuts in each region, plus capability-gated crossings (deep mire and tidal flats) opened by the right upgrade or skill
+- Courier skills spent as you level up, plus settlement dialogue, story threads, missions, and road encounters
 - Route guidance (distance to destination and a route drawn on the minimap)
 - Minimap, discoveries journal, terrain codex, achievements, and a courier title
 - Ambient weather that nudges speed and visibility each run
@@ -76,12 +77,15 @@ Then open the URL printed by Vite (typically http://localhost:5173).
 ## Controls
 
 - Arrow keys or WASD: drive the courier
-- Number keys (1, 2, 3): accept a contract at the home town board
+- Number keys: accept a contract at the board, or spend a skill point in the skills panel
 - B: buy the next upgrade (at the home town)
+- E: talk to an NPC (at a settlement with dialogue)
 - T: travel to the connected region (on a gateway tile, when not carrying cargo)
 - M: toggle the minimap
 - J: toggle the discoveries journal
+- K: toggle the skills panel
 - L: toggle the terrain codex
+- Space: dismiss an on-screen message
 - N: start a new game (clears the save)
 
 ## Testing
@@ -214,7 +218,9 @@ Placeholder art is acceptable. A broken core loop is not.
 - M1 Playable prototype: core delivery loop end to end with placeholder art. Done.
 - M2 MVP: one full region, three contracts, unlockable route, upgrades, story text, deployed to GitHub Pages. Done.
 - M3 Second region: a Region abstraction and registry, the Saltreach region, travel between regions, per-region fog. Done.
-- Later: more regions, per-region unlocks, audio and juice, and an art pass.
+- M4 Depth and hardening: a third region (Fenmarch), multi-region travel, per-region fords, and cargo types with pay modifiers. In progress.
+- M5 RPG and narrative layer: courier skills (done), plus settlement dialogue, story threads, missions, and road encounters. Underway.
+- Later: more regions, audio and juice, and an art pass.
 
 ## Contributing
 
