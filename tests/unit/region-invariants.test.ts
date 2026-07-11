@@ -44,6 +44,64 @@ const ORTHOGONAL: readonly PathNode[] = [
   { x: 1, y: 0 },
 ];
 
+/** Every tile whose terrain is gated by exactly `unlockId`. */
+function tilesWithUnlock(map: TileMap, unlockId: string): PathNode[] {
+  const tiles: PathNode[] = [];
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const id = getTerrainIdAt(map, x, y);
+      if (id !== undefined && getTerrain(id)?.unlockId === unlockId) {
+        tiles.push({ x, y });
+      }
+    }
+  }
+  return tiles;
+}
+
+/**
+ * Count the bank pairs a gated crossing genuinely shortens. The banks are the
+ * base-passable tiles touching the gated group (which may be several tiles
+ * wide, so gather neighbours across the whole group and dedupe). With the gate
+ * locked those banks connect only by going around; with the gating capability
+ * held they can connect straight through. A pair is "proven" when both routes
+ * exist and the capability route is strictly shorter, which is exactly what
+ * "this gate is a real shortcut, not the only way" means. Shared by the ford
+ * (unlock-flag) and capability (upgrade/skill) gate suites.
+ */
+function shorterCrossings(
+  map: TileMap,
+  gatedTiles: readonly PathNode[],
+  unlocked: ReadonlySet<string>,
+): number {
+  const basePassable = passableFn(map, NO_UNLOCKS);
+  const gatedKeys = new Set(gatedTiles.map((t) => `${t.x},${t.y}`));
+  const bankMap = new Map<string, PathNode>();
+  for (const f of gatedTiles) {
+    for (const d of ORTHOGONAL) {
+      const n = { x: f.x + d.x, y: f.y + d.y };
+      const nk = `${n.x},${n.y}`;
+      if (!gatedKeys.has(nk) && basePassable(n.x, n.y)) {
+        bankMap.set(nk, n);
+      }
+    }
+  }
+  const banks = [...bankMap.values()];
+
+  let proven = 0;
+  for (let i = 0; i < banks.length; i++) {
+    for (let j = i + 1; j < banks.length; j++) {
+      const a = banks[i]!;
+      const b = banks[j]!;
+      const detour = route(map, a, b, NO_UNLOCKS);
+      const viaGate = route(map, a, b, unlocked);
+      if (detour.reachable && viaGate.reachable && viaGate.distance < detour.distance) {
+        proven += 1;
+      }
+    }
+  }
+  return proven;
+}
+
 const regionEntries = Object.entries(REGIONS);
 
 describe.each(regionEntries)('region invariants: %s', (_id, region) => {
@@ -104,18 +162,7 @@ describe.each(fordRegions)('ford shortcut invariants: %s', (_id, region) => {
   const basePassable = passableFn(map, NO_UNLOCKS);
   const openPassable = passableFn(map, unlocked);
 
-  function fordTiles(): PathNode[] {
-    const tiles: PathNode[] = [];
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        const id = getTerrainIdAt(map, x, y);
-        if (id !== undefined && getTerrain(id)?.unlockId === fordUnlockId) {
-          tiles.push({ x, y });
-        }
-      }
-    }
-    return tiles;
-  }
+  const fordTiles = (): PathNode[] => tilesWithUnlock(map, fordUnlockId);
 
   it('has at least one ford tile keyed to its unlock id', () => {
     expect(fordTiles().length).toBeGreaterThan(0);
@@ -135,38 +182,56 @@ describe.each(fordRegions)('ford shortcut invariants: %s', (_id, region) => {
   });
 
   it('opens a crossing strictly shorter than the detour it replaces', () => {
-    // The banks are the passable tiles touching the ford crossing (which may be
-    // several tiles wide, so gather neighbours across the whole ford group and
-    // dedupe). With the ford locked those banks connect only by going around
-    // (the bridge); with it open they connect straight through. At least one
-    // bank pair must be strictly shorter through the ford, which is exactly what
-    // "the ford is a real shortcut" means.
-    const fords = fordTiles();
-    const fordKeys = new Set(fords.map((f) => `${f.x},${f.y}`));
-    const bankMap = new Map<string, PathNode>();
-    for (const f of fords) {
-      for (const d of ORTHOGONAL) {
-        const n = { x: f.x + d.x, y: f.y + d.y };
-        const nk = `${n.x},${n.y}`;
-        if (!fordKeys.has(nk) && basePassable(n.x, n.y)) {
-          bankMap.set(nk, n);
-        }
-      }
-    }
-    const banks = [...bankMap.values()];
-
-    let proven = 0;
-    for (let i = 0; i < banks.length; i++) {
-      for (let j = i + 1; j < banks.length; j++) {
-        const a = banks[i]!;
-        const b = banks[j]!;
-        const detour = route(map, a, b, NO_UNLOCKS);
-        const viaFord = route(map, a, b, unlocked);
-        if (detour.reachable && viaFord.reachable && viaFord.distance < detour.distance) {
-          proven += 1;
-        }
-      }
-    }
+    const proven = shorterCrossings(map, fordTiles(), unlocked);
     expect(proven, `${region.id} ford does not shorten any crossing`).toBeGreaterThan(0);
+  });
+});
+
+// Capability-gated shortcuts (deep-mire, tidal-flats). Unlike fords, these open
+// on a purchased upgrade or a skill rank rather than a one-off unlock flag, and
+// their gating token (mire-crossing, tidal-crossing) is passed straight to the
+// passability rule. Per-region pocket tests check specific settlement pairs by
+// hand; this promotes that to a data-driven guard that auto-discovers every
+// capability gate in every region, so a new gated tile or region is covered the
+// moment it is authored. Ford gates are excluded here (covered above).
+const capabilityGates = regionEntries.flatMap(([, region]) => {
+  const map = gridFor(region);
+  const tokens = new Set<string>();
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      const id = getTerrainIdAt(map, x, y);
+      const token = id === undefined ? undefined : getTerrain(id)?.unlockId;
+      if (token !== undefined && token !== region.fordUnlockId) {
+        tokens.add(token);
+      }
+    }
+  }
+  return [...tokens].map((token) => ({ region, token, label: `${region.id} / ${token}` }));
+});
+
+describe.each(capabilityGates)('capability-gated shortcut invariants: $label', ({ region, token }) => {
+  const map = gridFor(region);
+  const held: ReadonlySet<string> = new Set([token]);
+  const basePassable = passableFn(map, NO_UNLOCKS);
+  const heldPassable = passableFn(map, held);
+  const gatedTiles = tilesWithUnlock(map, token);
+
+  it('has at least one tile keyed to the capability token', () => {
+    expect(gatedTiles.length).toBeGreaterThan(0);
+  });
+
+  it('keeps gated tiles blocked until the capability is held, then passable', () => {
+    for (const t of gatedTiles) {
+      expect(basePassable(t.x, t.y), `gated tile (${t.x},${t.y}) should start blocked`).toBe(false);
+      expect(
+        heldPassable(t.x, t.y),
+        `gated tile (${t.x},${t.y}) should open with ${token}`,
+      ).toBe(true);
+    }
+  });
+
+  it('opens a crossing strictly shorter than the detour it replaces', () => {
+    const proven = shorterCrossings(map, gatedTiles, held);
+    expect(proven, `${region.id} ${token} does not shorten any crossing`).toBeGreaterThan(0);
   });
 });
