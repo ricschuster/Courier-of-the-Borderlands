@@ -14,6 +14,7 @@ const SALTREACH_STANDING = [
   'saltreach-tide-to-reed',
   'saltreach-tide-to-keep',
   'saltreach-tide-to-cormorant',
+  'saltreach-cipher-to-saltmere',
 ];
 
 test('shows the cleared panel on a spoke whose arc-gated contract is revealed but undelivered', async ({
@@ -37,7 +38,7 @@ test('shows the cleared panel on a spoke whose arc-gated contract is revealed bu
         unlocks: [],
         upgrades: [],
         completed,
-        visited: [...completed, 'tidewatch', 'reedford', 'saltkeep', 'cormorant-rock'],
+        visited: [...completed, 'tidewatch', 'reedford', 'saltkeep', 'cormorant-rock', 'saltmere'],
         regionId: 'saltreach',
         fogByRegion: {},
         activeContractId: null,

@@ -8,16 +8,23 @@
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain    x ford
+//   b bridge    ~ water    ^ mountain    x ford    t tidal-flat (wagon-gated)
 //
 // Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols
 // at load time.
+//
+// A salt lagoon runs down column 18 (rows 4-8 and 10), walling off the
+// south-east corner. A single tidal-flat tile at (18, 9) is the short way
+// across, opened by the Salt Runners upgrade or Off-road rank 3; without it
+// Saltmere is reached the long way round, up to row 3 and down column 19. See
+// docs/design/07_roads_gate_the_wagon.md.
 //
 // Settlements:
 //   tidewatch      (5,  5)  home town, on the main west-east road
 //   reedford       (13, 2)  reed-cutter settlement north-east of the bridge
 //   saltkeep       (13, 8)  fortified salt store east of the south bridge
 //   cormorant-rock (18, 0)  cliff-top perch at the far north-east corner
+//   saltmere       (19, 9)  drowned hamlet behind the lagoon, far south-east
 //
 // Gateway (0, 5) leads west to Greybridge. Row 5 road runs directly east to
 // Tidewatch. Column 5 road runs north and south to the bridges.
@@ -41,20 +48,21 @@ export const SALTREACH_ROWS: readonly string[] = [
   '.....#.b..f..#......',
   // row 3: road col 5 continues; plains and forest east of water
   '.....#.~..f.........',
-  // row 4: road col 5 continues; forest thickens east
-  '.....#.~..f.ff......',
-  // row 5: main west-east road; gateway(0), spawn(1), tidewatch(5)
-  '######.~..ff........',
-  // row 6: ford shortcut (locked) at col 7; road col 5 south
-  '.....#.x..ff........',
-  // row 7: road col 5 approaches south bridge
-  '.....#.~..ff........',
-  // row 8: south bridge crosses water; saltkeep east of bridge on road
-  '.....#.b..ff.##.....',
-  // row 9: southern mountains; road east continues toward saltkeep
-  '....^^.~..f..##.....',
-  // row 10: mountain range closes south-west corner; water continues
-  '..^^^^.~..f.........',
+  // row 4: road col 5 continues; forest thickens east; salt lagoon begins (18)
+  '.....#.~..f.ff....~.',
+  // row 5: main west-east road; gateway(0), spawn(1), tidewatch(5); lagoon (18)
+  '######.~..ff......~.',
+  // row 6: ford shortcut (locked) at col 7; road col 5 south; lagoon (18)
+  '.....#.x..ff......~.',
+  // row 7: road col 5 approaches south bridge; lagoon (18)
+  '.....#.~..ff......~.',
+  // row 8: south bridge crosses water; saltkeep east of bridge on road; lagoon (18)
+  '.....#.b..ff.##...~.',
+  // row 9: southern mountains; road east continues; tidal-flat crossing (18)
+  // of the lagoon opens the short way to Saltmere in the SE corner (19)
+  '....^^.~..f..##...t.',
+  // row 10: mountain range closes south-west corner; lagoon closes south (18)
+  '..^^^^.~..f.......~.',
 ];
 
 // ---------------------------------------------------------------------------
@@ -69,6 +77,7 @@ export const SALTREACH_LEGEND: Readonly<Record<string, string>> = {
   '~': 'water',
   '^': 'mountain',
   x: 'ford-saltreach',
+  t: 'tidal-flat',
 };
 
 // ---------------------------------------------------------------------------
@@ -99,6 +108,12 @@ export const SALTREACH_SETTLEMENTS: Readonly<Record<string, Settlement>> = {
     name: 'Cormorant Rock',
     tile: { x: 18, y: 0 },
     note: 'A cliff-top perch reached by one narrow road. The birds here carry news faster than any courier.',
+  },
+  saltmere: {
+    id: 'saltmere',
+    name: 'Saltmere',
+    tile: { x: 19, y: 9 },
+    note: 'A drowned hamlet in the south-east corner, ringed by a salt lagoon that took the causeway and never gave it back. Dry-shod couriers come the long way round; the bold wade the flats.',
   },
 };
 
@@ -141,6 +156,22 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 6,
     note: 'The letter has no seal, no name, and no return address. The person who gave it to you was already gone before you could ask a single question.',
+    cargoType: 'secrets',
+  },
+  // Premium standing contract to Saltmere, the lagoon-ringed corner. Deliverable
+  // the long dry way round, but the tidal-flat crossing (Salt Runners, or
+  // Off-road rank 3) is the short way in: the gate opens a better route, never
+  // the only one. Counts toward region clearance like the other standing routes.
+  {
+    id: 'saltreach-cipher-to-saltmere',
+    title: 'A Cipher for Saltmere',
+    cargo: 'a salt-stained cipher',
+    pickupId: 'tidewatch',
+    destinationId: 'saltmere',
+    reward: 118,
+    reputation: 4,
+    minReputation: 6,
+    note: 'Saltmere drowned quietly and no one sent word. Someone wants this carried to the hamlet behind the lagoon, and does not care whether you wade the flats or take the long road. Pays like it matters.',
     cargoType: 'secrets',
   },
   // Arc-gated: appears once the harbormaster's reveal is known (saltreach_method),

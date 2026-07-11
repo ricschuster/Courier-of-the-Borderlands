@@ -36,6 +36,15 @@ export const CAPABILITY_GRANTS: CapabilityGrants = {
     upgrades: ['marsh-treads'],
     skills: [{ id: 'off-road', minRank: 2 }],
   },
+  // Tidal flats (the salt lagoons of Saltreach and the fen of Fenmarch) are
+  // crossable with the wide flotation Salt Runners (coins), or by ranking
+  // Off-road to 3 (skill points). This escalates from the mire (rank 2): the
+  // courier who has pushed Off-road to its cap crosses both. Either key opens
+  // the same lagoon shortcut, and the dry way round is always open.
+  'tidal-crossing': {
+    upgrades: ['salt-runners'],
+    skills: [{ id: 'off-road', minRank: 3 }],
+  },
 };
 
 /** True when any single source of the grant is satisfied. */

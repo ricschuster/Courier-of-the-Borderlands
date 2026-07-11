@@ -29,7 +29,7 @@ export const SKILLS: readonly Skill[] = [
     id: 'off-road',
     name: 'Off-road',
     description:
-      'You drive where the roads give out. +10 percent speed per rank, and at rank 2 you can cross the deep mire without Marsh Treads.',
+      'You drive where the roads give out. +10 percent speed per rank; at rank 2 you cross the deep mire without Marsh Treads, and at rank 3 the tidal flats without Salt Runners.',
     maxRank: 3,
     perRank: { speedBonus: 0.1 },
   },

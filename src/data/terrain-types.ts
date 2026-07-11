@@ -48,6 +48,20 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
     speedModifier: 0.4,
     unlockId: 'mire-crossing',
   },
+  // Tidal flat: soft salt-marsh mud the base wagon bogs down in and cannot
+  // cross. It opens as a shortcut only once the courier holds the
+  // "tidal-crossing" capability (the Salt Runners upgrade, or Off-road rank 3),
+  // and a longer dry route around the lagoon always exists. Slower than marsh
+  // once open. Used in the wetland regions (Saltreach, Fenmarch). See
+  // src/systems/traversal.ts and docs/design/07_roads_gate_the_wagon.md.
+  'tidal-flat': {
+    id: 'tidal-flat',
+    name: 'Tidal Flat',
+    color: 0x6a6f55,
+    passable: false,
+    speedModifier: 0.4,
+    unlockId: 'tidal-crossing',
+  },
   // Ford: a shallow crossing that starts blocked and opens as an unlockable
   // shortcut. Slower than the bridge, but a shorter route across the south.
   // Each region has its own ford terrain and unlock id so opening one
