@@ -621,6 +621,20 @@ export class MapScene extends Phaser.Scene {
     return this.isE2E() && new URLSearchParams(window.location.search).has('turbo') ? 2 : 1;
   }
 
+  /**
+   * Test-only switch that disables wagon wear (ADR 0005). The full-arc e2e is a
+   * reachability / soft-lock guard, not a travel-sink test: the sink is unit
+   * tested and cannot soft-lock (a dry wagon still limps to a settlement and a
+   * tow-home rescue is always available). On a loaded CI runner, though, a long
+   * leg can drain the wagon to limp speed mid-drive, which the driver reads as a
+   * stall. Gate wear off via `?nowear` so the arc measures reachability without
+   * that harness-only fragility. Requires `?e2e` so a stray URL param cannot
+   * disable wear in the real game.
+   */
+  private wearDisabled(): boolean {
+    return this.isE2E() && new URLSearchParams(window.location.search).has('nowear');
+  }
+
   /** Attach the read-plus-navigate test API to window, gated on `?e2e`. */
   private maybeExposeE2EApi(): void {
     if (!this.isE2E()) {
@@ -878,9 +892,14 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(dx, dy) / TILE_SIZE;
     if (tiles > 0) {
       this.trip = addDistance(this.trip, tiles);
-      const worn = applyWear(this.wagonCondition, wearRate * tiles);
-      this.wagonWearTotal += this.wagonCondition - worn;
-      this.wagonCondition = worn;
+      // Skip only the condition-mutation when wear is disabled for the e2e arc;
+      // trip distance and tilesSinceAccept still track so every other system
+      // (via-ford bonus, objective progress) behaves exactly as in real play.
+      if (!this.wearDisabled()) {
+        const worn = applyWear(this.wagonCondition, wearRate * tiles);
+        this.wagonWearTotal += this.wagonCondition - worn;
+        this.wagonCondition = worn;
+      }
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
       }

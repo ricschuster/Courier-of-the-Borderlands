@@ -204,9 +204,20 @@ export async function driveToTile(
  * (test-only) so a long multi-delivery drive finishes in about half the
  * wall-clock. Movement stays real key input on the same paths; only the speed
  * scales.
+ *
+ * Pass `{ noWear: true }` to also set `?nowear`, which disables wagon-condition
+ * wear (ADR 0005) for the run. The full-arc arc is a reachability / soft-lock
+ * guard, not a travel-sink test, and under CI load a leg can drain the wagon to
+ * limp speed mid-drive and read as a stall; the sink is unit tested separately.
  */
-export async function bootE2E(page: Page, options: { turbo?: boolean } = {}): Promise<void> {
-  await page.goto(options.turbo ? './?e2e=1&turbo=1' : './?e2e=1');
+export async function bootE2E(
+  page: Page,
+  options: { turbo?: boolean; noWear?: boolean } = {},
+): Promise<void> {
+  const params = ['e2e=1'];
+  if (options.turbo) params.push('turbo=1');
+  if (options.noWear) params.push('nowear=1');
+  await page.goto(`./?${params.join('&')}`);
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   // Focus the canvas so key events reach the game.
   await page.locator('#game canvas').click();
