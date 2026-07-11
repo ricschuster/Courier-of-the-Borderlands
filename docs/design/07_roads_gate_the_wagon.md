@@ -100,9 +100,29 @@ a discovery gate, separate from the passability gate above.
    (Off-road first, which opens the mire), so the buy/rank input flows are
    covered by the arc guard and gated content is reachable. The arc asserts it
    finished with an upgrade owned and Off-road ranked.
-5. **Spread gates + hidden routes.** Once 1-4 feel right, add gated shortcuts and
-   reveal-hidden routes across the other regions, and a premium contract or two
-   behind a gate.
+5. **Spread gates + hidden routes.** IN PROGRESS. Add gated shortcuts and
+   premium contracts across the other regions. Owner calls (2026-07-11): both
+   Saltreach and Fenmarch get a gate, using a **new** capability rather than
+   reusing `mire-crossing`.
+
+   - New mechanic: capability `tidal-crossing`, granted by the **Salt Runners**
+     upgrade (140 coins) OR **Off-road rank 3** (skill points), gating a new
+     `tidal-flat` terrain. This escalates from the mire (Off-road 2 → tidal 3):
+     the courier who caps Off-road crosses both, and Salt Runners is the coin
+     path. One new coin sink that pays off in both wetland regions.
+   - Level-design note: unlike Greybridge (Reedgrave sat behind a real mire
+     wall), Saltreach and Fenmarch had no gate-able detour (verified with the
+     pathfinder: a channel crossing saved zero tiles). So each gate is built as
+     a **Reedgrave-style corner pocket**: a new premium locale walled by a
+     lagoon, reached by the tidal shortcut OR a longer dry route, with a premium
+     standing contract to it. The long way is always open, so the arc never
+     soft-locks.
+   - **Saltreach: SHIPPED.** Saltmere, a lagoon-ringed hamlet at (19,9), walled
+     by a salt lagoon down column 18 with a single tidal-flat crossing at
+     (18,9). Premium standing contract `saltreach-cipher-to-saltmere` (118
+     coins). The tidal crossing saves ~6 tiles from Tidewatch and ~10 from
+     Saltkeep; the dry way round (up to row 3, down column 19) stays open.
+   - **Fenmarch: TODO** (same mechanic, a fen corner pocket).
 
 ## Non-goals
 

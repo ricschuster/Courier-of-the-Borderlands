@@ -50,4 +50,12 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
     cost: 150,
     speedBonus: 0.25,
   },
+  {
+    id: 'salt-runners',
+    name: 'Salt Runners',
+    description: 'Broad flotation runners that spread the load across soft ground. Lets the wagon cross tidal flats and fen mud that would swallow it, and cuts rough-ground drag by half again.',
+    cost: 140,
+    speedBonus: 0,
+    roughnessRelief: 0.5,
+  },
 ];
