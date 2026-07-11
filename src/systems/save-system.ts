@@ -155,15 +155,62 @@ export function migrateUnlocks(ids: readonly string[]): string[] {
 }
 
 /**
- * Validate and parse raw save data. Returns null for anything that is not a
- * current-version save, so a corrupt or outdated save falls back to a new game.
+ * Upgrades a raw save from one schema version to the next. `MIGRATIONS[n]`
+ * reshapes a version-n save's raw fields into the version-(n+1) shape. Purely
+ * structural: a step only needs to handle a breaking rename or reshape, because
+ * additive fields are already tolerated by the field parsers below (an absent
+ * field defaults). This is where a real migration goes when SAVE_VERSION is
+ * bumped, so an existing player's save is upgraded rather than discarded.
+ */
+type SaveMigration = (data: Record<string, unknown>) => Record<string, unknown>;
+
+const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
+  // Empty while every schema change so far has been additive (new fields default
+  // via absence). Add a step keyed on the source version when a bump needs one,
+  // e.g. 1: (data) => ({ ...data, /* reshape v1 -> v2 */ }).
+};
+
+/**
+ * Walk the migration ladder from `fromVersion` up to `toVersion`. Returns the
+ * upgraded raw data, or null if there is no path: a save newer than this build
+ * (`fromVersion > toVersion`) cannot be safely downgraded, and a gap with no
+ * registered step cannot be crossed. Exported so the ladder can be unit tested
+ * with synthetic steps independently of the current SAVE_VERSION.
+ */
+export function migrateSaveData(
+  data: Record<string, unknown>,
+  fromVersion: number,
+  toVersion: number,
+  migrations: Readonly<Record<number, SaveMigration>> = MIGRATIONS,
+): Record<string, unknown> | null {
+  if (fromVersion > toVersion) {
+    return null;
+  }
+  let out = data;
+  for (let v = fromVersion; v < toVersion; v++) {
+    const step = migrations[v];
+    if (step === undefined) {
+      return null;
+    }
+    out = step(out);
+  }
+  return out;
+}
+
+/**
+ * Validate and parse raw save data. An older save is migrated up to the current
+ * version before parsing rather than discarded; only a save from a newer build,
+ * an unbridgeable version gap, or structurally corrupt data falls back to a new
+ * game (null).
  */
 export function deserialize(raw: unknown): GameSnapshot | null {
   if (typeof raw !== 'object' || raw === null) {
     return null;
   }
-  const data = raw as Record<string, unknown>;
-  if (data.version !== SAVE_VERSION) {
+  const rawVersion = (raw as Record<string, unknown>).version;
+  const version = isFiniteNumber(rawVersion) ? Math.floor(rawVersion) : 0;
+  const data = migrateSaveData(raw as Record<string, unknown>, version, SAVE_VERSION);
+  if (data === null) {
     return null;
   }
   return {
