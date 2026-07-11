@@ -26,9 +26,10 @@ export const SKILLS: readonly Skill[] = [
     perRank: { revealBonus: 1 },
   },
   {
-    id: 'teamster',
-    name: 'Teamster',
-    description: 'You get more from your team. +10 percent speed per rank.',
+    id: 'off-road',
+    name: 'Off-road',
+    description:
+      'You drive where the roads give out. +10 percent speed per rank, and at rank 2 you can cross the deep mire without Marsh Treads.',
     maxRank: 3,
     perRank: { speedBonus: 0.1 },
   },

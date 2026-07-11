@@ -84,13 +84,14 @@ a discovery gate, separate from the passability gate above.
 
 ## Build order (slices)
 
-1. **Capability-key passability (pure core).** Add `traversalKeys` + a capability
-   grant map; wire the `map-scene` call sites; add one real gated shortcut
-   (Fenmarch deep-mire) that Marsh Treads opens, with the long route still open.
-   Unit tests for the pure logic; arc e2e still passes untouched.
-2. **Skills as keys.** Repurpose one skill into the traversal key (off-road) that
-   also grants `mire-crossing` at a rank; retune the skill set so it is a real
-   choice, not four buffs. Unit tests.
+1. **Capability-key passability (pure core).** SHIPPED (#95, gated shortcut and
+   premium contract #97). `traversalKeys` + a capability grant map; the
+   `map-scene` call sites wired; the Reedgrave deep-mire crossing that Marsh
+   Treads opens, with the long route still open. Unit tests; arc e2e untouched.
+2. **Skills as keys.** SHIPPED. Teamster was repurposed into Off-road: it keeps a
+   per-rank speed bonus and, at rank 2, grants `mire-crossing`. The mire now opens
+   for coins (Marsh Treads) or skill points (Off-road 2), the same route either
+   way, so skills join the traversal decision instead of being idle buffs.
 3. **Economy tightening.** Retune upgrade costs / reward flow so the first access
    upgrade is a genuine save-up decision. Numbers are playtest-gated; ship the
    levers as data, set them from a play signal.
