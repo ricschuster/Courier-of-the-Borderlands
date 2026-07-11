@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { tapKey } from './drive';
 
 // Deterministic world-state test: an arc-gated contract must appear on the board
 // once its story flag is set, and revealing it must NOT re-lock the region. We
@@ -74,7 +75,9 @@ test('an arc-gated contract appears after the reveal without re-locking the regi
   // reveal flag is set, so the thread has started). This exercises the story
   // thread rendering in the real build; assert only that it does not throw.
   await page.locator('#game canvas').click();
-  await page.keyboard.press('J');
+  // Hold J (a one-shot JustDown read) so a starved frame cannot drop it and
+  // leave the journal unopened, silently skipping the thread-render coverage.
+  await tapKey(page, 'J');
   await page.waitForTimeout(300);
 
   expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
