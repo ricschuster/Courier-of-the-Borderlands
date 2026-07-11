@@ -12,6 +12,14 @@ name: Arc
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/arc.yml'
   schedule:
     - cron: '0 7 * * *'
 
