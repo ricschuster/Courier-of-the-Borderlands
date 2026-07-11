@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
+import {
+  bootE2E,
+  collectErrors,
+  driveToTile,
+  pressUntil,
+  readTick,
+  setSkillPanel,
+  type Arrow,
+} from './drive';
 
 // Input-driven test for a social skill unlocking dialogue. A save is seeded
 // with enough distance to grant one skill point, then the test spends it on
@@ -45,12 +53,14 @@ test('spending a point on Cipher unlocks a gated dialogue line', async ({ page }
   expect(start.state.skills.cipher ?? 0).toBe(0);
 
   // Open the skills panel and spend a point on Cipher (the fourth skill, key 4).
-  await pressUntil(page, 'k', async () => (await readTick(page, 0, 0)).state.skillPanelOpen);
+  // "k" is a toggle, so drive it with setSkillPanel rather than pressUntil (a
+  // re-press could flip it back); "4" is a no-op once the point is spent.
+  await setSkillPanel(page, true);
   await pressUntil(page, '4', async () => (await readTick(page, 0, 0)).state.skills.cipher === 1);
   expect((await readTick(page, 0, 0)).state.skills.cipher).toBe(1);
 
   // Close the panel before talking.
-  await pressUntil(page, 'k', async () => !(await readTick(page, 0, 0)).state.skillPanelOpen);
+  await setSkillPanel(page, false);
 
   // Drive to the home town and open the postmaster conversation.
   const home = start.state.home;

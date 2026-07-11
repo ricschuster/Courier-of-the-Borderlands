@@ -7,6 +7,11 @@ import { expect, type Page } from '@playwright/test';
  * one-shot press is flaky. This checks first, then re-presses each poll until
  * the game registers it. Only safe where the input is a no-op once complete
  * (the contract board and shop both ignore further presses after they act).
+ *
+ * Each attempt holds the key via `tapKey` rather than an instantaneous
+ * `press`. A zero-gap down+up can land entirely between two starved frames and
+ * never be observed down, so even a re-pressing loop can burn its whole timeout
+ * dropping every attempt; holding for a beat guarantees the next frame sees it.
  */
 export async function pressUntil(
   page: Page,
@@ -18,7 +23,7 @@ export async function pressUntil(
     .poll(
       async () => {
         if (await done()) return true;
-        await page.keyboard.press(key);
+        await tapKey(page, key);
         return done();
       },
       { timeout: timeoutMs },
