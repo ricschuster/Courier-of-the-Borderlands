@@ -34,6 +34,24 @@ export function isPurchased(purchasedIds: ReadonlySet<string>, id: string): bool
   return purchasedIds.has(id);
 }
 
+/**
+ * Number of purchased upgrades that provide roughness relief. Feeds the wagon
+ * wear relief (ADR 0005), which scales with how many relief upgrades are owned
+ * rather than their summed speed relief.
+ */
+export function countReliefUpgrades(
+  purchasedIds: ReadonlySet<string>,
+  upgrades: readonly Upgrade[],
+): number {
+  let count = 0;
+  for (const upgrade of upgrades) {
+    if (purchasedIds.has(upgrade.id) && (upgrade.roughnessRelief ?? 0) > 0) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** Returns true if the player has enough coins to buy the upgrade. */
 export function canAfford(coins: number, upgrade: Upgrade): boolean {
   return coins >= upgrade.cost;

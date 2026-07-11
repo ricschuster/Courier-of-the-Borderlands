@@ -29,6 +29,7 @@ const SNAPSHOT: GameSnapshot = {
   contractStatus: null,
   distanceTiles: 42.5,
   deliveries: 1,
+  wagonCondition: 88,
   achievements: ['first-delivery'],
   skills: { 'off-road': 2 },
   storyFlags: ['greybridge_reveal'],
