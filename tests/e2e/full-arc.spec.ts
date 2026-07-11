@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, travelTo, type Arrow } from './drive';
+import {
+  bootE2E,
+  collectErrors,
+  driveToTile,
+  setSkillPanel,
+  tapKey,
+  travelTo,
+  type Arrow,
+} from './drive';
 
 // End-to-end arc completion: boot the real built game and greedily play the
 // whole three-region arc with genuine key presses until the blockade breaks and
@@ -44,33 +52,23 @@ async function walkDialogue(page: Page): Promise<void> {
     const s = await readState(page);
     if (!s || !s.dialogueOpen) return;
     if (s.dialogueChoices.length === 0) {
-      await page.keyboard.press('Escape');
+      await tapKey(page, 'Escape');
       await page.waitForTimeout(120);
       continue;
     }
     const sig = s.dialogueChoices.join('|');
     const hasProgress = s.dialogueChoices.some((c) => PROGRESS.some((p) => c.toLowerCase().includes(p)));
     if (seen.has(sig) && !hasProgress) {
-      await page.keyboard.press('Escape');
+      await tapKey(page, 'Escape');
       await page.waitForTimeout(120);
       continue;
     }
     seen.add(sig);
-    await page.keyboard.press(String(pickChoice(s.dialogueChoices) + 1));
+    await tapKey(page, String(pickChoice(s.dialogueChoices) + 1));
     await page.waitForTimeout(160);
   }
-  await page.keyboard.press('Escape');
+  await tapKey(page, 'Escape');
   await page.waitForTimeout(120);
-}
-
-// Ensure the skills panel is closed so number keys reach the contract board
-// again (a left-open panel would swallow the "1" that accepts a contract).
-async function closeSkillPanel(page: Page): Promise<void> {
-  for (let i = 0; i < 3; i++) {
-    if (!(await readState(page))?.skillPanelOpen) return;
-    await page.keyboard.press('k');
-    await page.waitForTimeout(120);
-  }
 }
 
 // Spend coins and skill points the way a completionist player would, so the buy
@@ -83,25 +81,27 @@ async function closeSkillPanel(page: Page): Promise<void> {
 // nothing left to spend it returns false and the caller falls through to arc
 // progress.
 async function spendAtHome(page: Page): Promise<boolean> {
-  await closeSkillPanel(page);
+  // Make sure the panel is closed before reading the board: the contract-accept
+  // handler ignores number keys while the skill panel is open, so a panel left
+  // open by an earlier visit would silently swallow every "1" and stall the arc.
+  // setSkillPanel confirms the state (a raw "k" toggle can drop under load).
+  await setSkillPanel(page, false);
   const before = await readState(page);
   if (!before) return false;
 
   // Buy the cheapest affordable upgrade (a no-op when none is affordable).
-  await page.keyboard.press('B');
+  await tapKey(page, 'B');
   await page.waitForTimeout(150);
 
   if (before.skillPoints > 0) {
-    await page.keyboard.press('k');
-    await page.waitForTimeout(120);
-    if ((await readState(page))?.skillPanelOpen) {
-      // Off-road first (it opens the mire), then the rest, one point per key.
-      for (const key of ['2', '1', '3', '4']) {
-        await page.keyboard.press(key);
-        await page.waitForTimeout(110);
-      }
-      await closeSkillPanel(page);
+    await setSkillPanel(page, true);
+    // Off-road first (it opens the mire), then the rest, one point per key.
+    for (const key of ['2', '1', '3', '4']) {
+      await tapKey(page, key);
+      await page.waitForTimeout(110);
     }
+    // Close it before returning so the number keys reach the contract board.
+    await setSkillPanel(page, false);
   }
 
   const after = await readState(page);
@@ -131,12 +131,50 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
   const triedGateways = new Set<string>();
   const doneRegions = new Set<string>();
   let lastRegion = (await readState(page))!.regionId;
+  // No-progress watchdog: track a signature of every marker that changes as the
+  // arc advances, and fail loudly if it stays flat for too long.
+  let progressSig = '';
+  let stallSteps = 0;
 
   // A clean run needs ~100 macro-steps; the generous budget is headroom for
   // dropped-input retries under a loaded runner.
   for (let step = 0; step < 400; step++) {
     const s = (await readState(page)) as State | null;
     if (!s) break;
+
+    // If nothing that marks arc progress changes for many steps, the driver is
+    // wedged on an input the game keeps ignoring (e.g. a panel swallowing the
+    // contract-accept key). Fail with the live state so the cause is obvious,
+    // rather than running out the step budget and reporting a missing flag.
+    // Deliberately excludes atHome: the wagon can coast on and off the home tile
+    // between iterations while retrying an input, and that toggle alone must not
+    // read as progress or the watchdog never trips on a genuine stall.
+    const sig = [
+      s.regionId,
+      s.storyFlags.length,
+      s.contractStatus,
+      s.activeContractId ?? '',
+      Object.values(s.worldState).join(''),
+    ].join('|');
+    if (sig === progressSig) {
+      stallSteps++;
+      if (stallSteps >= 60) {
+        throw new Error(
+          `arc stalled for ${stallSteps} steps: ${JSON.stringify({
+            region: s.regionId,
+            storyFlags: s.storyFlags,
+            contractStatus: s.contractStatus,
+            atHome: s.atHome,
+            skillPanelOpen: s.skillPanelOpen,
+            availableContracts: s.availableContractIds.length,
+            courier: [s.courier.tileX, s.courier.tileY],
+          })}`,
+        );
+      }
+    } else {
+      progressSig = sig;
+      stallSteps = 0;
+    }
 
     if (s.regionId !== lastRegion) {
       lastRegion = s.regionId;
@@ -149,7 +187,7 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
       continue;
     }
     if (s.summaryVisible) {
-      await page.keyboard.press('Escape'); // the summary panel dismisses on Esc
+      await tapKey(page, 'Escape'); // the summary panel dismisses on Esc
       await page.waitForTimeout(150);
       continue;
     }
@@ -158,7 +196,7 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
     if (s.activeContractId && s.contractStatus === 'carrying' && s.destination) {
       await driveToTile(page, held, s.destination.tileX, s.destination.tileY);
       await page.waitForTimeout(250);
-      await page.keyboard.press('Space'); // dismiss the delivery toast
+      await tapKey(page, 'Space'); // dismiss the delivery toast
       await page.waitForTimeout(100);
       continue;
     }
@@ -192,7 +230,7 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
         // no hard per-press timeout (a stuck talk fails via the step budget with
         // a clear "blockade not broken", not an opaque 15s predicate timeout).
         await driveToTile(page, held, s.home.tileX, s.home.tileY);
-        await page.keyboard.press('E');
+        await tapKey(page, 'E');
         await page.waitForTimeout(250);
         if ((await readState(page))?.dialogueOpen) {
           talked.add(talkKey);
@@ -204,7 +242,7 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
         // Accept the first offered contract. A dropped press just means the next
         // loop iteration re-approaches and retries, so a single press is safe
         // here (unlike the talk above, which is marked done once attempted).
-        await page.keyboard.press('1');
+        await tapKey(page, '1');
         await page.waitForTimeout(200);
         continue;
       }
