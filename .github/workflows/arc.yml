@@ -2,22 +2,14 @@ name: Arc
 
 # The full three-region playthrough (~3m of real-time driving) is the guard
 # against a soft-locked critical path. It runs:
-#   - pre-merge, on PRs that touch game code or the e2e harness (path filter
-#     below), so a break is caught on the PR before it can land on main;
-#   - on push to main, as belt-and-braces on-merge coverage;
+#   - on push to main, as on-merge coverage;
 #   - nightly, as a heartbeat.
-# Docs-only and config-only PRs do not match the paths, so they stay fast.
+#
+# It deliberately does NOT run pre-merge on PRs. Arc is not a required status
+# check, and PRs auto-merge on `check` + `e2e`, so a pre-merge Arc never gated
+# a merge; it only paid for the same ~4-16m playthrough a second time. The
+# on-merge run on main is the real signal, minutes later.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/e2e/**'
-      - 'playwright.config.ts'
-      - 'vite.config.ts'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/arc.yml'
   push:
     branches: [main]
   schedule:
