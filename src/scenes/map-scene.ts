@@ -28,7 +28,14 @@ import {
   type Fog,
 } from '../systems/fog-of-war';
 import { addCoins, addReputation, ledgerFrom, totalReputation, tierFor } from '../systems/economy';
-import { loadSave, writeSave, clearSave, type GameSnapshot } from '../systems/save-system';
+import {
+  loadSave,
+  writeSave,
+  clearSave,
+  hasSeenIntro,
+  markIntroSeen,
+  type GameSnapshot,
+} from '../systems/save-system';
 import {
   speedMultiplier,
   purchase,
@@ -305,6 +312,10 @@ export class MapScene extends Phaser.Scene {
   // save field. See docs/design/05_playtest_notes.md.
   private capstoneDismissed = false;
   private blockadeBrokenAtLoad = false;
+  // Set once per page-load session after the player has been told their progress
+  // is not being saved, so a failing autosave warns at most once rather than
+  // every tick. Not reset across scene restarts: one warning per visit is enough.
+  private saveWarned = false;
   // The most recent story messages, mirrored from their toasts so they can be
   // re-read in the journal after the toast fades (Session 2 playtest).
   private recentEvents: readonly string[] = [];
@@ -419,9 +430,22 @@ export class MapScene extends Phaser.Scene {
     this.maybeExposeE2EApi();
 
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
-    this.hud.showToast(
-      `${this.region.name}. Reach ${homeName} for contracts. ${this.weather.description}`,
-    );
+    // First-ever boot: introduce the premise and the goal. A cold player has no
+    // other cue for what a courier does or where to go. Shown once ever (the flag
+    // lives outside the save, so a new game does not repeat it); returning players
+    // get the terse status line. The toast is non-modal and dismissed with Space,
+    // like every other message.
+    if (!hasSeenIntro()) {
+      markIntroSeen();
+      this.hud.showToast(
+        `You are a courier on a fractured frontier, where the roads are unreliable and news travels only as fast as you do.\n\n` +
+          `Reach ${homeName} to accept a contract at the board, then deliver it. Every run pulls back the fog and builds your name with the settlements that depend on you.`,
+      );
+    } else {
+      this.hud.showToast(
+        `${this.region.name}. Reach ${homeName} for contracts. ${this.weather.description}`,
+      );
+    }
   }
 
   /** Load global state from a snapshot, or reset to a fresh game if null. */
@@ -506,7 +530,7 @@ export class MapScene extends Phaser.Scene {
   private save(): void {
     this.fogByRegion[this.region.id] = revealedIndices(this.fog);
     this.fogDimsByRegion[this.region.id] = [this.map.width, this.map.height];
-    writeSave({
+    const result = writeSave({
       coins: this.state.ledger.coins,
       reputation: { ...this.state.ledger.reputation },
       unlocks: [...this.state.unlocks],
@@ -524,6 +548,17 @@ export class MapScene extends Phaser.Scene {
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
     });
+    // Autosave runs every couple of seconds; if storage is unavailable or full,
+    // tell the player once rather than every tick, so they know a closed tab
+    // will lose the run. Slot 1 so it stacks under, not over, the status toast.
+    if (result !== 'ok' && !this.saveWarned) {
+      this.saveWarned = true;
+      const reason =
+        result === 'unavailable'
+          ? 'This browser is not saving progress (private mode or storage is disabled).'
+          : 'Could not save progress (browser storage may be full).';
+      this.hud.showToast(`${reason} Your run will be lost when you close the tab.`, 1);
+    }
   }
 
   /** True when the game booted with `?e2e` in the URL (test-only hook). */
