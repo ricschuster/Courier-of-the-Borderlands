@@ -4,6 +4,7 @@ import type { RunSummaryInput } from '../../src/systems/run-summary';
 
 // Reusable base input for tests that only need to vary one field.
 const base: RunSummaryInput = {
+  regionName: 'Greybridge Region',
   coins: 120,
   totalReputation: 10,
   reputationTier: 'Trusted',
@@ -41,9 +42,19 @@ describe('computeRunSummary - title', () => {
     expect(result.title).toBe('Courier Ledger');
   });
 
-  it('returns "Greybridge Region Cleared" when complete', () => {
+  it('returns "<region> Cleared" when complete', () => {
     const result = computeRunSummary({ ...base, delivered: 3, totalContracts: 3 });
     expect(result.title).toBe('Greybridge Region Cleared');
+  });
+
+  it('derives the cleared title from the region name', () => {
+    const result = computeRunSummary({
+      ...base,
+      regionName: 'Saltreach',
+      delivered: 3,
+      totalContracts: 3,
+    });
+    expect(result.title).toBe('Saltreach Cleared');
   });
 });
 
@@ -86,16 +97,24 @@ describe('computeRunSummary - ford shortcut wording', () => {
 });
 
 describe('computeRunSummary - flavour line', () => {
-  it('adds a flavour line when complete', () => {
+  it('adds a region-named flavour line when complete', () => {
     const result = computeRunSummary({ ...base, delivered: 3, totalContracts: 3 });
-    expect(result.lines).toContain('The Greybridge roads know your wheels now.');
+    expect(result.lines).toContain('The roads of Greybridge Region know your wheels now.');
+  });
+
+  it('names the flavour line after the cleared region', () => {
+    const result = computeRunSummary({
+      ...base,
+      regionName: 'Fenmarch',
+      delivered: 3,
+      totalContracts: 3,
+    });
+    expect(result.lines).toContain('The roads of Fenmarch know your wheels now.');
   });
 
   it('does not add the flavour line when incomplete', () => {
     const result = computeRunSummary({ ...base, delivered: 1, totalContracts: 3 });
-    const hasFlavour = result.lines.some((line) =>
-      line.includes('Greybridge roads'),
-    );
+    const hasFlavour = result.lines.some((line) => line.includes('know your wheels'));
     expect(hasFlavour).toBe(false);
   });
 });

@@ -69,6 +69,7 @@ export interface SummaryTextInput {
  */
 export function summaryText(input: SummaryTextInput): string | null {
   const summary = computeRunSummary({
+    regionName: input.regionName,
     coins: input.coins,
     totalReputation: input.totalReputation,
     reputationTier: input.reputationTier,

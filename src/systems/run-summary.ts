@@ -1,6 +1,7 @@
 // Pure end-of-run summary. No Phaser imports. No side effects.
 
 export interface RunSummaryInput {
+  readonly regionName: string;       // e.g. "Greybridge Region"
   readonly coins: number;
   readonly totalReputation: number;
   readonly reputationTier: string;   // e.g. "Honoured"
@@ -12,7 +13,7 @@ export interface RunSummaryInput {
 
 export interface RunSummary {
   readonly complete: boolean;        // true iff totalContracts > 0 && delivered >= totalContracts
-  readonly title: string;            // "Greybridge Region Cleared" when complete, else "Courier Ledger"
+  readonly title: string;            // "<Region> Cleared" when complete, else "Courier Ledger"
   readonly lines: readonly string[]; // human-readable stat lines for display
 }
 
@@ -21,7 +22,7 @@ export function computeRunSummary(input: RunSummaryInput): RunSummary {
   const complete =
     input.totalContracts > 0 && input.delivered >= input.totalContracts;
 
-  const title = complete ? 'Greybridge Region Cleared' : 'Courier Ledger';
+  const title = complete ? `${input.regionName} Cleared` : 'Courier Ledger';
 
   const fordLine = input.fordUnlocked
     ? 'Ford shortcut: opened'
@@ -36,7 +37,7 @@ export function computeRunSummary(input: RunSummaryInput): RunSummary {
   ];
 
   if (complete) {
-    lines.push('The Greybridge roads know your wheels now.');
+    lines.push(`The roads of ${input.regionName} know your wheels now.`);
   }
 
   return { complete, title, lines };

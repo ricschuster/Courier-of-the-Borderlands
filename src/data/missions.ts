@@ -35,13 +35,15 @@ const GREYBRIDGE_SPINE: Mission = {
     },
     {
       id: 'reconnect',
-      summary: 'Reconnect the rest of Greybridge: Southmill, Ironhollow, Northcairn, Mirewatch.',
+      summary:
+        'Reconnect the rest of Greybridge: Southmill, Ironhollow, Northcairn, Mirewatch, Reedgrave.',
       requires: {
         contractsCompleted: [
           'grain-to-southmill',
           'rumours-to-ironhollow',
           'writ-to-northcairn',
           'secret-to-mirewatch',
+          'secret-to-reedgrave',
         ],
       },
     },
@@ -67,12 +69,14 @@ const SALTREACH_SPINE: Mission = {
     },
     {
       id: 'retrace',
-      summary: "Retrace the lost courier's route: Reedford, Saltkeep, Cormorant Rock.",
+      summary:
+        "Retrace the lost courier's route: Reedford, Saltkeep, Cormorant Rock, Saltmere.",
       requires: {
         contractsCompleted: [
           'saltreach-tide-to-reed',
           'saltreach-tide-to-keep',
           'saltreach-tide-to-cormorant',
+          'saltreach-cipher-to-saltmere',
         ],
       },
     },
@@ -97,12 +101,13 @@ const FENMARCH_SPINE: Mission = {
     },
     {
       id: 'reconnect',
-      summary: 'Bring the fen back onto the map: Duskmere, Thornwick, Hollowfen.',
+      summary: 'Bring the fen back onto the map: Duskmere, Thornwick, Hollowfen, Fenholt.',
       requires: {
         contractsCompleted: [
           'fenmarch-moss-to-dusk',
           'fenmarch-moss-to-thorn',
           'fenmarch-moss-to-hollow',
+          'fenmarch-cipher-for-fenholt',
         ],
       },
     },

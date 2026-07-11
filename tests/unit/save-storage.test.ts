@@ -62,12 +62,12 @@ describe('save-system storage helpers (jsdom)', () => {
     expect(hasSeenIntro()).toBe(true);
   });
 
-  it('keeps the intro-seen flag through a new game (clearSave)', () => {
+  it('resets the intro-seen flag on a new game (clearSave) so the premise shows again', () => {
     writeSave(SNAPSHOT);
     markIntroSeen();
     clearSave();
     expect(localStorage.getItem(SAVE_KEY)).toBeNull();
-    expect(localStorage.getItem(INTRO_SEEN_KEY)).toBe('1');
-    expect(hasSeenIntro()).toBe(true);
+    expect(localStorage.getItem(INTRO_SEEN_KEY)).toBeNull();
+    expect(hasSeenIntro()).toBe(false);
   });
 });
