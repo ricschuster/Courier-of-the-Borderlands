@@ -47,6 +47,12 @@ const GREYWATER_POSTMASTER: Dialogue = {
       // postmaster should not repeat the cold opening line (Session 3 playtest).
       textVariants: [
         {
+          // The arc is resolved: greet the courier as the one who broke the
+          // blockade, so returning here after the ending is not an empty room.
+          requires: { allOf: [FLAG_BLOCKADE_BROKEN] },
+          text: 'The courier who broke the blockade, back at my counter. The board keeps filling and the letters keep landing, coast to fen. You gave the borderland its roads back. Whatever you need here, it is yours.',
+        },
+        {
           requires: { allOf: [FLAG_HOME_RECONNECTED] },
           text: 'You came back, and you brought the roads with you. Letters are landing in places that went dark a season ago. That is your doing, courier. Tell me what the roads have told you.',
         },

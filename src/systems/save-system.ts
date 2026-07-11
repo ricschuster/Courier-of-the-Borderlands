@@ -287,6 +287,10 @@ export function clearSave(): void {
   }
   try {
     store.removeItem(SAVE_KEY);
+    // A New Game is a fresh start, so the premise should introduce itself again.
+    // Only clearSave (New Game / reset) touches the intro flag; a normal Continue
+    // boot never does, so a returning player is still not shown it twice.
+    store.removeItem(INTRO_SEEN_KEY);
   } catch {
     // Ignore.
   }
@@ -294,9 +298,11 @@ export function clearSave(): void {
 
 /**
  * Whether the one-time intro card has already been shown. Kept under its own key
- * (not in the save) so it survives a new game: a returning player who has read
- * the premise once should not see it again. Storage failures read as "not seen"
- * so a player without storage still gets the intro each visit rather than never.
+ * (not in the save) so it persists across a normal Continue boot: a returning
+ * player who has read the premise once should not see it again. A New Game
+ * (clearSave) does clear it, so a deliberate fresh start reintroduces the
+ * premise. Storage failures read as "not seen" so a player without storage still
+ * gets the intro each visit rather than never.
  */
 export function hasSeenIntro(): boolean {
   const store = storage();

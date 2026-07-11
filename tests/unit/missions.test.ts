@@ -18,6 +18,7 @@ import { CONTRACTS_GREYBRIDGE } from '../../src/data/contracts-greybridge';
 import { SALTREACH_CONTRACTS, SALTREACH_SETTLEMENTS } from '../../src/data/region-saltreach';
 import { FENMARCH_CONTRACTS, FENMARCH_SETTLEMENTS } from '../../src/data/region-fenmarch';
 import { SETTLEMENTS } from '../../src/data/settlements-greybridge';
+import { baseContracts, type Contract } from '../../src/systems/contract-system';
 
 const ALL_CONTRACT_IDS = new Set([
   ...CONTRACTS_GREYBRIDGE.map((c) => c.id),
@@ -86,6 +87,32 @@ describe('missions data integrity', () => {
     const ids = MISSIONS.map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  // Region-clear is computed from the base (ungated) contracts, while the story
+  // spine is authored per step. If the two drift apart, a region reads as
+  // "cleared" on a route the mission never asked for (the Reedgrave/Saltmere/
+  // Fenholt bug) or a mission demands a route that clear does not count. This
+  // guards that every base route is on the spine and nothing gated is required.
+  const REGION_CONTRACTS: ReadonlyArray<readonly [string, readonly Contract[]]> = [
+    ['greybridge', CONTRACTS_GREYBRIDGE],
+    ['saltreach', SALTREACH_CONTRACTS],
+    ['fenmarch', FENMARCH_CONTRACTS],
+  ];
+  for (const [regionId, contracts] of REGION_CONTRACTS) {
+    it(`${regionId}: mission-required contracts match the region's base routes`, () => {
+      const baseIds = baseContracts(contracts)
+        .map((c) => c.id)
+        .sort();
+      const missionIds = [
+        ...new Set(
+          MISSIONS.filter((m) => m.regionId === regionId).flatMap((m) =>
+            m.steps.flatMap((s) => s.requires.contractsCompleted ?? []),
+          ),
+        ),
+      ].sort();
+      expect(missionIds).toEqual(baseIds);
+    });
+  }
 });
 
 describe('greybridge spine advances through play', () => {
@@ -120,6 +147,7 @@ describe('greybridge spine advances through play', () => {
           'rumours-to-ironhollow',
           'writ-to-northcairn',
           'secret-to-mirewatch',
+          'secret-to-reedgrave',
         ],
       }),
       'greybridge',
