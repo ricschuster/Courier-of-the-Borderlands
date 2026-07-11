@@ -16,7 +16,25 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // Fast browser specs. The full-arc playthrough runs under its own project
+    // (below) so it can carry a different retry budget; keep it out of here.
+    {
+      name: 'chromium',
+      testIgnore: /full-arc\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // The full-arc playthrough is a single ~4-minute test. At the default
+    // retries: 2 a flake costs three full runs (~16 min), so it gets its own
+    // lower retry budget: one retry is enough to ride out a transient hiccup
+    // without paying for a third pass. A genuine soft-lock still fails.
+    {
+      name: 'arc',
+      testMatch: /full-arc\.spec\.ts/,
+      retries: process.env.CI ? 1 : 0,
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
   // Build the production bundle and serve it, so the smoke test exercises the
   // same artifact that gets deployed.
   webServer: {
