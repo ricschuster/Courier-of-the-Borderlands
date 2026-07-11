@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   serialize,
   deserialize,
+  migrateSaveData,
   migrateUnlocks,
   SAVE_VERSION,
   type GameSnapshot,
@@ -176,5 +177,47 @@ describe('save-system', () => {
       unlocks: ['ford-crossing'],
     });
     expect(parsed?.unlocks).toEqual(['ford-crossing-greybridge']);
+  });
+
+  it('rejects a save with no bridgeable version (missing or unknown)', () => {
+    // A versionless save has no migration path to the current schema.
+    expect(deserialize({ coins: 10 })).toBeNull();
+  });
+});
+
+describe('migrateSaveData (schema migration ladder)', () => {
+  // Synthetic steps let us exercise the ladder independently of the current
+  // SAVE_VERSION, so the mechanics are covered before a real bump is ever owed.
+  // Step n upgrades a version-n save to version n+1.
+  const steps: Record<number, (d: Record<string, unknown>) => Record<string, unknown>> = {
+    1: (d) => ({ ...d, addedInV2: true }),
+    2: (d) => ({ ...d, renamed: d.legacyName, addedInV3: 3 }),
+  };
+
+  it('is a no-op when the save is already at the target version', () => {
+    const data = { version: 3, coins: 10 };
+    expect(migrateSaveData(data, 3, 3, steps)).toEqual(data);
+  });
+
+  it('upgrades an old save through every intermediate step, fields intact', () => {
+    const v1 = { version: 1, coins: 10, legacyName: 'keep-me' };
+    const migrated = migrateSaveData(v1, 1, 3, steps);
+    expect(migrated).toEqual({
+      version: 1,
+      coins: 10,
+      legacyName: 'keep-me',
+      addedInV2: true,
+      renamed: 'keep-me',
+      addedInV3: 3,
+    });
+  });
+
+  it('refuses to downgrade a save newer than this build', () => {
+    expect(migrateSaveData({ version: 4 }, 4, 3, steps)).toBeNull();
+  });
+
+  it('refuses to cross a version gap with no registered step', () => {
+    // No step keyed at 0, so a version-0 save cannot reach version 1.
+    expect(migrateSaveData({ coins: 10 }, 0, 1, steps)).toBeNull();
   });
 });
