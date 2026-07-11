@@ -6,6 +6,16 @@ import type { ContractStatus } from './contract-system';
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = 'courier-of-the-borderlands/save';
 
+/** Marker that the one-time intro card has been shown, so it is not shown again. */
+export const INTRO_SEEN_KEY = 'courier-of-the-borderlands/intro-seen';
+
+/**
+ * Outcome of a save attempt. 'unavailable' means storage could not be reached at
+ * all (private mode, storage disabled); 'error' means a write was attempted but
+ * threw (typically a quota). Both mean the player's progress was not persisted.
+ */
+export type SaveResult = 'ok' | 'unavailable' | 'error';
+
 /** Plain, JSON-serializable snapshot of everything worth persisting. */
 export interface GameSnapshot {
   readonly coins: number;
@@ -242,15 +252,18 @@ function storage(): Storage | null {
   }
 }
 
-export function writeSave(snapshot: GameSnapshot): void {
+export function writeSave(snapshot: GameSnapshot): SaveResult {
   const store = storage();
   if (store === null) {
-    return;
+    return 'unavailable';
   }
   try {
     store.setItem(SAVE_KEY, JSON.stringify(serialize(snapshot)));
+    return 'ok';
   } catch {
-    // Ignore quota or serialization failures; the game keeps running.
+    // A quota or serialization failure: the game keeps running, but the caller
+    // can tell the player their progress is not being saved.
+    return 'error';
   }
 }
 
@@ -276,5 +289,36 @@ export function clearSave(): void {
     store.removeItem(SAVE_KEY);
   } catch {
     // Ignore.
+  }
+}
+
+/**
+ * Whether the one-time intro card has already been shown. Kept under its own key
+ * (not in the save) so it survives a new game: a returning player who has read
+ * the premise once should not see it again. Storage failures read as "not seen"
+ * so a player without storage still gets the intro each visit rather than never.
+ */
+export function hasSeenIntro(): boolean {
+  const store = storage();
+  if (store === null) {
+    return false;
+  }
+  try {
+    return store.getItem(INTRO_SEEN_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Record that the intro card has been shown, so later boots skip it. */
+export function markIntroSeen(): void {
+  const store = storage();
+  if (store === null) {
+    return;
+  }
+  try {
+    store.setItem(INTRO_SEEN_KEY, '1');
+  } catch {
+    // Ignore: worst case the intro shows again next visit.
   }
 }
