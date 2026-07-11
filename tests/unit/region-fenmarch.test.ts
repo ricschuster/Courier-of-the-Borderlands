@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
-import { isPassable } from '../../src/systems/terrain-system';
+import { isPassable, isPassableWith } from '../../src/systems/terrain-system';
+import { findPath } from '../../src/systems/pathfinding';
+import { traversalKeys, CAPABILITY_GRANTS } from '../../src/systems/traversal';
 import { CARGO_CATEGORIES } from '../../src/systems/cargo-types';
 import {
   FENMARCH_ROWS,
@@ -51,9 +53,62 @@ describe('Fenmarch map', () => {
   });
 });
 
+describe('Fenmarch tidal-flat pocket (Fenholt)', () => {
+  const map = createTileMap(FENMARCH_ROWS, FENMARCH_LEGEND);
+  const mossgate = FENMARCH_SETTLEMENTS.mossgate!;
+  const fenholt = FENMARCH_SETTLEMENTS.fenholt!;
+  // The single gated crossing over the fen mere that walls off the pocket.
+  const crossing = { x: 16, y: 7 };
+
+  // The premium contract runs Mossgate -> Fenholt. The mere walls the pocket
+  // north and south, so the tidal flat is a real shortcut and the dry way round
+  // (out to the east verge on column 19) is always open.
+  function routeLength(keys: ReadonlySet<string>): number | null {
+    const path = findPath({
+      width: map.width,
+      height: map.height,
+      isPassable: (x, y) => {
+        const id = getTerrainIdAt(map, x, y);
+        return id !== undefined && isPassableWith(id, keys);
+      },
+      start: mossgate.tile,
+      goal: fenholt.tile,
+    });
+    return path.reachable ? path.path.length : null;
+  }
+
+  it('walls the pocket with a single tidal-flat crossing tile', () => {
+    expect(getTerrainIdAt(map, crossing.x, crossing.y)).toBe('tidal-flat');
+  });
+
+  it('keeps the crossing blocked for the base wagon, open with tidal-crossing', () => {
+    const id = getTerrainIdAt(map, crossing.x, crossing.y) as string;
+    expect(isPassableWith(id, new Set())).toBe(false);
+    expect(isPassableWith(id, new Set(['tidal-crossing']))).toBe(true);
+  });
+
+  it('reaches Fenholt the long way round without the flats, and shorter with them', () => {
+    const base = routeLength(new Set());
+    const withTidal = routeLength(new Set(['tidal-crossing']));
+    // The base wagon can still get there, so the premium contract is never
+    // soft-locked.
+    expect(base).not.toBeNull();
+    expect(withTidal).not.toBeNull();
+    // Salt Runners / Off-road rank 3 opens the direct crossing: a strictly
+    // shorter run.
+    expect(withTidal!).toBeLessThan(base!);
+  });
+
+  it('grants tidal-crossing from Salt Runners or Off-road rank 3, not less', () => {
+    expect(traversalKeys(new Set(), new Set(['salt-runners']), {}, CAPABILITY_GRANTS).has('tidal-crossing')).toBe(true);
+    expect(traversalKeys(new Set(), new Set(), { 'off-road': 3 }, CAPABILITY_GRANTS).has('tidal-crossing')).toBe(true);
+    expect(traversalKeys(new Set(), new Set(), { 'off-road': 2 }, CAPABILITY_GRANTS).has('tidal-crossing')).toBe(false);
+  });
+});
+
 describe('Fenmarch settlements', () => {
-  it('are exactly four in number', () => {
-    expect(Object.keys(FENMARCH_SETTLEMENTS)).toHaveLength(4);
+  it('are exactly five in number', () => {
+    expect(Object.keys(FENMARCH_SETTLEMENTS)).toHaveLength(5);
   });
 
   it('have unique ids', () => {
@@ -143,11 +198,12 @@ describe('Fenmarch gateway', () => {
 });
 
 describe('Fenmarch contracts', () => {
-  it('has three standing contracts, one arc contract, and two reconnection-gated routes', () => {
+  it('has four standing contracts, one arc contract, and two reconnection-gated routes', () => {
     const standing = FENMARCH_CONTRACTS.filter((c) => c.requires === undefined);
     const arc = FENMARCH_CONTRACTS.filter((c) => c.arc === true);
     const secondWave = FENMARCH_CONTRACTS.filter((c) => c.requires !== undefined && c.arc !== true);
-    expect(standing).toHaveLength(3);
+    // The fourth standing route is the premium run to mere-ringed Fenholt.
+    expect(standing).toHaveLength(4);
     expect(arc).toHaveLength(1);
     expect(secondWave).toHaveLength(2);
   });
@@ -194,10 +250,10 @@ describe('Fenmarch contracts', () => {
     }
   });
 
-  it('have rewards between 60 and 100 inclusive', () => {
+  it('have rewards between 60 and 120 inclusive (the premium Fenholt run pays most)', () => {
     for (const contract of FENMARCH_CONTRACTS) {
       expect(contract.reward, `${contract.id} reward out of range`).toBeGreaterThanOrEqual(60);
-      expect(contract.reward, `${contract.id} reward out of range`).toBeLessThanOrEqual(100);
+      expect(contract.reward, `${contract.id} reward out of range`).toBeLessThanOrEqual(120);
     }
   });
 

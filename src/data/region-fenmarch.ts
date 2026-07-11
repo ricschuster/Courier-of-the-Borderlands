@@ -9,17 +9,24 @@
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain    x ford
+//   b bridge    ~ water    ^ mountain    x ford    t tidal-flat (wagon-gated)
 //
 // Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols
 // at load time. A locked ford shortcut crosses the water channel on row 8 at
 // columns 9-10, south of the main bridge. A signpost at (8, 8) unlocks it.
+//
+// A fen mere rings the Fenholt pocket in the south-east: water walls it north
+// (row 6) and south (row 8) across columns 16-18. A single tidal-flat tile at
+// (16, 7) is the short way in, opened by the Salt Runners upgrade or Off-road
+// rank 3; without it Fenholt is reached the long way round the east verge
+// (column 19). See docs/design/07_roads_gate_the_wagon.md.
 //
 // Settlements:
 //   mossgate   (4,  5)  home town, on the main west-east road
 //   duskmere   (14, 2)  lake settlement north of the bridge, up the forest corridor
 //   thornwick  (14, 8)  thorn-fenced hamlet south of the bridge, down the forest corridor
 //   hollowfen  (18, 4)  hollow fenland stop east of the bridge, just off the road
+//   fenholt    (17, 7)  drowned holt behind the mere, south-east corner
 //
 // Gateway (0, 5) leads west, back to the Greybridge hub. Row 5 is a single road
 // the entire width of the map, crossing the water on a bridge at columns 9-10.
@@ -47,13 +54,14 @@ export const FENMARCH_ROWS: readonly string[] = [
   '.........~~...f.....',
   // row 5: main west-east road; gateway(0), spawn(1), mossgate(4)
   '#########bb#########',
-  // row 6: open plains either side of the water
-  '.........~~...f.....',
-  // row 7: forest patch west, forest corridor continues east
-  '....f....~~...f.....',
+  // row 6: open plains; the fen mere walls the Fenholt pocket to the north (16-18)
+  '.........~~...f.~~~.',
+  // row 7: forest patch west; tidal-flat crossing (16) of the mere is the short
+  // way to Fenholt, the drowned holt tucked at (17,7)
+  '....f....~~...f.t...',
   // row 8: thornwick sits in the forest corridor south of the bridge; ford
-  // shortcut (locked) crosses the water at columns 9-10
-  '...ff....xx...f.....',
+  // shortcut (locked) crosses the water at columns 9-10; mere walls Fenholt (16-18)
+  '...ff....xx...f.~~~.',
   // row 9: south-west mountains begin, south-east peaks begin
   '..^^.....~~...f.^^^.',
   // row 10: south-west range closes, south-east range closes
@@ -72,6 +80,7 @@ export const FENMARCH_LEGEND: Readonly<Record<string, string>> = {
   '~': 'water',
   '^': 'mountain',
   x: 'ford-fenmarch',
+  t: 'tidal-flat',
 };
 
 // ---------------------------------------------------------------------------
@@ -102,6 +111,12 @@ export const FENMARCH_SETTLEMENTS: Readonly<Record<string, Settlement>> = {
     name: 'Hollowfen',
     tile: { x: 18, y: 4 },
     note: 'A hollow stretch of fenland where old stones still stand though no one recalls what they crossed.',
+  },
+  fenholt: {
+    id: 'fenholt',
+    name: 'Fenholt',
+    tile: { x: 17, y: 7 },
+    note: 'A drowned holt in the south-east fen, cut off when the mere swallowed its causeway. Dry-shod couriers take the long way round by the east verge; the bold wade the flats.',
   },
 };
 
@@ -144,6 +159,23 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
     reputation: 3,
     minReputation: 6,
     note: 'No name, no seal mark, no explanation. Hollowfen has been waiting for this longer than you have been a courier.',
+    cargoType: 'secrets',
+  },
+  // Premium standing contract to Fenholt, the mere-ringed holt. Deliverable the
+  // long dry way round by the east verge, but the tidal-flat crossing (Salt
+  // Runners, or Off-road rank 3) is the short way in: the gate opens a better
+  // route, never the only one. Counts toward region clearance like the other
+  // standing routes.
+  {
+    id: 'fenmarch-cipher-for-fenholt',
+    title: 'A Cipher for Fenholt',
+    cargo: 'a reed-wrapped cipher',
+    pickupId: 'mossgate',
+    destinationId: 'fenholt',
+    reward: 115,
+    reputation: 4,
+    minReputation: 6,
+    note: 'Fenholt drowned in a season and the fen closed over its road. Someone wants this carried to the holt behind the mere, and does not care whether you wade the flats or take the long verge. Pays like it matters.',
     cargoType: 'secrets',
   },
   // Arc-gated: appears once the warden's reveal is known (fenmarch_cost), when

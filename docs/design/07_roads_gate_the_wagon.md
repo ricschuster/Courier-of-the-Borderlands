@@ -100,7 +100,7 @@ a discovery gate, separate from the passability gate above.
    (Off-road first, which opens the mire), so the buy/rank input flows are
    covered by the arc guard and gated content is reachable. The arc asserts it
    finished with an upgrade owned and Off-road ranked.
-5. **Spread gates + hidden routes.** IN PROGRESS. Add gated shortcuts and
+5. **Spread gates + hidden routes.** SHIPPED (both spokes). Add gated shortcuts and
    premium contracts across the other regions. Owner calls (2026-07-11): both
    Saltreach and Fenmarch get a gate, using a **new** capability rather than
    reusing `mire-crossing`.
@@ -122,7 +122,11 @@ a discovery gate, separate from the passability gate above.
      (18,9). Premium standing contract `saltreach-cipher-to-saltmere` (118
      coins). The tidal crossing saves ~6 tiles from Tidewatch and ~10 from
      Saltkeep; the dry way round (up to row 3, down column 19) stays open.
-   - **Fenmarch: TODO** (same mechanic, a fen corner pocket).
+   - **Fenmarch: SHIPPED.** Fenholt, a drowned holt at (17,7), ringed by a fen
+     mere that walls it north (row 6) and south (row 8) across columns 16-18,
+     with a single tidal-flat crossing at (16,7). Premium standing contract
+     `fenmarch-cipher-for-fenholt` (115 coins). The crossing saves ~4 tiles from
+     Mossgate; the dry way round the east verge (column 19) stays open.
 
 ## Non-goals
 
