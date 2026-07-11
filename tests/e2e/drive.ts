@@ -27,6 +27,21 @@ export async function pressUntil(
 }
 
 /**
+ * Press a key by holding it down briefly rather than an instantaneous tap. The
+ * game reads one-shot inputs (accept contract, talk, buy, dismiss) with
+ * JustDown, which only registers the key if it is down on a frame boundary.
+ * Under a starved frame loop a zero-gap down+up can land entirely between two
+ * frames and be silently lost. Holding for a beat guarantees the next frame,
+ * however delayed, observes the key. Safe for these inputs because JustDown
+ * fires once per down-transition, so a held key still acts exactly once.
+ */
+export async function tapKey(page: Page, key: string, holdMs = 150): Promise<void> {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(holdMs);
+  await page.keyboard.up(key);
+}
+
+/**
  * Drive the skill panel to open (or closed) with the "k" toggle, robustly. A
  * single "k" can be dropped between Phaser input ticks under CI load, so this
  * re-presses; but "k" is a toggle, so pressUntil (which can fire an extra press
@@ -35,16 +50,27 @@ export async function pressUntil(
  * press for the game to register it before deciding to press again.
  */
 export async function setSkillPanel(page: Page, open: boolean): Promise<void> {
-  for (let i = 0; i < 12; i++) {
-    const isOpen = await page.evaluate(
-      () => globalThis.__courier?.getState().skillPanelOpen ?? null,
-    );
-    if (isOpen === open) return;
-    await page.keyboard.press('k');
-    // A delivered press opens/closes within a frame or two; a dropped press
-    // never registers. 250ms cleanly distinguishes the two, so we never queue a
-    // second press that would toggle the panel back.
-    await page.waitForTimeout(250);
+  const readOpen = () =>
+    page.evaluate(() => globalThis.__courier?.getState().skillPanelOpen ?? null);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if ((await readOpen()) === open) return;
+    // Hold the key down and poll for the toggle, rather than an instantaneous
+    // press. The game reads the toggle with JustDown, which only sees the key if
+    // it is down on a frame boundary. Under a starved frame loop a down+up can
+    // land entirely between two frames, so the key is never observed down and
+    // the press is silently lost (the cause of the arc flake: a dropped skill-
+    // panel close left the panel open, swallowing the contract-accept key).
+    // Holding it down guarantees the next frame, however delayed, sees it; we
+    // release as soon as the state flips so the held key toggles exactly once.
+    await page.keyboard.down('k');
+    try {
+      await expect.poll(readOpen, { timeout: 3000, intervals: [50, 100, 200, 400] }).toBe(open);
+    } catch {
+      // No frame processed the key within the window; release and retry.
+    } finally {
+      await page.keyboard.up('k');
+    }
+    if ((await readOpen()) === open) return;
   }
   throw new Error(`skill panel did not ${open ? 'open' : 'close'} after retries`);
 }
