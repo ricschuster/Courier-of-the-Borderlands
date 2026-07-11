@@ -1120,6 +1120,9 @@ export class MapScene extends Phaser.Scene {
       if (canRankUp(this.skills, skill.id, level)) {
         this.skills = rankUp(this.skills, skill.id);
         this.hud.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
+        // A new rank may grant a terrain capability (Off-road 2 opens the deep
+        // mire); open any tiles it now unlocks so the route is drivable at once.
+        this.refreshGatedColliders();
         this.refreshSkillPanel();
         this.refreshWallet();
         this.save();
@@ -1194,6 +1197,9 @@ export class MapScene extends Phaser.Scene {
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     this.hud.showToast(`Fitted ${target.name}. ${target.description}`);
+    // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
+    // mire); open any tiles it now unlocks so the route is drivable at once.
+    this.refreshGatedColliders();
     this.refreshWallet();
     this.refreshAchievements(true);
     this.save();
@@ -1374,6 +1380,28 @@ export class MapScene extends Phaser.Scene {
     this.refreshAchievements(true);
     this.save();
     return true;
+  }
+
+  /**
+   * Open any gated terrain whose capability the courier now holds. Fords open via
+   * unlockFeature, but capability gates (the deep mire) are granted by buying an
+   * upgrade or ranking a skill, which fire no unlock event. The impassable
+   * colliders are baked once at create() from the capabilities held then, so a
+   * capability gained mid-scene leaves a stale collider: the pathfinder routes
+   * through the now-passable tile while physics still blocks it, soft-locking the
+   * courier at its edge. Call this after any upgrade or skill change to destroy
+   * the colliders for every token now in the live traversal set. Idempotent: a
+   * token whose blocks are already gone is a no-op.
+   */
+  private refreshGatedColliders(): void {
+    for (const token of this.traversalKeys()) {
+      const blocks = this.gatedBlocks.get(token);
+      if (blocks === undefined) {
+        continue;
+      }
+      blocks.forEach((block) => block.destroy());
+      this.gatedBlocks.delete(token);
+    }
   }
 
   private setupInput(): void {
