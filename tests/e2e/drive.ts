@@ -26,6 +26,29 @@ export async function pressUntil(
     .toBe(true);
 }
 
+/**
+ * Drive the skill panel to open (or closed) with the "k" toggle, robustly. A
+ * single "k" can be dropped between Phaser input ticks under CI load, so this
+ * re-presses; but "k" is a toggle, so pressUntil (which can fire an extra press
+ * that flips it back) is unsafe here. Instead it checks state first and only
+ * presses when the panel is in the wrong state, waiting long enough after each
+ * press for the game to register it before deciding to press again.
+ */
+export async function setSkillPanel(page: Page, open: boolean): Promise<void> {
+  for (let i = 0; i < 12; i++) {
+    const isOpen = await page.evaluate(
+      () => globalThis.__courier?.getState().skillPanelOpen ?? null,
+    );
+    if (isOpen === open) return;
+    await page.keyboard.press('k');
+    // A delivered press opens/closes within a frame or two; a dropped press
+    // never registers. 250ms cleanly distinguishes the two, so we never queue a
+    // second press that would toggle the panel back.
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`skill panel did not ${open ? 'open' : 'close'} after retries`);
+}
+
 // Shared helpers for the input-driven e2e specs. Each spec boots the real built
 // game with `?e2e`, reads live state and pathfinding waypoints through the
 // typed `window.__courier` hook, and drives the courier with genuine key

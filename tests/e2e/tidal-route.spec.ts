@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
+import {
+  bootE2E,
+  collectErrors,
+  driveToTile,
+  pressUntil,
+  readTick,
+  setSkillPanel,
+  type Arrow,
+} from './drive';
 
 // Regression guard for the Saltreach tidal-flat gate. The lagoon-ringed hamlet
 // of Saltmere is walled off by a salt lagoon (column 18); a single tidal-flat
@@ -67,14 +75,11 @@ test('ranking Off-road to 3 opens the tidal flats in the same scene', async ({ p
 
   // Open the skill panel and rank Off-road (panel slot 2) to rank 3, re-pressing
   // until it registers. Ranking works anywhere, so no home visit is needed.
-  await page.keyboard.press('k');
-  await expect
-    .poll(async () => (await readTick(page, 0, 0)).state.skillPanelOpen, { timeout: 5_000 })
-    .toBe(true);
+  await setSkillPanel(page, true);
   await pressUntil(page, '2', async () =>
     (await readTick(page, 0, 0)).state.skills['off-road'] === 3,
   );
-  await page.keyboard.press('k');
+  await setSkillPanel(page, false);
 
   const flatsOpen = await page.evaluate(
     (t) => globalThis.__courier!.isPassableTile(t.x, t.y),

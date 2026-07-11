@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
+import {
+  bootE2E,
+  collectErrors,
+  driveToTile,
+  pressUntil,
+  readTick,
+  setSkillPanel,
+  type Arrow,
+} from './drive';
 
 // Regression guard for a capability-gate soft-lock. The deep-mire shortcut to
 // Reedgrave is gated by the "mire-crossing" capability, granted by ranking the
@@ -72,15 +80,12 @@ test('ranking Off-road to 2 opens the deep mire in the same scene', async ({ pag
 
   // Open the skill panel and rank Off-road (panel slot 2) to rank 2, re-pressing
   // until it registers. Ranking works anywhere, so no home visit is needed.
-  await page.keyboard.press('k');
-  await expect
-    .poll(async () => (await readTick(page, 0, 0)).state.skillPanelOpen, { timeout: 5_000 })
-    .toBe(true);
+  await setSkillPanel(page, true);
   await pressUntil(page, '2', async () =>
     (await readTick(page, 0, 0)).state.skills['off-road'] === 2,
   );
   // Close the panel again so nothing else swallows input during the drive.
-  await page.keyboard.press('k');
+  await setSkillPanel(page, false);
 
   const mireOpen = await page.evaluate(
     (t) => globalThis.__courier!.isPassableTile(t.x, t.y),
