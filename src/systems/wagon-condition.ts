@@ -55,7 +55,11 @@ export const DEFAULT_WAGON_TUNING: WagonTuning = {
   offRoadWearFloor: 0.6,
   costPerPercent: 5,
   rescueCost: 50,
-  limpSpeed: 0.35,
+  // A hard crawl (a fifth of normal), so sitting at 0 condition is not a viable
+  // free ride: wear floors at 0 and repair cost caps at max*rate, so without a
+  // steep limp a player could just live stranded and pay a fixed price whenever
+  // convenient. The steep limp makes running dry a problem you fix, not exploit.
+  limpSpeed: 0.15,
   // Start at 25 of 100 (owner call after playtest: a full region cleared with no
   // repair at 40, so the early tank is smaller than a region's wear, forcing a
   // mid-journey repair). Grows ~9/level, reaching the full 100 late in the arc.
@@ -79,6 +83,7 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
     wearCoef: 0.75,
     costPerPercent: 3,
     startingMaxCondition: 40,
+    limpSpeed: 0.25,
   },
   standard: DEFAULT_WAGON_TUNING,
   demanding: {
@@ -87,6 +92,7 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
     wearCoef: 2.5,
     costPerPercent: 7,
     startingMaxCondition: 16,
+    limpSpeed: 0.1,
   },
 };
 

@@ -141,9 +141,12 @@ buying the sink away.
 
 The project keeps its "no hard failure state" default. At 0 condition:
 
-- **Limp speed.** Movement speed is multiplied by `LIMP_SPEED = 0.35` (heavy but
-  still drivable). The player can always limp to the nearest settlement for
-  free and repair there.
+- **Limp speed.** Movement speed is multiplied by `LIMP_SPEED = 0.15` (a hard
+  crawl, still drivable). The player can always limp to the nearest settlement
+  for free and repair there. The crawl is deliberately steep: wear floors at 0
+  and repair cost caps at `max * rate`, so a gentle limp (first tried at 0.35)
+  let a playtester live stranded and pay a fixed, known price at leisure. The
+  steep limp closes that exploit, making a dry wagon a problem you fix.
 - **Paid rescue (optional convenience).** Instead of limping, the player may pay
   `RESCUE_COST = 50` gold to be returned to the last visited settlement
   immediately. Rescue does not itself repair the wagon; the player still pays to
@@ -249,7 +252,9 @@ The owner should approve or change each of these:
 Owner review, 2026-07-11:
 
 1. **Framing:** condition (mechanical wear / repair). As proposed.
-2. **Zero-condition penalty:** limp speed as proposed, and the paid rescue is in.
+2. **Zero-condition penalty:** paid rescue is in; limp speed strengthened to
+   0.15x after a playtest showed a gentle 0.35x limp let a player live stranded
+   and exploit the capped repair cost. See point 5.
 3. **Repair trigger:** manual at a settlement (a visible spend), not automatic.
 4. **Starting numbers:** not set by hand. Derive `COST_PER_PERCENT` (and sanity
    check the wear constants) from an instrumented full-arc run that measures real
@@ -328,7 +333,7 @@ illustrative starting points, not yet balanced.
 | `WEAR_RELIEF_FLOOR` | 0.5 | Minimum wear multiplier from upgrades |
 | `COST_PER_PERCENT` | 5 gold | Repair cost per missing percent (primary knob) |
 | Full repair (0 to 100) | 500 gold | Derived from `COST_PER_PERCENT` |
-| `LIMP_SPEED` | 0.35x | Movement multiplier at 0 condition |
+| `LIMP_SPEED` | 0.15x | Movement multiplier at 0 condition (steep, anti-exploit) |
 | `RESCUE_COST` | 50 gold | Optional teleport to last settlement |
 | `startingMaxCondition` | 25 | Tank capacity at level 1 (fragile early game) |
 | `maxConditionGrowthPerLevel` | 9 | Capacity added per level, capped at 100 |
