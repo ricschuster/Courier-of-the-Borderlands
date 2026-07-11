@@ -52,4 +52,11 @@ describe('traversalKeys', () => {
     expect(traversalKeys(S(), S('marsh-treads'), {}).has('mire-crossing')).toBe(true);
     expect(traversalKeys(S(), S(), {}).has('mire-crossing')).toBe(false);
   });
+
+  it('opens mire-crossing with Off-road rank 2 (skill points as the alternative key)', () => {
+    expect(traversalKeys(S(), S(), { 'off-road': 2 }).has('mire-crossing')).toBe(true);
+    expect(traversalKeys(S(), S(), { 'off-road': 3 }).has('mire-crossing')).toBe(true);
+    // Rank 1 is not enough: the coins-vs-points choice costs two points.
+    expect(traversalKeys(S(), S(), { 'off-road': 1 }).has('mire-crossing')).toBe(false);
+  });
 });

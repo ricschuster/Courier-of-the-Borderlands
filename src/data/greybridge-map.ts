@@ -8,7 +8,8 @@
 //
 // Legend:
 //   . plains    f forest   # road      h hills
-//   b bridge    ~ water    ^ mountain   m marsh   x ford (locked shortcut)
+//   b bridge    ~ water    ^ mountain   m marsh   M deep-mire (wagon-gated)
+//   x ford (locked shortcut)
 //
 // Landmarks (col,row):
 //   Greywater  (2,8)   home town on the main road, far west
@@ -19,6 +20,12 @@
 //   Fenmarch gateway (21,18) southern terminus of the east-bank road, off Southmill
 //   Mirewatch  (24,20) stilt-village off the road, deep in the south-east marsh
 //              (reached only by wading south through the reeds from the row-18 road)
+//   Reedgrave  (28,19) drowned cairn in the far south-east reeds, walled off by a
+//              black channel (col 16-21 at column 26). A single deep-mire tile at
+//              (26,19) is the short way across, opened by the Marsh Treads upgrade
+//              or an off-road skill; without it the reeds are reached the long way
+//              round the north end of the channel (via row 15). See
+//              docs/design/07_roads_gate_the_wagon.md.
 // Crossings: north bridge row 3, main bridge row 8, ford row 14 (cols 14-15).
 // The ford signpost sits at (13,14) on the west bank and unlocks the ford.
 //
@@ -33,6 +40,7 @@ export const GREYBRIDGE_LEGEND: Readonly<Record<string, string>> = {
   '^': 'mountain',
   h: 'hills',
   m: 'marsh',
+  M: 'deep-mire',
   x: 'ford-greybridge',
 };
 
@@ -53,10 +61,10 @@ export const GREYBRIDGE_ROWS: readonly string[] = [
   '.....#.ffffff.~~.....#........',
   '.....#########xx######........',
   '^^^^^#^^^^....~~mmmmm#mmmmmmmm',
-  '^^^^^#^^^^....~~mmmmm#mmmmmmmm',
-  '^^^^^#^^^^....~~mmmmm#mmmmmmmm',
-  '^^^^##^^^^....~~mmmmm#####mmmm',
-  '^^^^^^^^^^....~~mmmmmmmmmmmmmm',
-  '^^^^^^^^^.....~~mmmmmmmmmmmmmm',
-  '^^^^^^^^......~~mmmmmmmmmmmmmm',
+  '^^^^^#^^^^....~~mmmmm#mmmm~mmm',
+  '^^^^^#^^^^....~~mmmmm#mmmm~mmm',
+  '^^^^##^^^^....~~mmmmm#####~mmm',
+  '^^^^^^^^^^....~~mmmmmmmmmmMmmm',
+  '^^^^^^^^^.....~~mmmmmmmmmm~mmm',
+  '^^^^^^^^......~~mmmmmmmmmm~mmm',
 ];

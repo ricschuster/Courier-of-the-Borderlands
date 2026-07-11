@@ -27,18 +27,18 @@ describe('sanitizeRanks', () => {
   });
 
   it('drops zero and negative ranks', () => {
-    expect(sanitizeRanks({ wayfinder: 0, teamster: -1 })).toEqual({});
+    expect(sanitizeRanks({ wayfinder: 0, 'off-road': -1 })).toEqual({});
   });
 
   it('keeps valid entries', () => {
-    expect(sanitizeRanks({ wayfinder: 2, teamster: 1 })).toEqual({
+    expect(sanitizeRanks({ wayfinder: 2, 'off-road': 1 })).toEqual({
       wayfinder: 2,
-      teamster: 1,
+      'off-road': 1,
     });
   });
 
   it('drops non-numeric or invalid rank values', () => {
-    expect(sanitizeRanks({ wayfinder: 'two', teamster: NaN })).toEqual({});
+    expect(sanitizeRanks({ wayfinder: 'two', 'off-road': NaN })).toEqual({});
   });
 });
 
@@ -54,7 +54,7 @@ describe('rankOf', () => {
 
 describe('pointsSpent', () => {
   it('sums ranks across known skills', () => {
-    expect(pointsSpent({ wayfinder: 2, teamster: 1 })).toBe(3);
+    expect(pointsSpent({ wayfinder: 2, 'off-road': 1 })).toBe(3);
   });
 
   it('ignores unknown ids', () => {
@@ -68,7 +68,7 @@ describe('availablePoints', () => {
   });
 
   it('never goes negative even if data is over-spent', () => {
-    expect(availablePoints(1, { wayfinder: 3, teamster: 3 })).toBe(0);
+    expect(availablePoints(1, { wayfinder: 3, 'off-road': 3 })).toBe(0);
   });
 });
 
@@ -120,8 +120,8 @@ describe('derivedSkillFlags', () => {
   });
 
   it('grants a flag for each owned skill (rank at least 1)', () => {
-    expect(derivedSkillFlags({ cipher: 1, teamster: 2 }).sort()).toEqual(
-      ['skill_cipher', 'skill_teamster'].sort(),
+    expect(derivedSkillFlags({ cipher: 1, 'off-road': 2 }).sort()).toEqual(
+      ['skill_cipher', 'skill_off-road'].sort(),
     );
   });
 
@@ -131,8 +131,8 @@ describe('derivedSkillFlags', () => {
 });
 
 describe('skill effect aggregators', () => {
-  it('sums teamster speed bonus', () => {
-    expect(skillSpeedBonus({ teamster: 2 })).toBeCloseTo(0.2);
+  it('sums off-road speed bonus', () => {
+    expect(skillSpeedBonus({ 'off-road': 2 })).toBeCloseTo(0.2);
   });
 
   it('sums wayfinder reveal bonus', () => {
@@ -145,7 +145,7 @@ describe('skill effect aggregators', () => {
 
   it('ignores unknown ids and skills with no contribution to the field', () => {
     expect(skillSpeedBonus({ wayfinder: 3, nonsense: 5 })).toBe(0);
-    expect(skillRevealBonus({ teamster: 3 })).toBe(0);
+    expect(skillRevealBonus({ 'off-road': 3 })).toBe(0);
     expect(skillRewardBonus({ wayfinder: 3 })).toBe(0);
   });
 });
