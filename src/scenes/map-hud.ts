@@ -417,6 +417,7 @@ export class MapHud {
   toggleJournal(): boolean {
     const show = !this.journalPanel.visible;
     this.journalPanel.setVisible(show);
+    this.layoutToasts();
     return show;
   }
 
@@ -424,6 +425,7 @@ export class MapHud {
   toggleSkills(): boolean {
     const show = !this.skillPanel.visible;
     this.skillPanel.setVisible(show);
+    this.layoutToasts();
     return show;
   }
 
@@ -431,6 +433,7 @@ export class MapHud {
   toggleLegend(): boolean {
     const show = !this.legendPanel.visible;
     this.legendPanel.setVisible(show);
+    this.layoutToasts();
     return show;
   }
 
@@ -438,6 +441,7 @@ export class MapHud {
   toggleUpgrades(): boolean {
     const show = !this.upgradePanel.visible;
     this.upgradePanel.setVisible(show);
+    this.layoutToasts();
     return show;
   }
 
@@ -461,6 +465,9 @@ export class MapHud {
     if (keep !== 'upgrades') {
       this.upgradePanel.setVisible(false);
     }
+    // Overlay visibility changed, so re-evaluate whether toasts should hide
+    // behind the kept panel or reappear now the others are gone (#170).
+    this.layoutToasts();
   }
 
   /** Toggle the minimap; returns the new visibility so the scene can redraw on open. */
@@ -574,6 +581,13 @@ export class MapHud {
    * the next one and none of them overlap the board.
    */
   layoutToasts(): void {
+    // A blocking overlay (upgrade menu, journal, skills, codex) fills the centre
+    // where toasts also sit, and it hides the board so the side-band dodge does
+    // not apply. Rather than fight it, hide the toasts while such a panel is open;
+    // they persist undismissed and reappear (via layoutToasts on close) once the
+    // panel is shut, so the "clean switch" the D1 pass intends holds here too
+    // (#170).
+    const hidden = this.isBlockingOverlayOpen();
     const band = this.toastBand();
     let y = TOAST_TOP;
     for (const slot of [...this.toasts.keys()].sort((a, b) => a - b)) {
@@ -581,6 +595,7 @@ export class MapHud {
       if (toast === undefined) {
         continue;
       }
+      toast.setVisible(!hidden);
       // Set the wrap width first: it re-renders the text and updates height.
       toast.setWordWrapWidth(band.wrapW).setX(band.centerX).setY(y);
       y += toast.height + TOAST_GAP;
