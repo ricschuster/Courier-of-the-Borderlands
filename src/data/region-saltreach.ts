@@ -16,7 +16,13 @@
 // Legend:
 //   . plains    f forest   # road
 //   b bridge    ~ water    ^ mountain    h hills    m marsh
-//   x ford    t tidal-flat (wagon-gated)
+//   x ford    t tidal-flat (wagon-gated)    p trail (rough path: drives like a
+//     path, wears like the ground it crosses, so it is a visual link, not relief)
+//
+// Trails (#176) link the plain off-road settlements to the network so they do
+// not look stranded, without easing the sink: Reedford and Cormorant Rock share
+// a north-belt track off the col-20 spur, and Saltkeep a spur off the col-18
+// road into the southern marsh. The Saltmere pocket stays isolated by design.
 //
 // Grid is 30 wide by 20 tall. createTileMap validates row lengths and symbols
 // at load time.
@@ -51,8 +57,8 @@ export const SALTREACH_ROWS: readonly string[] = [
   // rows 0-3: NW peaks, water channel (col 11), northern forest belt (cols 12+)
   '^^^^.......~ffffffffffffffffff',
   '^^^^.......~ffffffffffffffffff',
-  '^^^^.......~ffffffffffffffffff',
-  '...........~ffffffffffffffffff',
+  '^^^^.......~ffffffffppfppppppf',
+  '...........~ffffffffpfffffffff',
   // row 4: north-road spur east from the north bridge toward reedford
   '...........~........#.........',
   // row 5: north bridge (col 11); west approach on col 5, spur east
@@ -73,12 +79,12 @@ export const SALTREACH_ROWS: readonly string[] = [
   '.....#.....~......#.mmmmm~mmmm',
   // row 15: ford shortcut (col 11, locked); west approach on col 5; the
   // southern marsh belt begins east of the ford
-  '.....######x####mmmmmmmmm~mmmm',
+  '.....######x####mmpmmmmmm~mmmm',
   // row 16: southern marsh; the lagoon wall continues down col 25
-  '...........~mmmmmmmmmmmmm~mmmm',
+  '...........~mmmmmmpmmmmmm~mmmm',
   // rows 17-19: SW mountain range; southern marsh; the one dry gap into the
   // pocket is at the bottom of the lagoon (row 19, col 25)
-  '^^^^^......~mmmmmmmmmmmmm~mmmm',
+  '^^^^^......~mmmmmmppppmmm~mmmm',
   '^^^^^......~mmmmmmmmmmmmm~mmmm',
   '^^^^^......~mmmmmmmmmmmmmmmmmm',
 ];
@@ -98,6 +104,7 @@ export const SALTREACH_LEGEND: Readonly<Record<string, string>> = {
   m: 'marsh',
   x: 'ford-saltreach',
   t: 'tidal-flat',
+  p: 'trail',
 };
 
 // ---------------------------------------------------------------------------
