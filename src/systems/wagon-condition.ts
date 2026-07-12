@@ -70,11 +70,32 @@ export const DEFAULT_WAGON_TUNING: WagonTuning = {
 /**
  * Difficulty presets. 'standard' is the measured default; 'relaxed' and
  * 'demanding' scale the two primary knobs (wear and repair price) down and up.
- * The off-difficulty profiles are illustrative starting points, not yet tuned;
- * wiring a player-facing selector is future work (it just stores the chosen key
- * and passes the matching profile into the scene).
+ * The player picks one with the in-game selector (the "G" key), which stores the
+ * chosen key and passes the matching profile into the scene. The off-standard
+ * profiles are illustrative starting points, not yet balanced by playtest.
  */
 export type Difficulty = 'relaxed' | 'standard' | 'demanding';
+
+/** The difficulties in selector order (easiest to hardest). */
+export const DIFFICULTIES: readonly Difficulty[] = ['relaxed', 'standard', 'demanding'];
+
+/** Whether an arbitrary value is a known difficulty key. */
+export function isDifficulty(value: unknown): value is Difficulty {
+  return typeof value === 'string' && (DIFFICULTIES as readonly string[]).includes(value);
+}
+
+/** Next difficulty in the cycle, wrapping hardest back to easiest. */
+export function nextDifficulty(current: Difficulty): Difficulty {
+  const i = DIFFICULTIES.indexOf(current);
+  // indexOf returns -1 for an unknown value; (-1 + 1) % 3 = 0 lands on the first
+  // entry, so an out-of-set input still cycles into a valid difficulty.
+  return DIFFICULTIES[(i + 1) % DIFFICULTIES.length] ?? 'standard';
+}
+
+/** Short human label for a difficulty, used in HUD text. */
+export function difficultyLabel(difficulty: Difficulty): string {
+  return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+}
 
 export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
   relaxed: {

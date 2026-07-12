@@ -16,6 +16,10 @@ import {
   MAX_CONDITION,
   DEFAULT_WAGON_TUNING,
   WAGON_TUNING,
+  DIFFICULTIES,
+  isDifficulty,
+  nextDifficulty,
+  difficultyLabel,
 } from '../../src/systems/wagon-condition';
 
 // Difficulty-tunable knobs now live in a profile; alias the standard one so the
@@ -254,5 +258,35 @@ describe('difficulty presets', () => {
     expect(repairCost(0, 100, WAGON_TUNING.relaxed)).toBeLessThan(
       repairCost(0, 100, WAGON_TUNING.standard),
     );
+  });
+});
+
+describe('difficulty selector helpers', () => {
+  it('lists the presets easiest to hardest and each has a tuning profile', () => {
+    expect(DIFFICULTIES).toEqual(['relaxed', 'standard', 'demanding']);
+    for (const d of DIFFICULTIES) {
+      expect(WAGON_TUNING[d]).toBeDefined();
+    }
+  });
+
+  it('recognizes only the known difficulty keys', () => {
+    expect(isDifficulty('standard')).toBe(true);
+    expect(isDifficulty('relaxed')).toBe(true);
+    expect(isDifficulty('demanding')).toBe(true);
+    expect(isDifficulty('brutal')).toBe(false);
+    expect(isDifficulty(null)).toBe(false);
+    expect(isDifficulty(2)).toBe(false);
+  });
+
+  it('cycles through every difficulty and wraps hardest back to easiest', () => {
+    expect(nextDifficulty('relaxed')).toBe('standard');
+    expect(nextDifficulty('standard')).toBe('demanding');
+    expect(nextDifficulty('demanding')).toBe('relaxed');
+  });
+
+  it('labels a difficulty with a capitalized name', () => {
+    expect(difficultyLabel('relaxed')).toBe('Relaxed');
+    expect(difficultyLabel('standard')).toBe('Standard');
+    expect(difficultyLabel('demanding')).toBe('Demanding');
   });
 });

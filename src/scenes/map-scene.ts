@@ -34,6 +34,8 @@ import {
   clearSave,
   hasSeenIntro,
   markIntroSeen,
+  loadDifficulty,
+  saveDifficulty,
   type GameSnapshot,
 } from '../systems/save-system';
 import {
@@ -58,7 +60,10 @@ import {
   clampCondition,
   MAX_CONDITION,
   WAGON_TUNING,
+  nextDifficulty,
+  difficultyLabel,
   type WagonTuning,
+  type Difficulty,
 } from '../systems/wagon-condition';
 import { boardText, summaryText, skillPanelText, capstoneText } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
@@ -300,6 +305,7 @@ export class MapScene extends Phaser.Scene {
   private completed = new Set<string>();
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private newGameKey!: Phaser.Input.Keyboard.Key;
+  private difficultyKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
   private trip: TripLog = createTripLog();
@@ -309,9 +315,11 @@ export class MapScene extends Phaser.Scene {
   private wagonCondition = MAX_CONDITION;
   /** Cumulative condition points worn away this session, for tuning telemetry. */
   private wagonWearTotal = 0;
+  /** Chosen difficulty preset. Loaded from the persisted preference on boot. */
+  private difficulty: Difficulty = 'standard';
   /**
-   * Difficulty profile for the travel sink. Fixed to standard for now; when a
-   * difficulty selector lands it just chooses another WAGON_TUNING preset here.
+   * Difficulty profile for the travel sink. Selected from the difficulty preset
+   * on boot and whenever the player cycles it (the "G" key).
    */
   private wagonTuning: WagonTuning = WAGON_TUNING.standard;
   private currentPath: PathResult | null = null;
@@ -376,6 +384,10 @@ export class MapScene extends Phaser.Scene {
     const snapshot = loadSave();
     const regionId = data?.regionId ?? snapshot?.regionId ?? DEFAULT_REGION_ID;
     this.region = getRegion(regionId);
+    // Apply the chosen difficulty before restoring state: a fresh game derives
+    // the starting tank size from this tuning, and a loaded condition is clamped
+    // to the max it affords, so the profile must be in place first.
+    this.applyDifficulty(loadDifficulty());
     this.restoreState(snapshot);
 
     this.map = createTileMap(this.region.rows, this.region.legend);
@@ -893,6 +905,7 @@ export class MapScene extends Phaser.Scene {
     this.handlePurchaseInput();
     this.handleRepairInput();
     this.handleResetInput();
+    this.handleDifficultyInput();
     this.handleDismissInput();
     this.handleCapstoneInput();
     this.handleSummaryInput();
@@ -951,6 +964,33 @@ export class MapScene extends Phaser.Scene {
   /** The wagon's current maximum condition, which grows with courier level. */
   private wagonMax(): number {
     return maxConditionForLevel(this.courierLevel(), this.wagonTuning);
+  }
+
+  /** Select a difficulty preset: store the key and swap in its tuning profile. */
+  private applyDifficulty(difficulty: Difficulty): void {
+    this.difficulty = difficulty;
+    this.wagonTuning = WAGON_TUNING[difficulty];
+  }
+
+  /**
+   * Cycle the difficulty preset (the "G" key). The choice is a persisted
+   * preference that applies live: the new tuning drives wear, repair cost, and
+   * the tank size from here on, so the current condition is clamped to whatever
+   * the new profile now affords. A loud toast confirms the change, and the
+   * control hint shows the active difficulty, so an accidental press is visible.
+   */
+  private handleDifficultyInput(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.difficultyKey)) {
+      return;
+    }
+    this.applyDifficulty(nextDifficulty(this.difficulty));
+    saveDifficulty(this.difficulty);
+    this.wagonCondition = clampCondition(this.wagonCondition, this.wagonMax());
+    this.save();
+    this.hud.showToast(
+      `Difficulty: ${difficultyLabel(this.difficulty)}. This changes wagon wear and repair costs from here on.`,
+    );
+    this.refreshHint();
   }
 
   /** HUD label for the wagon condition, cueing repair/rescue and its cost. */
@@ -1559,7 +1599,9 @@ export class MapScene extends Phaser.Scene {
     // Only cue the dismiss key while a toast is actually up, so the help line
     // stays quiet otherwise (Session 5 playtest: messages now hold until Space).
     const dismiss = this.hud.hasToasts() ? '  Space: dismiss message.' : '';
-    const base = `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game.${talk}${dismiss}`;
+    const base =
+      `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game  ` +
+      `G: difficulty (${difficultyLabel(this.difficulty)}).${talk}${dismiss}`;
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
@@ -1658,6 +1700,7 @@ export class MapScene extends Phaser.Scene {
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.repairKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
+    this.difficultyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G);
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);

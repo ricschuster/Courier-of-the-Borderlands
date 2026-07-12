@@ -2,13 +2,16 @@
 // unit tested. The read/write helpers are a thin, guarded wrapper over
 // localStorage so the game keeps running even where storage is unavailable.
 import type { ContractStatus } from './contract-system';
-import { sanitizeCondition } from './wagon-condition';
+import { sanitizeCondition, isDifficulty, type Difficulty } from './wagon-condition';
 
 export const SAVE_VERSION = 1;
 export const SAVE_KEY = 'courier-of-the-borderlands/save';
 
 /** Marker that the one-time intro card has been shown, so it is not shown again. */
 export const INTRO_SEEN_KEY = 'courier-of-the-borderlands/intro-seen';
+
+/** Chosen difficulty preset. A player preference, not save state. */
+export const DIFFICULTY_KEY = 'courier-of-the-borderlands/difficulty';
 
 /**
  * Outcome of a save attempt. 'unavailable' means storage could not be reached at
@@ -333,5 +336,38 @@ export function markIntroSeen(): void {
     store.setItem(INTRO_SEEN_KEY, '1');
   } catch {
     // Ignore: worst case the intro shows again next visit.
+  }
+}
+
+/**
+ * The player's chosen difficulty. Kept under its own key (not in the save) so it
+ * is a durable preference: it survives a New Game, and choosing it does not
+ * touch a run in progress. An absent or unrecognized value defaults to
+ * 'standard', the measured baseline, so a first-time or storage-less player gets
+ * the intended tuning.
+ */
+export function loadDifficulty(): Difficulty {
+  const store = storage();
+  if (store === null) {
+    return 'standard';
+  }
+  try {
+    const raw = store.getItem(DIFFICULTY_KEY);
+    return isDifficulty(raw) ? raw : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
+
+/** Persist the chosen difficulty preset. */
+export function saveDifficulty(difficulty: Difficulty): void {
+  const store = storage();
+  if (store === null) {
+    return;
+  }
+  try {
+    store.setItem(DIFFICULTY_KEY, difficulty);
+  } catch {
+    // Ignore: worst case the choice resets to standard next visit.
   }
 }
