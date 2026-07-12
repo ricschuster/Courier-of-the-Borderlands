@@ -220,6 +220,8 @@ interface E2EState {
   readonly regionCleared: boolean;
   /** Whether the skills panel is currently open. */
   readonly skillPanelOpen: boolean;
+  /** Whether the wagon upgrade menu is currently open. */
+  readonly upgradeMenuOpen: boolean;
   /** Whether the region-cleared summary panel is currently shown. */
   readonly summaryVisible: boolean;
   /** Whether the end-of-arc capstone panel is currently shown. */
@@ -791,6 +793,7 @@ export class MapScene extends Phaser.Scene {
       activeEncounterId: this.dialogue.activeEncounterId(),
       regionCleared: this.regionCleared(),
       skillPanelOpen: this.hud.isSkillPanelVisible(),
+      upgradeMenuOpen: this.hud.isUpgradeMenuVisible(),
       summaryVisible: this.hud.isSummaryVisible(),
       capstoneVisible: this.hud.isCapstoneVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,

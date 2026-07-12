@@ -148,6 +148,49 @@ export async function setSkillPanel(page: Page, open: boolean): Promise<void> {
   throw new Error(`skill panel did not ${open ? 'open' : 'close'} after retries`);
 }
 
+/**
+ * Drive the wagon upgrade menu to open (or closed) with the "B" toggle, the same
+ * way setSkillPanel handles the "k" panel. Opening is gated to the home shop, so
+ * only call this at home when opening; closing works anywhere. "B" is a toggle,
+ * so pressUntil (which can fire an extra press that flips it back) is unsafe;
+ * this checks state first and only presses when the menu is in the wrong state,
+ * holding the key across frames so a starved frame loop cannot drop it.
+ */
+export async function setUpgradeMenu(page: Page, open: boolean): Promise<void> {
+  const readOpen = () =>
+    page.evaluate(() => globalThis.__courier?.getState().upgradeMenuOpen ?? null);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if ((await readOpen()) === open) return;
+    await page.keyboard.down('B');
+    try {
+      await expect.poll(readOpen, { timeout: 3000, intervals: [50, 100, 200, 400] }).toBe(open);
+    } catch {
+      // No frame processed the key within the window; release and retry.
+    } finally {
+      await page.keyboard.up('B');
+    }
+    if ((await readOpen()) === open) return;
+  }
+  throw new Error(`upgrade menu did not ${open ? 'open' : 'close'} after retries`);
+}
+
+/**
+ * Buy every affordable, not-yet-fitted wagon upgrade at the home shop. Opens the
+ * upgrade menu, presses each upgrade's number key once (an unaffordable or
+ * already-owned upgrade ignores the press), then closes the menu so later number
+ * keys reach the contract board. The seven Greybridge upgrades map to keys 1-7
+ * in data order (see src/data/upgrades-greybridge.ts). Must be called at home,
+ * where the menu can open.
+ */
+export async function buyAffordableUpgrades(page: Page): Promise<void> {
+  await setUpgradeMenu(page, true);
+  for (const key of ['1', '2', '3', '4', '5', '6', '7']) {
+    await tapKey(page, key);
+    await waitForFrames(page, 2);
+  }
+  await setUpgradeMenu(page, false);
+}
+
 // Shared helpers for the input-driven e2e specs. Each spec boots the real built
 // game with `?e2e`, reads live state and pathfinding waypoints through the
 // typed `window.__courier` hook, and drives the courier with genuine key
