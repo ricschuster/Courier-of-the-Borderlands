@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { WEATHERS, weatherByIndex, pickWeather } from '../../src/systems/weather';
+import {
+  WEATHERS,
+  weatherByIndex,
+  pickWeather,
+  weatherEffectLabel,
+  type Weather,
+} from '../../src/systems/weather';
 import { createRng } from '../../src/systems/rng';
+
+const weather = (over: Partial<Weather>): Weather => ({
+  id: 't',
+  label: 'Test',
+  description: '',
+  speedMultiplier: 1,
+  revealBonus: 0,
+  ...over,
+});
 
 describe('WEATHERS catalogue', () => {
   it('is non-empty', () => {
@@ -47,6 +62,34 @@ describe('weatherByIndex', () => {
       expect(typeof w.label).toBe('string');
       expect(typeof w.speedMultiplier).toBe('number');
       expect(typeof w.revealBonus).toBe('number');
+    }
+  });
+});
+
+describe('weatherEffectLabel', () => {
+  it('reads "steady going" for a neutral weather', () => {
+    expect(weatherEffectLabel(weather({}))).toBe('steady going');
+  });
+
+  it('names a speed change', () => {
+    expect(weatherEffectLabel(weather({ speedMultiplier: 1.1 }))).toBe('faster travel');
+    expect(weatherEffectLabel(weather({ speedMultiplier: 0.9 }))).toBe('slower travel');
+  });
+
+  it('names a sight change', () => {
+    expect(weatherEffectLabel(weather({ revealBonus: -1 }))).toBe('shorter sight');
+    expect(weatherEffectLabel(weather({ revealBonus: 2 }))).toBe('farther sight');
+  });
+
+  it('joins a combined speed and sight effect', () => {
+    expect(weatherEffectLabel(weather({ speedMultiplier: 0.9, revealBonus: -1 }))).toBe(
+      'slower travel, shorter sight',
+    );
+  });
+
+  it('describes every catalogue weather without throwing', () => {
+    for (const w of WEATHERS) {
+      expect(weatherEffectLabel(w).length).toBeGreaterThan(0);
     }
   });
 });

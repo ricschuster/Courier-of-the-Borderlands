@@ -44,6 +44,27 @@ export const WEATHERS: readonly Weather[] = [
   },
 ];
 
+/**
+ * Short player-facing summary of what a weather does to the run, for the HUD.
+ * A 2026-07-12 playtester suspected weather did nothing because only its name
+ * was shown (docs/design/08_ui_and_onboarding.md); this names the actual
+ * movement/sight effect. Returns "steady going" when a weather is neutral.
+ */
+export function weatherEffectLabel(weather: Weather): string {
+  const parts: string[] = [];
+  if (weather.speedMultiplier > 1) {
+    parts.push('faster travel');
+  } else if (weather.speedMultiplier < 1) {
+    parts.push('slower travel');
+  }
+  if (weather.revealBonus > 0) {
+    parts.push('farther sight');
+  } else if (weather.revealBonus < 0) {
+    parts.push('shorter sight');
+  }
+  return parts.length === 0 ? 'steady going' : parts.join(', ');
+}
+
 /** Neutral fallback returned when WEATHERS is somehow empty. */
 const FALLBACK_WEATHER: Weather = {
   id: 'unknown',
