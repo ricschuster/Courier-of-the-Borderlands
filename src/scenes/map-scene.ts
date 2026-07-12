@@ -35,7 +35,6 @@ import {
   hasSeenIntro,
   markIntroSeen,
   loadDifficulty,
-  saveDifficulty,
   type GameSnapshot,
 } from '../systems/save-system';
 import {
@@ -60,7 +59,6 @@ import {
   clampCondition,
   MAX_CONDITION,
   WAGON_TUNING,
-  nextDifficulty,
   difficultyLabel,
   type WagonTuning,
   type Difficulty,
@@ -305,7 +303,6 @@ export class MapScene extends Phaser.Scene {
   private completed = new Set<string>();
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private newGameKey!: Phaser.Input.Keyboard.Key;
-  private difficultyKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
   private trip: TripLog = createTripLog();
@@ -905,7 +902,6 @@ export class MapScene extends Phaser.Scene {
     this.handlePurchaseInput();
     this.handleRepairInput();
     this.handleResetInput();
-    this.handleDifficultyInput();
     this.handleDismissInput();
     this.handleCapstoneInput();
     this.handleSummaryInput();
@@ -966,31 +962,10 @@ export class MapScene extends Phaser.Scene {
     return maxConditionForLevel(this.courierLevel(), this.wagonTuning);
   }
 
-  /** Select a difficulty preset: store the key and swap in its tuning profile. */
+  /** Apply a difficulty preset: store the key and swap in its tuning profile. */
   private applyDifficulty(difficulty: Difficulty): void {
     this.difficulty = difficulty;
     this.wagonTuning = WAGON_TUNING[difficulty];
-  }
-
-  /**
-   * Cycle the difficulty preset (the "G" key). The choice is a persisted
-   * preference that applies live: the new tuning drives wear, repair cost, and
-   * the tank size from here on, so the current condition is clamped to whatever
-   * the new profile now affords. A loud toast confirms the change, and the
-   * control hint shows the active difficulty, so an accidental press is visible.
-   */
-  private handleDifficultyInput(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.difficultyKey)) {
-      return;
-    }
-    this.applyDifficulty(nextDifficulty(this.difficulty));
-    saveDifficulty(this.difficulty);
-    this.wagonCondition = clampCondition(this.wagonCondition, this.wagonMax());
-    this.save();
-    this.hud.showToast(
-      `Difficulty: ${difficultyLabel(this.difficulty)}. This changes wagon wear and repair costs from here on.`,
-    );
-    this.refreshHint();
   }
 
   /** HUD label for the wagon condition, cueing repair/rescue and its cost. */
@@ -1539,7 +1514,10 @@ export class MapScene extends Phaser.Scene {
   private handleResetInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.newGameKey)) {
       clearSave();
-      this.scene.restart();
+      // Route back through BootScene so a new game re-picks difficulty at the
+      // title screen (#150). BootScene sends real players to the picker and, under
+      // the e2e hook, straight back into a fresh map.
+      this.scene.start('BootScene');
     }
   }
 
@@ -1599,9 +1577,11 @@ export class MapScene extends Phaser.Scene {
     // Only cue the dismiss key while a toast is actually up, so the help line
     // stays quiet otherwise (Session 5 playtest: messages now hold until Space).
     const dismiss = this.hud.hasToasts() ? '  Space: dismiss message.' : '';
+    // Difficulty is locked for the run (chosen at the title screen, #150), so it
+    // is shown read-only here rather than as a key the player can press.
     const base =
       `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game  ` +
-      `G: difficulty (${difficultyLabel(this.difficulty)}).${talk}${dismiss}`;
+      `Difficulty: ${difficultyLabel(this.difficulty)}.${talk}${dismiss}`;
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
       const other = getRegion(gateway.to).name;
@@ -1700,7 +1680,6 @@ export class MapScene extends Phaser.Scene {
     this.buyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
     this.repairKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
-    this.difficultyKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G);
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);

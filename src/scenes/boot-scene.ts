@@ -1,13 +1,33 @@
 import Phaser from 'phaser';
+import { loadSave } from '../systems/save-system';
 
-// Boot scene: the entry scene for the game. Later this will preload assets;
-// for now it immediately hands off to the map scene.
+// Boot scene: the entry scene for the game. Later this will preload assets; for
+// now it routes to the right first screen.
+//
+// - A run in progress (a save exists) resumes straight into the map, keeping the
+//   difficulty that run was started on.
+// - A fresh game goes to the title screen to pick a difficulty, which is then
+//   locked for the run (#150).
+//
+// Exception: under the e2e hook (?e2e) a fresh game skips the title and boots
+// straight into the map on the stored/standard difficulty, so the input-driven
+// specs reach the map without a picker step. The picker itself is exercised by
+// booting with ?e2e&title=1, which forces the title even under the hook.
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BootScene' });
   }
 
   create(): void {
-    this.scene.start('MapScene');
+    const params =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+    const isE2E = params.has('e2e');
+    const forceTitle = params.has('title');
+
+    const hasSave = loadSave() !== null;
+    const skipTitle = hasSave || (isE2E && !forceTitle);
+    this.scene.start(skipTitle ? 'MapScene' : 'TitleScene');
   }
 }

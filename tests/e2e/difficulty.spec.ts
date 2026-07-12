@@ -1,51 +1,62 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, tapKey } from './drive';
 
 const DIFFICULTY_KEY = 'courier-of-the-borderlands/difficulty';
-const SAVE_KEY = 'courier-of-the-borderlands/save';
 
-// The difficulty selector (#135) is pure-logic tested in unit tests; this spec
-// guards the scene wiring the units can't reach: the G key cycles the preset,
-// persists it, and applies the new tuning live (the wagon's max capacity, and
-// so its condition, changes immediately).
-test('the G key cycles difficulty, persists it, and applies the tuning live', async ({ page }) => {
-  // Clean slate: no save, no stored preference. Clear once after the first boot
-  // (not via addInitScript, which would also wipe storage on the later reload).
-  await bootE2E(page);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+// Difficulty is chosen once at the title screen and locked for the run (#150);
+// there is no in-run selector. The pure difficulty logic is unit tested; this
+// spec guards the scene wiring the units can't reach: the title picker persists
+// the choice, MapScene starts on that tuning (the level-1 wagon cap reflects it),
+// and the choice survives a reload. Booting with `title=1` forces the picker even
+// under the e2e hook (which otherwise skips straight to the map).
+test('the title screen picks a difficulty, locks it for the run, and persists it', async ({
+  page,
+}) => {
+  await page.goto('./?e2e=1&title=1');
+  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.locator('#game canvas').click();
-  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
 
-  const condition = () => page.evaluate(() => globalThis.__courier!.getState().wagonCondition);
   const stored = () => page.evaluate((k) => localStorage.getItem(k), DIFFICULTY_KEY);
+  const attached = () => page.evaluate(() => globalThis.__courier !== undefined);
+  const condition = () => page.evaluate(() => globalThis.__courier!.getState().wagonCondition);
 
-  // Fresh level-1 wagon on standard tuning caps at 25; no preference stored yet.
-  expect(await condition()).toBe(25);
+  // On the title screen: no preference stored yet and the map (with its hook) has
+  // not started.
   expect(await stored()).toBeNull();
+  expect(await attached()).toBe(false);
 
-  // G: standard -> demanding (level-1 cap 16). Condition clamps 25 -> 16 live.
-  await tapKey(page, 'g');
-  await expect.poll(stored).toBe('demanding');
+  // Pick Demanding (3). Re-press until the map scene attaches, since a single
+  // press can drop before the scene is listening under CI load.
+  for (let i = 0; i < 10; i += 1) {
+    await page.keyboard.press('3');
+    try {
+      await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
+        timeout: 1500,
+      });
+      break;
+    } catch {
+      // Not attached yet; press again.
+    }
+  }
+  expect(await attached()).toBe(true);
+
+  // The choice persisted, and the run started on demanding: a fresh level-1
+  // demanding wagon caps at 16.
+  expect(await stored()).toBe('demanding');
   expect(await condition()).toBe(16);
 
-  // G: demanding -> relaxed (cap 40). Condition stays 16 (a clamp only lowers).
-  await tapKey(page, 'g');
-  await expect.poll(stored).toBe('relaxed');
+  // Locked for the run: the retired G selector does nothing.
+  await page.keyboard.press('g');
+  await page.waitForTimeout(150);
   expect(await condition()).toBe(16);
+  expect(await stored()).toBe('demanding');
 
-  // G: relaxed -> standard, wrapping the cycle.
-  await tapKey(page, 'g');
-  await expect.poll(stored).toBe('standard');
-
-  // The preference survives a page load: set demanding, force a fresh new game,
-  // reload, and the level-1 cap reflects the persisted difficulty.
-  await tapKey(page, 'g');
-  await expect.poll(stored).toBe('demanding');
-  await page.evaluate((k) => localStorage.removeItem(k), SAVE_KEY);
+  // Persists across a reload: a run in progress resumes straight into the map on
+  // the same difficulty.
   await page.reload();
   await page.locator('#game canvas').click();
-  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
+  await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
+    timeout: 15_000,
+  });
   expect(await stored()).toBe('demanding');
   expect(await condition()).toBe(16);
 });
