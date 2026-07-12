@@ -3,9 +3,12 @@ import {
   bootE2E,
   collectErrors,
   driveToTile,
+  pressUntil,
+  seatAt,
   setSkillPanel,
   tapKey,
   travelTo,
+  waitForFrames,
   type Arrow,
 } from './drive';
 
@@ -53,22 +56,22 @@ async function walkDialogue(page: Page): Promise<void> {
     if (!s || !s.dialogueOpen) return;
     if (s.dialogueChoices.length === 0) {
       await tapKey(page, 'Escape');
-      await page.waitForTimeout(120);
+      await waitForFrames(page, 2);
       continue;
     }
     const sig = s.dialogueChoices.join('|');
     const hasProgress = s.dialogueChoices.some((c) => PROGRESS.some((p) => c.toLowerCase().includes(p)));
     if (seen.has(sig) && !hasProgress) {
       await tapKey(page, 'Escape');
-      await page.waitForTimeout(120);
+      await waitForFrames(page, 2);
       continue;
     }
     seen.add(sig);
     await tapKey(page, String(pickChoice(s.dialogueChoices) + 1));
-    await page.waitForTimeout(160);
+    await waitForFrames(page, 2);
   }
   await tapKey(page, 'Escape');
-  await page.waitForTimeout(120);
+  await waitForFrames(page, 2);
 }
 
 // Spend coins and skill points the way a completionist player would, so the buy
@@ -91,20 +94,20 @@ async function spendAtHome(page: Page): Promise<boolean> {
 
   // Buy the cheapest affordable upgrade (a no-op when none is affordable).
   await tapKey(page, 'B');
-  await page.waitForTimeout(150);
+  await waitForFrames(page, 2);
 
   // Repair the wagon at home (travel sink, ADR 0005). A no-op when already full
   // or broke. Keeps the driver from stranding at 0 condition (limp speed), and
   // the coins it spends are the recurring sink the mechanic exists to create.
   await tapKey(page, 'R');
-  await page.waitForTimeout(120);
+  await waitForFrames(page, 2);
 
   if (before.skillPoints > 0) {
     await setSkillPanel(page, true);
     // Off-road first (it opens the mire), then the rest, one point per key.
     for (const key of ['2', '1', '3', '4']) {
       await tapKey(page, key);
-      await page.waitForTimeout(110);
+      await waitForFrames(page, 2);
     }
     // Close it before returning so the number keys reach the contract board.
     await setSkillPanel(page, false);
@@ -136,9 +139,9 @@ async function driveOrRecover(
     const st = await readState(page);
     if (!st || st.wagonCondition > 0) throw err;
     await tapKey(page, 'R'); // tow home (stranded off a settlement)
-    await page.waitForTimeout(200);
+    await waitForFrames(page, 2);
     await tapKey(page, 'R'); // repair on the home tile so the retry is not dry
-    await page.waitForTimeout(200);
+    await waitForFrames(page, 2);
   }
 }
 
@@ -224,22 +227,22 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
     }
     if (s.summaryVisible) {
       await tapKey(page, 'Escape'); // the summary panel dismisses on Esc
-      await page.waitForTimeout(150);
+      await waitForFrames(page, 2);
       continue;
     }
 
     // Carrying: deliver at the destination.
     if (s.activeContractId && s.contractStatus === 'carrying' && s.destination) {
       await driveOrRecover(page, held, s.destination.tileX, s.destination.tileY);
-      await page.waitForTimeout(250);
+      await waitForFrames(page, 2); // delivery fires per frame on the tile
       await tapKey(page, 'Space'); // dismiss the delivery toast
-      await page.waitForTimeout(100);
+      await waitForFrames(page, 2);
       continue;
     }
     // Accepted: drive the pickup leg first (may be a non-home settlement).
     if (s.activeContractId && s.contractStatus === 'accepted' && s.pickup) {
       await driveOrRecover(page, held, s.pickup.tileX, s.pickup.tileY);
-      await page.waitForTimeout(200);
+      await waitForFrames(page, 2); // pickup fires per frame on the tile
       continue;
     }
 
@@ -251,6 +254,10 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
     // already does this). Reaching here at all means no pickup or delivery leg is
     // pending, so heading home is unconditionally correct.
     await driveOrRecover(page, held, s.home.tileX, s.home.tileY);
+    // Settle exactly onto the home tile: the drive can end with residual
+    // velocity that carries the wagon off it before the next frame, and the
+    // shop/repair/board inputs below are all exact-tile gated.
+    await seatAt(page, s.home.tileX, s.home.tileY);
     // Spend coins and skill points (a real player kits out at home). Bounded, so
     // it stops once broke.
     if (await spendAtHome(page)) continue;
@@ -264,14 +271,15 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
       .join(',');
     const talkKey = `${s.regionId}:${arcFlags}`;
     if (s.regionCleared && !talked.has(talkKey)) {
-      // Re-seat on the home tile (spendAtHome toggles panels long enough for the
-      // wagon to coast off), then press E. Only mark the talk done once the
-      // dialogue actually opened: a missed or off-tile press then just retries on
-      // the next loop instead of being marked done without happening, which would
-      // otherwise leave the final blockade talk unfired.
-      await driveToTile(page, held, s.home.tileX, s.home.tileY);
+      // Settle back onto the home tile (the wagon does not move during
+      // spendAtHome, but seat is cheap and makes the E press's exact-tile gate
+      // certain), then press E. Only mark the talk done once the dialogue
+      // actually opened: a missed press then just retries on the next loop
+      // instead of being marked done without happening, which would otherwise
+      // leave the final blockade talk unfired.
+      await seatAt(page, s.home.tileX, s.home.tileY);
       await tapKey(page, 'E');
-      await page.waitForTimeout(250);
+      await waitForFrames(page, 2);
       if ((await readState(page))?.dialogueOpen) {
         talked.add(talkKey);
         await walkDialogue(page);
@@ -279,13 +287,16 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
       continue;
     }
     if (s.availableContractIds.length > 0) {
-      // Re-seat on the home tile before accepting: the board only takes the key
-      // while the wagon is standing on the settlement, and spendAtHome above
-      // toggles panels long enough for the wagon to coast off. A dropped press
-      // just means the next loop iteration re-approaches and retries.
-      await driveToTile(page, held, s.home.tileX, s.home.tileY);
-      await tapKey(page, '1');
-      await page.waitForTimeout(200);
+      // Settle onto the home tile, then press 1 until the game confirms the
+      // accept (activeContractId set). The board only takes the key while the
+      // wagon is standing on the settlement; seated with no movement keys held,
+      // the wagon stays put between attempts, so the confirm loop cannot race
+      // the coast the way a fire-and-forget press could.
+      await seatAt(page, s.home.tileX, s.home.tileY);
+      await pressUntil(page, '1', async () => {
+        const now = await readState(page);
+        return now !== null && now.activeContractId !== null;
+      });
       continue;
     }
     // Nothing left here: travel to a region we have not exhausted.

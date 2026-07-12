@@ -32,18 +32,74 @@ export async function pressUntil(
 }
 
 /**
- * Press a key by holding it down briefly rather than an instantaneous tap. The
- * game reads one-shot inputs (accept contract, talk, buy, dismiss) with
- * JustDown, which only registers the key if it is down on a frame boundary.
- * Under a starved frame loop a zero-gap down+up can land entirely between two
- * frames and be silently lost. Holding for a beat guarantees the next frame,
- * however delayed, observes the key. Safe for these inputs because JustDown
- * fires once per down-transition, so a held key still acts exactly once.
+ * Wait until the game's update loop has advanced by at least `frames` frames,
+ * however slowly they arrive. Wall-clock waits assume frames keep a steady
+ * cadence, which a loaded CI runner breaks: an 80ms wait can contain zero
+ * frames (nothing happened yet) while a 150ms key hold can end before any
+ * frame observed the key. Anchoring on the game's frame counter makes every
+ * wait mean "the game actually ran". The timeout is a hard failure bound: a
+ * frame loop that stalls that long is a real bug, not runner load.
+ *
+ * Tolerates the hook being momentarily absent (region-travel scene restart):
+ * the counter is monotonic across restarts, so the wait simply resumes once
+ * the hook reattaches.
  */
-export async function tapKey(page: Page, key: string, holdMs = 150): Promise<void> {
+export async function waitForFrames(
+  page: Page,
+  frames: number,
+  timeoutMs = 15_000,
+): Promise<void> {
+  const start = (await page.evaluate(() => globalThis.__courier?.getFrame())) ?? -1;
+  await page.waitForFunction(
+    (arg) => {
+      const api = globalThis.__courier;
+      return api !== undefined && api.getFrame() >= arg.from + arg.n;
+    },
+    { from: start, n: frames },
+    { timeout: timeoutMs },
+  );
+}
+
+/**
+ * Press a key by holding it down across game frames rather than an
+ * instantaneous tap. The game reads one-shot inputs (accept contract, talk,
+ * buy, dismiss) with JustDown, and Phaser clears the pending flag on keyup, so
+ * a down+up that lands entirely between two starved frames is silently lost.
+ * Holding until the frame counter has advanced guarantees a frame observed the
+ * key down, no matter how throttled the runner. Safe for these inputs because
+ * JustDown fires once per down-transition, so a held key still acts exactly
+ * once.
+ */
+export async function tapKey(page: Page, key: string): Promise<void> {
   await page.keyboard.down(key);
-  await page.waitForTimeout(holdMs);
-  await page.keyboard.up(key);
+  try {
+    // Two frames: one may already be mid-step when the down lands; the second
+    // is guaranteed to start with the key down and process it.
+    await waitForFrames(page, 2);
+  } finally {
+    await page.keyboard.up(key);
+  }
+}
+
+/**
+ * Settle the wagon exactly onto a tile it has already driven to. A drive
+ * arrives with residual velocity that one sparse frame can carry a tile or two
+ * past the goal before the game re-reads the released keys, so every
+ * exact-tile interaction gate (contract board, talk, repair, travel) can miss
+ * under CI load; re-driving just repeats the same race. seat() zeroes velocity
+ * and snaps to the tile centre, and refuses distances over 2 tiles so a spec
+ * cannot use it to skip driving. Waits a frame after the snap so the game has
+ * observed the seated position before the caller presses an interaction key.
+ */
+export async function seatAt(page: Page, tileX: number, tileY: number): Promise<void> {
+  const seated = await page.evaluate(
+    (t) => globalThis.__courier?.seat(t.x, t.y) ?? false,
+    { x: tileX, y: tileY },
+  );
+  if (!seated) {
+    throw new Error(`seatAt(${tileX},${tileY}) refused: wagon too far from the tile`);
+  }
+  await waitForFrames(page, 1);
 }
 
 /**
@@ -173,10 +229,16 @@ export async function driveToTile(
     // A road encounter can open mid-drive and freeze movement modally. If the
     // goal is elsewhere, step away from it with Escape and keep driving; the
     // encounter stays unresolved but does not re-open until the tile is
-    // re-entered, so travel through it is not blocked.
+    // re-entered, so travel through it is not blocked. Release the held arrows
+    // BEFORE the Escape: the freeze does not release our keys, so closing the
+    // dialogue would otherwise resume motion instantly and coast the wagon past
+    // the trigger tile, and when the trigger sits on a turn every route must
+    // take (an unresolved encounter re-fires on re-entry), the drive doubles
+    // back over it and livelocks the step budget away under CI load.
     if (state.dialogueOpen) {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(80);
+      await releaseAll(page, held);
+      await tapKey(page, 'Escape');
+      await waitForFrames(page, 2);
       continue;
     }
     if (next === null) {
@@ -186,8 +248,12 @@ export async function driveToTile(
       );
     }
     await applyKeys(page, held, desiredKeys(state.courier, next));
-    // Let a few physics frames advance before re-reading position.
-    await page.waitForTimeout(80);
+    // Wait on the game's own frame counter, not wall-clock: under CI load an
+    // 80ms sleep can contain zero frames (a step burned with no movement) while
+    // locally it wastes time. Two frames is one keys-applied physics step plus
+    // one to observe it, so every loop step represents real game progress and
+    // the step budget stops depending on runner speed.
+    await waitForFrames(page, 2);
   }
   await releaseAll(page, held);
   const { state } = await readTick(page, goalTileX, goalTileY);
@@ -234,11 +300,11 @@ export async function bootE2E(
  *
  * Two things make a naive one-shot press flaky under CI load, and this guards
  * both. First, travel only fires when the courier is standing exactly on the
- * gateway tile: the key-up that ends driveToTile can be processed a frame late,
- * letting the courier coast one tile past the gateway, after which every T is a
- * no-op. So each iteration re-seats the courier onto the gateway if it drifted
- * off. Second, a single keypress can be dropped between input ticks, so T is
- * pressed at a steady fast cadence rather than backing off.
+ * gateway tile: the drive can end with residual velocity that coasts the wagon
+ * off the gateway, after which every T is a no-op. So each iteration settles
+ * the wagon back onto the gateway with seat() before pressing. Second, a
+ * zero-gap keypress can be dropped between starved frames, so T is held across
+ * game frames via tapKey and retried until the region flips.
  */
 export async function travelTo(
   page: Page,
@@ -263,19 +329,21 @@ export async function travelTo(
       continue;
     }
     if (region === fromRegionId) {
-      // Re-seat onto the gateway if the courier coasted off it, then press T.
-      const onGateway = await page.evaluate(
-        (g) => {
-          const c = globalThis.__courier?.getState().courier;
-          return c !== undefined && c.tileX === g.x && c.tileY === g.y;
-        },
+      // Settle exactly onto the gateway (the drive can leave the wagon coasted
+      // a tile or two off it), then hold T across a frame so the press cannot
+      // be dropped between starved frames. seat() refuses long distances, so
+      // fall back to driving if the wagon somehow drifted further than a coast.
+      const seated = await page.evaluate(
+        (g) => globalThis.__courier?.seat(g.x, g.y) ?? false,
         { x: gatewayTileX, y: gatewayTileY },
       );
-      if (!onGateway) {
+      if (!seated) {
         await driveToTile(page, held, gatewayTileX, gatewayTileY);
+        continue;
       }
-      await page.keyboard.press('T');
-      await page.waitForTimeout(120);
+      await waitForFrames(page, 1);
+      await tapKey(page, 'T');
+      await waitForFrames(page, 2);
     }
   }
   throw new Error(
