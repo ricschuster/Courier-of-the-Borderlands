@@ -240,7 +240,7 @@ interface CourierE2EApi {
   // animation frame by waitForFunction.
   getFrame(): number;
   // Zero the wagon's velocity and snap it onto the given tile's centre. Only a
-  // short settle (within 2 tiles), never a teleport: returns false when the
+  // short settle (within 3 tiles), never a teleport: returns false when the
   // wagon is too far away, so a spec cannot use it to skip driving. Exists
   // because a drive arrives with residual velocity that one sparse frame can
   // carry a tile past the goal before update() re-reads the released keys,
@@ -673,7 +673,11 @@ export class MapScene extends Phaser.Scene {
    */
   private e2eSeat(tileX: number, tileY: number): boolean {
     const tile = this.courierTile();
-    if (Math.abs(tile.x - tileX) > 2 || Math.abs(tile.y - tileY) > 2) {
+    // Refuse long snaps so a spec cannot skip driving, but allow up to 3 tiles:
+    // a drive can coast a couple of tiles past home before the keys are re-read,
+    // and worst-case coast at full kit can just exceed a 2-tile radius, which
+    // would hard-fail the re-seat instead of settling. 3 gives margin.
+    if (Math.abs(tile.x - tileX) > 3 || Math.abs(tile.y - tileY) > 3) {
       return false;
     }
     const center = this.tileCenter(tileX, tileY);

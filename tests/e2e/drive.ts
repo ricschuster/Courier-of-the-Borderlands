@@ -49,7 +49,19 @@ export async function waitForFrames(
   frames: number,
   timeoutMs = 15_000,
 ): Promise<void> {
-  const start = (await page.evaluate(() => globalThis.__courier?.getFrame())) ?? -1;
+  const start = await page.evaluate(() => globalThis.__courier?.getFrame() ?? null);
+  if (start === null) {
+    // The hook is momentarily absent (mid scene-restart). Wait for it to
+    // reattach, then count `frames` from its first visible value: anchoring on
+    // a real start is what makes the N-frame hold guarantee hold. (A naive
+    // fallback start would let the wait complete the instant the hook appears,
+    // observing zero new frames and voiding tapKey's "a frame saw the key".)
+    await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, {
+      timeout: timeoutMs,
+    });
+    await waitForFrames(page, frames, timeoutMs);
+    return;
+  }
   await page.waitForFunction(
     (arg) => {
       const api = globalThis.__courier;
@@ -87,7 +99,7 @@ export async function tapKey(page: Page, key: string): Promise<void> {
  * past the goal before the game re-reads the released keys, so every
  * exact-tile interaction gate (contract board, talk, repair, travel) can miss
  * under CI load; re-driving just repeats the same race. seat() zeroes velocity
- * and snaps to the tile centre, and refuses distances over 2 tiles so a spec
+ * and snaps to the tile centre, and refuses distances over 3 tiles so a spec
  * cannot use it to skip driving. Waits a frame after the snap so the game has
  * observed the seated position before the caller presses an interaction key.
  */
@@ -248,12 +260,14 @@ export async function driveToTile(
       );
     }
     await applyKeys(page, held, desiredKeys(state.courier, next));
-    // Wait on the game's own frame counter, not wall-clock: under CI load an
-    // 80ms sleep can contain zero frames (a step burned with no movement) while
-    // locally it wastes time. Two frames is one keys-applied physics step plus
-    // one to observe it, so every loop step represents real game progress and
-    // the step budget stops depending on runner speed.
-    await waitForFrames(page, 2);
+    // Advance exactly one game frame, then re-read. Waiting on the frame counter
+    // (not wall-clock) means every step is real game progress, so the step
+    // budget no longer depends on runner speed. One frame, not two: held arrow
+    // keys are read with isDown, so a single frame both observes them and moves,
+    // and with the e2e frame-delta clamp one frame moves the wagon under a tile
+    // even at full kit. Sampling every frame therefore cannot hop over the goal
+    // tile (a 2-frame gap could, causing a false "courier stuck").
+    await waitForFrames(page, 1);
   }
   await releaseAll(page, held);
   const { state } = await readTick(page, goalTileX, goalTileY);
