@@ -287,6 +287,15 @@ Before presenting work as complete:
 4. Confirm the first delivery loop works.
 5. Update relevant docs if behaviour changed.
 
+Note on e2e coverage for map or region changes: `npm run test:arc` runs only
+the `arc` project (`full-arc`), so it does NOT cover the region-specific specs
+that hardcode coordinates (for example `fenmarch-unlock.spec.ts`,
+`tidal-route.spec.ts`, and the ford/tidal signpost conventions). When you touch
+map layouts, region dimensions, settlement or crossing coordinates, spawn, or
+gateway/signpost tiles, run the full browser suite with
+`npx playwright test --project=chromium` before pushing, not just the arc.
+Otherwise CI is the first place the coordinate drift shows up.
+
 ## Git and commit expectations
 
 Use Git from day one.
