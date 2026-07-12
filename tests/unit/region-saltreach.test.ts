@@ -13,11 +13,11 @@ import {
   SALTREACH_GATEWAY,
 } from '../../src/data/region-saltreach';
 
-const MAP_WIDTH = 20;
-const MAP_HEIGHT = 11;
+const MAP_WIDTH = 30;
+const MAP_HEIGHT = 20;
 
 describe('Saltreach map', () => {
-  it('is a valid 20x11 map and createTileMap does not throw', () => {
+  it('is a valid 30x20 map and createTileMap does not throw', () => {
     const map = createTileMap(SALTREACH_ROWS, SALTREACH_LEGEND);
     expect(map.width).toBe(MAP_WIDTH);
     expect(map.height).toBe(MAP_HEIGHT);
@@ -43,11 +43,11 @@ describe('Saltreach tidal-flat pocket (Saltmere)', () => {
   const tidewatch = SALTREACH_SETTLEMENTS.tidewatch!;
   const saltmere = SALTREACH_SETTLEMENTS.saltmere!;
   // The single gated crossing over the salt lagoon that walls off the pocket.
-  const crossing = { x: 18, y: 9 };
+  const crossing = { x: 25, y: 12 };
 
-  // The premium contract runs Tidewatch -> Saltmere. The lagoon down column 18
-  // blocks the direct approach, so the tidal flat is a real shortcut and the dry
-  // way round (up to row 3, down column 19) is always open.
+  // The premium contract runs Tidewatch -> Saltmere. The lagoon seals the pocket
+  // down column 25, so the tidal flat is a real shortcut and the dry marsh way
+  // down to the bottom gap and back up the pocket is always open.
   function routeLength(keys: ReadonlySet<string>): number | null {
     const path = findPath({
       width: map.width,

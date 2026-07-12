@@ -83,8 +83,9 @@ export const SALTREACH_REGION: Region = {
   spawn: SALTREACH_SPAWN,
   // A spoke off the Greybridge hub: its only gateway leads west, back to
   // Greybridge.
-  gateways: [{ tile: { x: 0, y: 5 }, to: 'greybridge' }],
-  signpost: { x: 6, y: 6 },
+  gateways: [{ tile: { x: 0, y: 10 }, to: 'greybridge' }],
+  // Immediately west of the ford tile (11,15), matching the Greybridge convention.
+  signpost: { x: 10, y: 15 },
   fordUnlockId: 'ford-crossing-saltreach',
 };
 
@@ -99,8 +100,9 @@ export const FENMARCH_REGION: Region = {
   spawn: FENMARCH_SPAWN,
   // A spoke off the Greybridge hub: its only gateway leads west, back to
   // Greybridge.
-  gateways: [{ tile: { x: 0, y: 5 }, to: 'greybridge' }],
-  signpost: { x: 8, y: 8 },
+  gateways: [{ tile: { x: 0, y: 11 }, to: 'greybridge' }],
+  // Immediately west of the ford tile (12,16), matching the Greybridge convention.
+  signpost: { x: 11, y: 16 },
   fordUnlockId: 'ford-crossing-fenmarch',
 };
 

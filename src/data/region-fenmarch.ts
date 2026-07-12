@@ -1,36 +1,42 @@
 // Fenmarch Region tile data.
 //
-// A wooded fenland at the far edge of the known routes, reached by the
-// causeway road west to the Greybridge hub. A single water channel splits the
-// map down columns 9-10, crossed by one bridge on the main road (row 5). A
-// north-south forest corridor at column 14 links a lake settlement in the
-// north to a thorn-fenced hamlet in the south, and quiet peaks bookend the
-// north-east and south-east corners.
+// A wooded fenland at the far edge of the known routes, reached by the causeway
+// road west to the Greybridge hub. The largest and roughest of the three maps:
+// a single water channel splits it down column 12, crossed by the main bridge
+// (row 11) and a locked ford shortcut (row 16). A wide north-south forest
+// corridor (columns 13-21) fills the middle east with no road beside it, so the
+// lake settlement in the north and the thorn-fenced hamlet in the south are
+// reached only by pushing through the wood. Quiet peaks bookend the corners.
+//
+// The size and the road-free corridor are deliberate (issue #151): later maps
+// must carry more travel-sink pressure than the Greybridge hub, and wear comes
+// from rough ground, not road length. See docs/design/07_roads_gate_the_wagon.md.
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain    x ford    t tidal-flat (wagon-gated)
+//   b bridge    ~ water    ^ mountain    h hills    m marsh
+//   x ford    t tidal-flat (wagon-gated)
 //
-// Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols
-// at load time. A locked ford shortcut crosses the water channel on row 8 at
-// columns 9-10, south of the main bridge. A signpost at (8, 8) unlocks it.
+// Grid is 32 wide by 22 tall. createTileMap validates row lengths and symbols
+// at load time. The locked ford crosses the water channel on row 16 at column
+// 12, south of the main bridge. A signpost just west of it at (11, 16) unlocks it.
 //
-// A fen mere rings the Fenholt pocket in the south-east: water walls it north
-// (row 6) and south (row 8) across columns 16-18. A single tidal-flat tile at
-// (16, 7) is the short way in, opened by the Salt Runners upgrade or Off-road
-// rank 3; without it Fenholt is reached the long way round the east verge
-// (column 19). See docs/design/07_roads_gate_the_wagon.md.
+// A fen mere seals the Fenholt pocket in the south-east: a water wall down
+// column 27 (rows 12-20) and across row 12 (cols 27-31), with one dry gap at
+// the bottom (row 20). A single tidal-flat tile at (27, 13) is the short way in,
+// opened by the Salt Runners upgrade or Off-road rank 3; without it Fenholt is
+// reached the long marsh way down to the gap and back up the pocket.
 //
 // Settlements:
-//   mossgate   (4,  5)  home town, on the main west-east road
-//   duskmere   (14, 2)  lake settlement north of the bridge, up the forest corridor
-//   thornwick  (14, 8)  thorn-fenced hamlet south of the bridge, down the forest corridor
-//   hollowfen  (18, 4)  hollow fenland stop east of the bridge, just off the road
-//   fenholt    (17, 7)  drowned holt behind the mere, south-east corner
+//   mossgate   (4,  11)  home town, on the main west-east road
+//   duskmere   (16, 2)   lake settlement at the north end of the forest corridor
+//   thornwick  (16, 19)  thorn-fenced hamlet at the south end, down into the fen
+//   hollowfen  (26, 5)   hollow fenland stop in the north-east forest patch
+//   fenholt    (30, 13)  drowned holt behind the mere, south-east pocket
 //
-// Gateway (0, 5) leads west, back to the Greybridge hub. Row 5 is a single road
-// the entire width of the map, crossing the water on a bridge at columns 9-10.
-// Spawn (1, 5) is one step east of the gateway on the road.
+// Gateway (0, 11) leads west, back to the Greybridge hub. Row 11 is a single
+// road the entire width of the west block, crossing the water on a bridge at
+// column 12. Spawn (1, 11) is one step east of the gateway on the road.
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
@@ -42,30 +48,45 @@ import { FLAG_FENMARCH_COST } from './dialogue-content';
 // ---------------------------------------------------------------------------
 
 export const FENMARCH_ROWS: readonly string[] = [
-  // row 0: forest patch west, water channel, twin peaks north-east
-  '..ff.....~~...f..^^.',
-  // row 1: forest thickens west, peaks continue north-east
-  '.fff.....~~...f..^^.',
-  // row 2: duskmere sits in the forest corridor north of the bridge
-  '..ff.....~~...f.....',
-  // row 3: open plains either side of the water
-  '.........~~...f.....',
-  // row 4: hollowfen sits on plains just north of the road
-  '.........~~...f.....',
-  // row 5: main west-east road; gateway(0), spawn(1), mossgate(4)
-  '#########bb#########',
-  // row 6: open plains; the fen mere walls the Fenholt pocket to the north (16-18)
-  '.........~~...f.~~~.',
-  // row 7: forest patch west; tidal-flat crossing (16) of the mere is the short
-  // way to Fenholt, the drowned holt tucked at (17,7)
-  '....f....~~...f.t...',
-  // row 8: thornwick sits in the forest corridor south of the bridge; ford
-  // shortcut (locked) crosses the water at columns 9-10; mere walls Fenholt (16-18)
-  '...ff....xx...f.~~~.',
-  // row 9: south-west mountains begin, south-east peaks begin
-  '..^^.....~~...f.^^^.',
-  // row 10: south-west range closes, south-east range closes
-  '.^^^.....~~.....^^^.',
+  // rows 0-1: NW and NE peaks; water channel (col 12); the forest corridor
+  // (cols 13-21) climbs to the duskmere lake in the north
+  '^^^.........~fffffffff......^^^^',
+  '^^^.........~fffffffff......^^^^',
+  // rows 2-5: corridor continues; a north-east forest patch (cols 23-28) holds
+  // hollowfen; west block is open plains with a road spur on col 5
+  '............~fffffffff..........',
+  '............~fffffffff.ffffff...',
+  '............~fffffffff.ffffff...',
+  '.....#......~fffffffff.ffffff...',
+  // row 6: north-east road stub crosses toward the hollowfen forest patch
+  '.....#......~fffffffff###ffff...',
+  // rows 7-10: west hills off the road; corridor and NE patch continue
+  '.hhh.#......~fffffffff#ffffff...',
+  '.hhh.#......~fffffffff#ffffff...',
+  '.hhh.#......~fffffffff#.........',
+  '.....#......~fffffffff#.........',
+  // row 11: main west-east road; gateway(0), spawn(1), mossgate(4); bridge(12);
+  // crosses the corridor to the east spine (col 22)
+  '############b##########.........',
+  // rows 12-16: west hills; corridor continues south into fen; the fen mere
+  // seals the Fenholt pocket - north wall on row 12 (cols 27-31), west wall on
+  // col 27, tidal-flat crossing at (27,13) beside Fenholt
+  '.....#......~fffffffff..mmm~~~~~',
+  '..hhh#......~fffffffff..mmmtmmmm',
+  '..hhh#......~fffffffff..mmm~mmmm',
+  '..hhh#......~fffffffff..mmm~mmmm',
+  // row 16: ford shortcut (col 12, locked); west approach on col 5; corridor
+  // turns into fen to the south
+  '.....######.xfffffffff..mmm~mmmm',
+  // rows 17-19: southern fen marsh; thornwick sits down the corridor (16,19);
+  // the mere wall continues down col 27
+  '............~mmmmmmmmmmmmmm~mmmm',
+  '............~mmmmmmmmmmmmmm~mmmm',
+  '............~mmmmmmmmmmmmmm~mmmm',
+  // rows 20-21: SW and SE mountain corners; the one dry gap into the pocket is
+  // at the bottom of the mere (row 20, col 27)
+  '^^^^........~mmmmmmmmmmmmmmmmmmm',
+  '^^^^........~mmmmmmmmmmmmmmmmmmm',
 ];
 
 // ---------------------------------------------------------------------------
@@ -79,6 +100,8 @@ export const FENMARCH_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
+  h: 'hills',
+  m: 'marsh',
   x: 'ford-fenmarch',
   t: 'tidal-flat',
 };
@@ -91,31 +114,31 @@ export const FENMARCH_SETTLEMENTS: Readonly<Record<string, Settlement>> = {
   mossgate: {
     id: 'mossgate',
     name: 'Mossgate',
-    tile: { x: 4, y: 5 },
+    tile: { x: 4, y: 11 },
     note: 'A moss-grown crossroads where the fen mist never quite lifts before noon.',
   },
   duskmere: {
     id: 'duskmere',
     name: 'Duskmere',
-    tile: { x: 14, y: 2 },
+    tile: { x: 16, y: 2 },
     note: 'A quiet lake settlement where the water turns dark long before dusk actually falls.',
   },
   thornwick: {
     id: 'thornwick',
     name: 'Thornwick',
-    tile: { x: 14, y: 8 },
+    tile: { x: 16, y: 19 },
     note: 'A thorn-fenced hamlet in the southern wood, its gates barred against something never named.',
   },
   hollowfen: {
     id: 'hollowfen',
     name: 'Hollowfen',
-    tile: { x: 18, y: 4 },
+    tile: { x: 26, y: 5 },
     note: 'A hollow stretch of fenland where old stones still stand though no one recalls what they crossed.',
   },
   fenholt: {
     id: 'fenholt',
     name: 'Fenholt',
-    tile: { x: 17, y: 7 },
+    tile: { x: 30, y: 13 },
     note: 'A drowned holt in the south-east fen, cut off when the mere swallowed its causeway. Dry-shod couriers take the long way round by the east verge; the bold wade the flats.',
   },
 };
@@ -229,7 +252,7 @@ export const FENMARCH_CONTRACTS: readonly Contract[] = [
 // ---------------------------------------------------------------------------
 
 /** Starting position for the player courier in the Fenmarch region. */
-export const FENMARCH_SPAWN: { readonly x: number; readonly y: number } = { x: 1, y: 5 };
+export const FENMARCH_SPAWN: { readonly x: number; readonly y: number } = { x: 1, y: 11 };
 
 /** Settlement id that hosts the contract board and upgrade shop. */
 export const FENMARCH_HOME = 'mossgate';
