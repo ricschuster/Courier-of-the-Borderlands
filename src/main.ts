@@ -2,6 +2,7 @@
 // Boots the Phaser game and mounts it into the #game element.
 import Phaser from 'phaser';
 import { BootScene } from './scenes/boot-scene';
+import { TitleScene } from './scenes/title-scene';
 import { MapScene } from './scenes/map-scene';
 import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from './config/game-config';
 import { clearSave } from './systems/save-system';
@@ -33,7 +34,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MapScene],
+  scene: [BootScene, TitleScene, MapScene],
 };
 
 function buttonStyle(background: string): string {

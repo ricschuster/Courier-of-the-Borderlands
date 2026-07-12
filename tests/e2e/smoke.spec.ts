@@ -28,12 +28,28 @@ test('boots and renders the Greybridge map without runtime errors', async ({ pag
   // Let a few update ticks run so any create()/update() error would surface.
   await page.waitForTimeout(1500);
 
-  expect(errors, `runtime errors detected:\n${errors.join('\n')}`).toEqual([]);
+  expect(errors, `runtime errors on the title screen:\n${errors.join('\n')}`).toEqual([]);
 
-  // The game writes a versioned save to localStorage on boot.
-  const save = await page.evaluate(() =>
-    localStorage.getItem('courier-of-the-borderlands/save'),
-  );
+  // A fresh game opens on the difficulty picker (#150). Choose Standard (2) to
+  // start the run; re-press until the map writes its save, since a single press
+  // can drop before the scene is listening.
+  await canvas.click();
+  const readSave = () =>
+    page.evaluate(() => localStorage.getItem('courier-of-the-borderlands/save'));
+  await expect
+    .poll(
+      async () => {
+        await page.keyboard.press('2');
+        return readSave();
+      },
+      { timeout: 15_000 },
+    )
+    .not.toBeNull();
+
+  expect(errors, `runtime errors after starting the run:\n${errors.join('\n')}`).toEqual([]);
+
+  // The game writes a versioned save to localStorage once the run starts.
+  const save = await readSave();
   expect(save, 'a save should be written to localStorage').not.toBeNull();
   const parsed = JSON.parse(save ?? '{}');
   expect(parsed.version).toBe(1);
