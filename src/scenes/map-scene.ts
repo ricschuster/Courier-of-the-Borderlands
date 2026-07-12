@@ -1578,41 +1578,58 @@ export class MapScene extends Phaser.Scene {
       tierName: tierFor(reputation).name,
       level,
       skillPoints: availablePoints(level, this.skills),
+      difficulty: difficultyLabel(this.difficulty),
     });
   }
 
+  /**
+   * Build the control-hint line from where the player is standing, rather than
+   * printing every key every frame. The dense concatenated string read as noise
+   * (2026-07-12 playtest, docs/design/08_ui_and_onboarding.md): now driving is
+   * always shown, and only the keys relevant to the current context appear
+   * (upgrades at home, exploration on the road, travel at a gateway, dismiss
+   * while a message is up).
+   */
   private refreshHint(): void {
     const tile = this.courierTile();
+    const segments: string[] = ['WASD/arrows drive.'];
+
     const here = settlementAtTileIn(this.region, tile.x, tile.y);
-    const talk =
-      here !== undefined && dialogueForSettlement(here.id) !== undefined ? `  E: talk to ${here.name}` : '';
-    // Only cue the dismiss key while a toast is actually up, so the help line
-    // stays quiet otherwise (Session 5 playtest: messages now hold until Space).
-    const dismiss = this.hud.hasToasts() ? '  Space: dismiss message.' : '';
-    // Difficulty is locked for the run (chosen at the title screen, #150), so it
-    // is shown read-only here rather than as a key the player can press.
-    const base =
-      `WASD/arrows drive.  M: map  J: journal  K: skills  L: codex  N: new game  ` +
-      `Difficulty: ${difficultyLabel(this.difficulty)}.${talk}${dismiss}`;
+    if (here !== undefined && dialogueForSettlement(here.id) !== undefined) {
+      segments.push(`E: talk to ${here.name}`);
+    }
+
     const gateway = this.gatewayAtTile(tile);
     if (gateway !== undefined && this.activeContract === undefined) {
-      const other = getRegion(gateway.to).name;
-      // Gateways sit on open road, off any town, so the hint is unambiguous.
-      this.hud.setHint(`${base}  The road ahead leads to ${other}: press T to travel.`);
-      return;
+      // Gateways sit on open road, off any town, so the travel cue is unambiguous.
+      segments.push(`T: travel to ${getRegion(gateway.to).name}`);
     }
-    const target = this.atSettlement(this.region.home)
-      ? cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE)
-      : null;
-    if (target !== null) {
-      const affordable = canAfford(this.state.ledger.coins, target);
-      this.hud.setHint(
-        `${base}  Press B: ${target.name} (${target.cost}c)` +
-          (affordable ? '' : ' - need more coins'),
-      );
+
+    if (this.atSettlement(this.region.home)) {
+      // At home the board is open: surface the contract and upgrade keys.
+      const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
+      if (target !== null) {
+        const affordable = canAfford(this.state.ledger.coins, target);
+        segments.push(`B: ${target.name} (${target.cost}c)${affordable ? '' : ' - need coins'}`);
+      }
     } else {
-      this.hud.setHint(base);
+      // On the road the useful keys are the exploration references.
+      segments.push('M: map', 'J: journal', 'L: codex');
     }
+
+    // Skills are only actionable once a point is banked; show K only then.
+    if (availablePoints(this.courierLevel(), this.skills) > 0) {
+      segments.push('K: skills');
+    }
+
+    // Only cue the dismiss key while a toast is actually up (Session 5 playtest:
+    // messages now hold until Space).
+    if (this.hud.hasToasts()) {
+      segments.push('Space: dismiss');
+    }
+
+    segments.push('N: new game');
+    this.hud.setHint(segments.join('   '));
   }
 
   /** Gateway at the given tile, if the courier is standing on one. */
