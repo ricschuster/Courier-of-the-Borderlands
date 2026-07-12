@@ -3,6 +3,7 @@ import {
   objectiveText,
   headingTo,
   nearestGatewayHeading,
+  navRevealFor,
   type ObjectiveView,
   type ObjectiveContractView,
 } from '../../src/systems/objective';
@@ -21,6 +22,7 @@ function emptyView(overrides: Partial<ObjectiveView> = {}): ObjectiveView {
     atHome: false,
     gatewayNames: 'Saltreach',
     gatewayTiles: [],
+    navReveal: 'full',
     ...overrides,
   };
 }
@@ -157,5 +159,63 @@ describe('objectiveText while on a contract', () => {
   it('congratulates on delivery', () => {
     const text = objectiveText(emptyView({ contract: contractView({ status: 'delivered' }) }));
     expect(text).toBe('The Reed Ledger: delivered. Well driven.');
+  });
+});
+
+describe('navRevealFor difficulty mapping (#171)', () => {
+  it('gives full help on relaxed, heading-only on standard, none on demanding', () => {
+    expect(navRevealFor('relaxed')).toBe('full');
+    expect(navRevealFor('standard')).toBe('heading');
+    expect(navRevealFor('demanding')).toBe('none');
+  });
+});
+
+describe('objectiveText nav reveal gating (#171)', () => {
+  it("'full' keeps the heading and the distance note when carrying", () => {
+    const text = objectiveText(
+      emptyView({
+        navReveal: 'full',
+        contract: contractView({ status: 'carrying', pathNote: ' (12 tiles)' }),
+      }),
+    );
+    expect(text).toBe('The Reed Ledger: deliver to Mirewatch - head SE (12 tiles)');
+  });
+
+  it("'heading' keeps the direction but drops the distance note when carrying", () => {
+    const text = objectiveText(
+      emptyView({
+        navReveal: 'heading',
+        contract: contractView({ status: 'carrying', pathNote: ' (12 tiles)' }),
+      }),
+    );
+    expect(text).toBe('The Reed Ledger: deliver to Mirewatch - head SE');
+  });
+
+  it("'none' drops both the heading and the distance when carrying", () => {
+    const text = objectiveText(
+      emptyView({
+        navReveal: 'none',
+        contract: contractView({ status: 'carrying', pathNote: ' (12 tiles)' }),
+      }),
+    );
+    expect(text).toBe('The Reed Ledger: deliver to Mirewatch');
+  });
+
+  it("'heading' still points to the pickup on the accepted leg", () => {
+    const text = objectiveText(
+      emptyView({ navReveal: 'heading', contract: contractView({ status: 'accepted' }) }),
+    );
+    expect(text).toBe(
+      'The Reed Ledger: collect a sealed ledger at Southmill (N), then deliver to Mirewatch',
+    );
+  });
+
+  it("'none' withholds the pickup heading on the accepted leg", () => {
+    const text = objectiveText(
+      emptyView({ navReveal: 'none', contract: contractView({ status: 'accepted' }) }),
+    );
+    expect(text).toBe(
+      'The Reed Ledger: collect a sealed ledger at Southmill, then deliver to Mirewatch',
+    );
   });
 });
