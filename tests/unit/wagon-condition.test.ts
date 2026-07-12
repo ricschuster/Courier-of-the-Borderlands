@@ -206,6 +206,23 @@ describe('repair', () => {
     expect(r.condition).toBe(50);
     expect(r.coins).toBe(COST_PER_PERCENT - 1);
   });
+
+  it('leaves an integer coin balance when repairing fractional wear', () => {
+    // Condition is a float (wear accrues fractionally). A full repair must not
+    // leak fractional coins into the ledger (playtest: balance read 957.33).
+    const r = repair(72.3421, 1000);
+    expect(r.ok).toBe(true);
+    expect(r.full).toBe(true);
+    expect(r.condition).toBe(100);
+    expect(Number.isInteger(r.coins)).toBe(true);
+  });
+
+  it('charges the quoted repairCost for a full repair', () => {
+    // The actual charge must match the figure shown to the player.
+    const condition = 63.7;
+    const r = repair(condition, 1000);
+    expect(r.coins).toBe(1000 - repairCost(condition, MAX_CONDITION));
+  });
 });
 
 describe('limpMultiplier and isStranded', () => {

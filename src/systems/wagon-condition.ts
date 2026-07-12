@@ -226,9 +226,18 @@ export function repair(
   if (missing <= 0 || coins < tuning.costPerPercent) {
     return { ok: false, condition: current, coins, full: missing <= 0 };
   }
-  const affordablePoints = Math.min(missing, Math.floor(coins / tuning.costPerPercent));
-  const spent = affordablePoints * tuning.costPerPercent;
-  const next = current + affordablePoints;
+  // Charge whole coins. A full repair costs Math.ceil(missing * costPerPercent)
+  // to match the quoted repairCost; when the courier cannot afford that, top up
+  // only as many whole condition points as the coins buy. Condition is a float
+  // (wear accrues fractionally), so multiplying it directly would leak fractional
+  // coins into the ledger (a coin balance like 957.33).
+  const fullCost = Math.ceil(missing * tuning.costPerPercent);
+  if (coins >= fullCost) {
+    return { ok: true, condition: max, coins: coins - fullCost, full: true };
+  }
+  const wholePoints = Math.floor(coins / tuning.costPerPercent);
+  const spent = wholePoints * tuning.costPerPercent;
+  const next = current + wholePoints;
   return { ok: true, condition: next, coins: coins - spent, full: next >= max };
 }
 
