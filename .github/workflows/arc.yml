@@ -11,7 +11,7 @@ name: Arc
 # on-merge run on main is the real signal, minutes later.
 on:
   push:
-    branches: [main, fix/arc-coast-past-home]
+    branches: [main]
     paths:
       - 'src/**'
       - 'tests/e2e/**'
