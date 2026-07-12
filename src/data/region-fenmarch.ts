@@ -19,7 +19,7 @@
 //
 // Grid is 32 wide by 22 tall. createTileMap validates row lengths and symbols
 // at load time. The locked ford crosses the water channel on row 16 at column
-// 12, south of the main bridge. A signpost at (6, 16) unlocks it.
+// 12, south of the main bridge. A signpost just west of it at (11, 16) unlocks it.
 //
 // A fen mere seals the Fenholt pocket in the south-east: a water wall down
 // column 27 (rows 12-20) and across row 12 (cols 27-31), with one dry gap at

@@ -10,8 +10,8 @@ import {
 } from './drive';
 
 // Regression guard for the Saltreach tidal-flat gate. The lagoon-ringed hamlet
-// of Saltmere is walled off by a salt lagoon (column 18); a single tidal-flat
-// tile at (18,9) is the short way across, gated on the "tidal-crossing"
+// of Saltmere is walled off by a salt lagoon (column 25); a single tidal-flat
+// tile at (25,12) is the short way across, gated on the "tidal-crossing"
 // capability (Salt Runners, or Off-road rank 3). This proves the gate end to
 // end: with Off-road at rank 2 (which opens the mire but not the flats), rank
 // it to 3 in-scene, then drive across the tidal flat with real key presses.
@@ -23,8 +23,8 @@ import {
 // ./drive.
 
 // The tidal-flat crossing and Saltmere beyond it (see region-saltreach.ts).
-const TIDAL_TILE = { x: 18, y: 9 };
-const SALTMERE_TILE = { x: 19, y: 9 };
+const TIDAL_TILE = { x: 25, y: 12 };
+const SALTMERE_TILE = { x: 28, y: 12 };
 
 test('ranking Off-road to 3 opens the tidal flats in the same scene', async ({ page }) => {
   test.setTimeout(120_000);

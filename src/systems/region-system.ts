@@ -84,7 +84,8 @@ export const SALTREACH_REGION: Region = {
   // A spoke off the Greybridge hub: its only gateway leads west, back to
   // Greybridge.
   gateways: [{ tile: { x: 0, y: 10 }, to: 'greybridge' }],
-  signpost: { x: 6, y: 15 },
+  // Immediately west of the ford tile (11,15), matching the Greybridge convention.
+  signpost: { x: 10, y: 15 },
   fordUnlockId: 'ford-crossing-saltreach',
 };
 
@@ -100,7 +101,8 @@ export const FENMARCH_REGION: Region = {
   // A spoke off the Greybridge hub: its only gateway leads west, back to
   // Greybridge.
   gateways: [{ tile: { x: 0, y: 11 }, to: 'greybridge' }],
-  signpost: { x: 6, y: 16 },
+  // Immediately west of the ford tile (12,16), matching the Greybridge convention.
+  signpost: { x: 11, y: 16 },
   fordUnlockId: 'ford-crossing-fenmarch',
 };
 
