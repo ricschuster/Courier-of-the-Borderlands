@@ -287,6 +287,15 @@ Before presenting work as complete:
 4. Confirm the first delivery loop works.
 5. Update relevant docs if behaviour changed.
 
+Note on e2e coverage for map or region changes: `npm run test:arc` runs only
+the `arc` project (`full-arc`), so it does NOT cover the region-specific specs
+that hardcode coordinates (for example `fenmarch-unlock.spec.ts`,
+`tidal-route.spec.ts`, and the ford/tidal signpost conventions). When you touch
+map layouts, region dimensions, settlement or crossing coordinates, spawn, or
+gateway/signpost tiles, run the full browser suite with
+`npx playwright test --project=chromium` before pushing, not just the arc.
+Otherwise CI is the first place the coordinate drift shows up.
+
 ## Git and commit expectations
 
 Use Git from day one.
@@ -339,6 +348,9 @@ confirmation prompts.
 - To wait for CI on a pull request, use `gh pr checks <number> --watch` (one
   command that blocks until checks finish), not a hand-rolled polling loop.
 - Prefer many small allowlisted commands over one bundled script.
+- `gh pr edit` fails on this repo with a Projects-classic GraphQL error. To edit
+  a PR body, use `gh api -X PATCH repos/:owner/:repo/pulls/N -F body=@file`
+  instead. (`gh issue edit` works fine.)
 
 ## Dependency rules
 
@@ -397,6 +409,11 @@ Brief summary of what changed.
 - Risk or decision
 ```
 
+Land handoffs by default. After writing `docs/handoffs/<date>_Handoff_vNN.md`,
+branch, commit, push, and open a PR in one flow without stopping to ask (this
+repo's `main` is branch-protected, so handoffs go through a PR). The owner has
+asked for this to be automatic.
+
 ## Art strategy
 
 Do not let art block the prototype.
@@ -448,6 +465,28 @@ Use these defaults unless the project owner changes them:
 8. First challenge type: terrain and roads
 9. First progression types: map reveal, reputation, currency, route unlock, vehicle upgrade
 10. First delivery types: goods, letters, rumours, and secrets
+
+## Owner direction and working preferences
+
+Durable context from the owner (carry across sessions):
+
+1. Gameplay should have real teeth, not be forgiving. Gold, upgrades, and skills
+   must matter from the early game, not be optional convenience. An MVP-era build
+   that could be finished without spending coins or using skills was flagged as
+   the core problem. When tuning difficulty, err on the harder side: the owner
+   repeatedly found small nudges insufficient and prefers decisive changes. They
+   like RPG-style progression (start fragile, small stats, grow with level, e.g.
+   the wagon condition tank starting small). They spot exploits (like living
+   stranded at 0 condition to dodge repair cost) and expect them closed, not just
+   discouraged. They tune by playing and reporting concrete numbers, so give one
+   clear lever per round and state the exact new values.
+
+2. CI, test, and process work is a deliberate, wanted category, not a
+   distraction. The owner invests in it partly to learn that side of software
+   development. Do not steer away from it or frame a run of infra/test PRs as an
+   anti-pattern. Still surface the tradeoff when game content is being deferred
+   (a human playtest is usually the real unblock for tuning), but as a choice,
+   not a mistake.
 
 ## Model and effort defaults
 
