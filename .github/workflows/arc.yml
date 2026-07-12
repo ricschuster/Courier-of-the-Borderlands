@@ -57,7 +57,7 @@ jobs:
       # available. Without this upload they are discarded with the runner.
       - name: Upload failure traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: arc-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: test-results/
