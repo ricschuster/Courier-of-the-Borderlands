@@ -1,7 +1,8 @@
 # 08 UI, Onboarding, and Look-and-Feel
 
-Status: proposal for owner review. Nothing here is built yet. This doc exists so
-the owner can approve a direction before implementation.
+Status: direction approved by the owner on 2026-07-12. The decisions are recorded
+in "Decisions" below; implementation follows the staged plan. This doc is the
+design of record for the UI/onboarding pass.
 
 Source: full-arc playtest on 2026-07-12 (standard difficulty, whole arc cleared,
 1852 coins, 2 repairs). The systems mostly work; the batch is dominated by one
@@ -116,25 +117,28 @@ Turn the "press B to buy the cheapest" interaction into a small selectable menu:
 list upgrades, cost, owned/locked state, and a one-line effect for each. This is
 a real UI change and probably its own issue once the frame (D1) exists.
 
-## Decisions needed from the owner
+## Decisions (made 2026-07-12)
 
-These block or steer the pass. Recommend deciding before implementation starts.
+1. Difficulty lock (item 9): **lock at start.** Difficulty is chosen once at
+   new-game and then fixed for the run. The live mid-run G-key selector (v09) is
+   retired; the choice moves to a start / new-game screen. Tracked in #150.
 
-1. Difficulty lock (item 9). Should difficulty be chosen once at new-game and
-   then locked for the run? The current selector applies live mid-run by design
-   (v09). Locking it is a deliberate reversal. If yes, the G-key selector moves
-   to a start screen / new-game choice.
+2. Difficulty curve (item 10): **fix it with geography, not wear-scaling.** Make
+   the later maps physically bigger (same size as the first region or larger) and
+   spread the settlements out more, so routes are longer and the travel sink
+   keeps biting across the whole arc. This is a map-design change, not a tuning
+   constant. Ties to #111 (routes) and the corner-carving note in the slice-5
+   plan; feeds, but does not replace, the coin tuning in #110. Tracked in #151.
 
-2. Difficulty curve (item 10). The later maps are smaller and wear the wagon
-   less, so difficulty falls off after the first region. Options: denser sinks or
-   longer routes on later maps, scale wear by region, or accept the front-loaded
-   curve as intentional (the first region is the teacher). Feeds #110.
+3. Scope of the first UI pass: **staged, as proposed.** Ship the HUD frame (D1)
+   and the overlap fix (item 6) first as the foundation, then layer the
+   just-in-time explanations (D2), then the upgrade menu (D3). Tracked in #149.
 
-3. Scope of the first UI pass. Ship the HUD frame (D1) and the overlap fix (item
-   6) first as the foundation, then layer explanations (D2) and the upgrade menu
-   (D3) on top? Or bundle.
+## Art (deferred: fix first, then discuss)
 
-## Art (discussion, not yet a decision)
+Decision 2026-07-12: **not yet.** Fix the gameplay and UI issues first, then open
+the art discussion. The framing below stands for when we get there. Tracked in
+#152 (held until the fixes land).
 
 The owner asked whether it is time to visit the artwork question. CLAUDE.md's art
 strategy: Phase 1 grey-box (current), Phase 2 free asset packs tracked in
@@ -152,7 +156,7 @@ the discussion:
 
 ## Not doing (yet)
 
-- No implementation until the owner approves a direction and answers the three
-  decisions above.
+- Art (see above): deferred until the gameplay and UI fixes land.
 - No scope expansion beyond MVP systems (CLAUDE.md). This pass is presentation
-  and teaching of existing systems, not new mechanics.
+  and teaching of existing systems, not new mechanics. (The bigger later maps in
+  decision 2 are geography for an existing region set, not new systems.)
