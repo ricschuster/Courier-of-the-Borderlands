@@ -6,8 +6,11 @@ import {
   clearSave,
   hasSeenIntro,
   markIntroSeen,
+  loadDifficulty,
+  saveDifficulty,
   SAVE_KEY,
   INTRO_SEEN_KEY,
+  DIFFICULTY_KEY,
   type GameSnapshot,
 } from '../../src/systems/save-system';
 
@@ -70,5 +73,23 @@ describe('save-system storage helpers (jsdom)', () => {
     expect(localStorage.getItem(SAVE_KEY)).toBeNull();
     expect(localStorage.getItem(INTRO_SEEN_KEY)).toBeNull();
     expect(hasSeenIntro()).toBe(false);
+  });
+
+  it('defaults difficulty to standard until one is chosen, then round-trips it', () => {
+    expect(loadDifficulty()).toBe('standard');
+    saveDifficulty('demanding');
+    expect(loadDifficulty()).toBe('demanding');
+    expect(localStorage.getItem(DIFFICULTY_KEY)).toBe('demanding');
+  });
+
+  it('falls back to standard for an unrecognized stored difficulty', () => {
+    localStorage.setItem(DIFFICULTY_KEY, 'brutal');
+    expect(loadDifficulty()).toBe('standard');
+  });
+
+  it('keeps the difficulty preference across a new game (clearSave does not touch it)', () => {
+    saveDifficulty('relaxed');
+    clearSave();
+    expect(loadDifficulty()).toBe('relaxed');
   });
 });

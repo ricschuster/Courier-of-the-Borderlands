@@ -87,6 +87,7 @@ Then open the URL printed by Vite (typically http://localhost:5173).
 - L: toggle the terrain codex
 - Space: dismiss an on-screen message
 - N: start a new game (clears the save)
+- G: cycle difficulty (relaxed / standard / demanding); the choice is saved and changes wagon wear and repair costs
 
 ## Testing
 
