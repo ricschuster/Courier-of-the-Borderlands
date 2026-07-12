@@ -10,6 +10,7 @@ import {
   upgradeEffectLabel,
 } from '../../src/systems/upgrade-system';
 import type { Upgrade } from '../../src/systems/upgrade-system';
+import { UPGRADES_GREYBRIDGE } from '../../src/data/upgrades-greybridge';
 
 // Small fixture used across all tests.
 const WHEEL_UPGRADE: Upgrade = {
@@ -39,6 +40,20 @@ const LANTERN_UPGRADE: Upgrade = {
 };
 
 const ALL_UPGRADES: readonly Upgrade[] = [WHEEL_UPGRADE, AXLE_UPGRADE];
+
+// The upgrade menu is bought by number key: item [i] is fitted by pressing the
+// (i+1)th number key registered in map-scene (numberCodes). That list currently
+// runs 1..9. If the shop ever grows past it, the trailing upgrades render in the
+// menu but have no key to buy them (this is exactly how Salt Runners [7] was
+// unbuyable while numberCodes stopped at SIX). Keep numberCodes long enough to
+// cover every shop entry.
+const NUMBER_KEY_BUDGET = 9;
+
+describe('Greybridge upgrade shop', () => {
+  it('fits within the number-key budget so every upgrade is buyable', () => {
+    expect(UPGRADES_GREYBRIDGE.length).toBeLessThanOrEqual(NUMBER_KEY_BUDGET);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // speedMultiplier
