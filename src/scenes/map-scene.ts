@@ -348,6 +348,11 @@ export class MapScene extends Phaser.Scene {
   // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
   // counting across scene.restart (region travel) instead of resetting.
   private frameNo = 0;
+  // Courier level reflected in the HUD wallet. XP is continuous (it accrues from
+  // distance and discoveries every frame), but the wallet only recomputes on
+  // discrete events, so a level crossed mid-drive left the HUD's level and skill
+  // points stale versus the live K panel. Tracked here to refresh on the change.
+  private hudLevel = 0;
   private usedFordThisContract = false;
   // True while the courier sits beside a still-locked ford, so the "ford is
   // blocked" hint fires once per approach instead of every frame. Reset when the
@@ -897,6 +902,12 @@ export class MapScene extends Phaser.Scene {
     this.trackDistance(wearRate);
     this.currentPath = this.destinationPath();
     this.revealAroundCourier();
+    // Distance and discoveries just changed, so a level (and its skill point) can
+    // cross mid-drive. Resync the wallet only on the change so the HUD level and
+    // skill-point count match the live K panel without refreshing every frame.
+    if (this.courierLevel() !== this.hudLevel) {
+      this.refreshWallet();
+    }
     this.updateDelivery();
     this.checkArrival();
     this.handleFordHint();
@@ -1582,6 +1593,7 @@ export class MapScene extends Phaser.Scene {
   private refreshWallet(): void {
     const reputation = totalReputation(this.state.ledger);
     const level = this.courierLevel();
+    this.hudLevel = level;
     this.hud.setWallet({
       coins: this.state.ledger.coins,
       reputation,
