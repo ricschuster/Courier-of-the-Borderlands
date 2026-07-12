@@ -15,7 +15,13 @@
 // Legend:
 //   . plains    f forest   # road
 //   b bridge    ~ water    ^ mountain    h hills    m marsh
-//   x ford    t tidal-flat (wagon-gated)
+//   x ford    t tidal-flat (wagon-gated)    p trail (rough path: drives like a
+//     path, wears like the ground it crosses, so it is a visual link, not relief)
+//
+// Trails (#176) give the plain off-road settlements a visible link without
+// easing the sink: a col-16 track runs the corridor to Duskmere (north) and
+// Thornwick (south), and a short spur off the row-6 stub reaches Hollowfen. The
+// Fenholt mere pocket stays isolated by design.
 //
 // Grid is 32 wide by 22 tall. createTileMap validates row lengths and symbols
 // at load time. The locked ford crosses the water channel on row 16 at column
@@ -53,35 +59,39 @@ export const FENMARCH_ROWS: readonly string[] = [
   '^^^.........~fffffffff......^^^^',
   '^^^.........~fffffffff......^^^^',
   // rows 2-5: corridor continues; a north-east forest patch (cols 23-28) holds
-  // hollowfen; west block is open plains with a road spur on col 5
+  // hollowfen; west block is open plains with a road spur on col 5. A trail runs
+  // up col 16 through the corridor to Duskmere so the lake no longer looks
+  // stranded (#176); wear stays forest/marsh grade.
   '............~fffffffff..........',
-  '............~fffffffff.ffffff...',
-  '............~fffffffff.ffffff...',
-  '.....#......~fffffffff.ffffff...',
-  // row 6: north-east road stub crosses toward the hollowfen forest patch
-  '.....#......~fffffffff###ffff...',
+  '............~fffpfffff.ffffff...',
+  '............~fffpfffff.ffffff...',
+  '.....#......~fffpfffff.ffffff...',
+  // row 6: north-east road stub crosses toward the hollowfen forest patch; a
+  // short trail off it links Hollowfen
+  '.....#......~fffpfffff###ppff...',
   // rows 7-10: west hills off the road; corridor and NE patch continue
-  '.hhh.#......~fffffffff#ffffff...',
-  '.hhh.#......~fffffffff#ffffff...',
-  '.hhh.#......~fffffffff#.........',
-  '.....#......~fffffffff#.........',
+  '.hhh.#......~fffpfffff#ffffff...',
+  '.hhh.#......~fffpfffff#ffffff...',
+  '.hhh.#......~fffpfffff#.........',
+  '.....#......~fffpfffff#.........',
   // row 11: main west-east road; gateway(0), spawn(1), mossgate(4); bridge(12);
   // crosses the corridor to the east spine (col 22)
   '############b##########.........',
-  // rows 12-16: west hills; corridor continues south into fen; the fen mere
-  // seals the Fenholt pocket - north wall on row 12 (cols 27-31), west wall on
-  // col 27, tidal-flat crossing at (27,13) beside Fenholt
-  '.....#......~fffffffff..mmm~~~~~',
-  '..hhh#......~fffffffff..mmmtmmmm',
-  '..hhh#......~fffffffff..mmm~mmmm',
-  '..hhh#......~fffffffff..mmm~mmmm',
+  // rows 12-16: west hills; corridor continues south into fen; the col-16 trail
+  // runs on down to Thornwick. The fen mere seals the Fenholt pocket - north wall
+  // on row 12 (cols 27-31), west wall on col 27, tidal-flat crossing at (27,13)
+  // beside Fenholt (the pocket stays isolated by design)
+  '.....#......~fffpfffff..mmm~~~~~',
+  '..hhh#......~fffpfffff..mmmtmmmm',
+  '..hhh#......~fffpfffff..mmm~mmmm',
+  '..hhh#......~fffpfffff..mmm~mmmm',
   // row 16: ford shortcut (col 12, locked); west approach on col 5; corridor
   // turns into fen to the south
-  '.....######.xfffffffff..mmm~mmmm',
+  '.....######.xfffpfffff..mmm~mmmm',
   // rows 17-19: southern fen marsh; thornwick sits down the corridor (16,19);
   // the mere wall continues down col 27
-  '............~mmmmmmmmmmmmmm~mmmm',
-  '............~mmmmmmmmmmmmmm~mmmm',
+  '............~mmmpmmmmmmmmmm~mmmm',
+  '............~mmmpmmmmmmmmmm~mmmm',
   '............~mmmmmmmmmmmmmm~mmmm',
   // rows 20-21: SW and SE mountain corners; the one dry gap into the pocket is
   // at the bottom of the mere (row 20, col 27)
@@ -104,6 +114,7 @@ export const FENMARCH_LEGEND: Readonly<Record<string, string>> = {
   m: 'marsh',
   x: 'ford-fenmarch',
   t: 'tidal-flat',
+  p: 'trail',
 };
 
 // ---------------------------------------------------------------------------
