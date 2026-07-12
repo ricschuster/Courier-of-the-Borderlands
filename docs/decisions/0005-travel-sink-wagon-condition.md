@@ -295,17 +295,21 @@ These are the shipped starting values. Final feel remains playtest-gated: whethe
 a rough leg costs the right amount, and whether repair reads as a decision rather
 than a tax, needs a human run.
 
-## Difficulty (future-proofing)
+## Difficulty
 
 Every difficulty-tunable knob (wear rates, relief and Off-road floors, repair
 price, rescue cost, limp speed) lives in a `WagonTuning` profile rather than a
 bare constant, and the pure functions take a profile argument (defaulting to
 standard). `WAGON_TUNING` ships three presets (`relaxed`, `standard`,
 `demanding`) that scale wear and repair price; the scene holds one profile in a
-single field. A player-facing difficulty selector is then just: store the chosen
-key (in settings or the save) and assign the matching preset to that field. No
+single field.
+
+The player-facing selector (#135) is wired to that seam: the **G** key cycles
+the preset, the choice persists under its own `localStorage` key (a durable
+preference, not save state, so it survives a New Game), and it applies live by
+swapping the scene profile and clamping current condition to the new max. No
 gameplay code changes, only the choice of profile. The off-standard presets are
-illustrative starting points, not yet balanced.
+illustrative starting points, not yet balanced by playtest.
 
 ## Risks
 
