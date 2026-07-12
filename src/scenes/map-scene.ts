@@ -1850,8 +1850,11 @@ export class MapScene extends Phaser.Scene {
     this.dismissKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
     // Allocate all number keys, not just one per contract: the same keys select
-    // contracts, spend skill points, and pick dialogue choices, and a region may
-    // have fewer contracts than there are skills or conversation choices.
+    // contracts, spend skill points, pick dialogue choices, and fit upgrades, and
+    // a region may have fewer contracts than there are skills or conversation
+    // choices. This list must cover the longest number-selectable menu; the
+    // upgrade shop currently has 7 entries (Salt Runners is [7]), so stopping at
+    // SIX left the last upgrade impossible to buy.
     const numberCodes = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
       Phaser.Input.Keyboard.KeyCodes.TWO,
@@ -1859,6 +1862,9 @@ export class MapScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.FOUR,
       Phaser.Input.Keyboard.KeyCodes.FIVE,
       Phaser.Input.Keyboard.KeyCodes.SIX,
+      Phaser.Input.Keyboard.KeyCodes.SEVEN,
+      Phaser.Input.Keyboard.KeyCodes.EIGHT,
+      Phaser.Input.Keyboard.KeyCodes.NINE,
     ];
     this.numberKeys = numberCodes.map((code) => keyboard.addKey(code));
 
