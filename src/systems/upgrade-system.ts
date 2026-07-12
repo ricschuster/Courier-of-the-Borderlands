@@ -57,6 +57,27 @@ export function canAfford(coins: number, upgrade: Upgrade): boolean {
   return coins >= upgrade.cost;
 }
 
+/**
+ * Compact one-line effect summary for the upgrade menu (D3, #161), derived from
+ * the upgrade's stats so the player can read what a purchase buys before
+ * spending. The longer flavour `description` is shown in the fitted toast.
+ */
+export function upgradeEffectLabel(upgrade: Upgrade): string {
+  const parts: string[] = [];
+  if (upgrade.speedBonus > 0) {
+    parts.push(`+${Math.round(upgrade.speedBonus * 100)}% speed`);
+  }
+  const reveal = upgrade.revealBonus ?? 0;
+  if (reveal > 0) {
+    parts.push(`+${reveal} tiles sight`);
+  }
+  const relief = upgrade.roughnessRelief ?? 0;
+  if (relief > 0) {
+    parts.push(`-${Math.round(relief * 100)}% rough-ground drag`);
+  }
+  return parts.length === 0 ? 'no direct effect' : parts.join(', ');
+}
+
 /** Result of a purchase attempt. On failure ok is false and state is unchanged. */
 export interface PurchaseResult {
   readonly ok: boolean;

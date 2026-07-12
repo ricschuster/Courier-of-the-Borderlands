@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
   bootE2E,
+  buyAffordableUpgrades,
   collectErrors,
   driveToTile,
   pressUntil,
@@ -94,9 +95,9 @@ async function spendAtHome(page: Page): Promise<boolean> {
   const before = await readState(page);
   if (!before) return false;
 
-  // Buy the cheapest affordable upgrade (a no-op when none is affordable).
-  await tapKey(page, 'B');
-  await waitForFrames(page, 2);
+  // Kit out the wagon: open the upgrade menu ("B") and buy every affordable
+  // upgrade by number key, then close it (a no-op when none is affordable).
+  await buyAffordableUpgrades(page);
 
   // Repair the wagon at home (travel sink, ADR 0005). A no-op when already full
   // or broke. Keeps the driver from stranding at 0 condition (limp speed), and

@@ -11,6 +11,7 @@ import { bonusFor, describeBonus } from './contract-bonus';
 import { computeRunSummary } from './run-summary';
 import { rankOf, type Skill, type SkillRanks } from './skills';
 import { reconnectionRewardMultiplier, type SettlementStatus } from './world-state';
+import { upgradeEffectLabel, type Upgrade } from './upgrade-system';
 
 export interface BoardTextInput {
   readonly homeName: string;
@@ -150,5 +151,35 @@ export function skillPanelText(input: SkillPanelTextInput): string {
     lines.push(`        ${skill.description}`);
   });
   lines.push('', 'Level up by delivering, exploring, and covering ground.');
+  return lines.join('\n');
+}
+
+export interface UpgradeMenuTextInput {
+  readonly coins: number;
+  /** All upgrades for the region, in menu (and number-key) order. */
+  readonly upgrades: readonly Upgrade[];
+  /** Ids of upgrades already fitted. */
+  readonly purchased: ReadonlySet<string>;
+}
+
+/** The wagon upgrade menu: coins, then one entry per upgrade with cost, state, and effect. */
+export function upgradeMenuText(input: UpgradeMenuTextInput): string {
+  const lines = [
+    'WAGON UPGRADES   (B to close, mouse wheel to scroll)',
+    `Coins: ${input.coins}`,
+    '',
+    'Press the number to fit an upgrade:',
+  ];
+  input.upgrades.forEach((upgrade, i) => {
+    const owned = input.purchased.has(upgrade.id);
+    const state = owned
+      ? '(fitted)'
+      : input.coins >= upgrade.cost
+        ? 'affordable'
+        : `need ${upgrade.cost - input.coins} more coins`;
+    lines.push(`  [${i + 1}] ${upgrade.name}  -  ${upgrade.cost}c   ${state}`);
+    lines.push(`        ${upgradeEffectLabel(upgrade)}`);
+  });
+  lines.push('', 'Fitted upgrades stay with the wagon for the rest of the run.');
   return lines.join('\n');
 }

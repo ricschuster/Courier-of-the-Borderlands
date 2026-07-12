@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { boardText, summaryText, skillPanelText, capstoneText } from '../../src/systems/panel-text';
+import {
+  boardText,
+  summaryText,
+  skillPanelText,
+  capstoneText,
+  upgradeMenuText,
+} from '../../src/systems/panel-text';
 import type { Contract } from '../../src/systems/contract-system';
 import type { Skill, SkillRanks } from '../../src/systems/skills';
+import type { Upgrade } from '../../src/systems/upgrade-system';
 
 function contract(id: string, overrides: Partial<Contract> = {}): Contract {
   return {
@@ -144,5 +151,36 @@ describe('capstoneText', () => {
     expect(text).toContain('Distance driven: 240 tiles');
     expect(text).toContain('Courier title: Roadwarden');
     expect(text).toContain('Esc to close');
+  });
+});
+
+describe('upgradeMenuText', () => {
+  const UPGRADES: readonly Upgrade[] = [
+    { id: 'wheels', name: 'Reinforced Wheels', description: '', cost: 50, speedBonus: 0.25 },
+    { id: 'lantern', name: 'Far Lantern', description: '', cost: 40, speedBonus: 0, revealBonus: 1.5 },
+  ];
+
+  it('lists each upgrade with a number, cost, and effect', () => {
+    const text = upgradeMenuText({ coins: 100, upgrades: UPGRADES, purchased: new Set() });
+    expect(text).toContain('[1] Reinforced Wheels  -  50c');
+    expect(text).toContain('+25% speed');
+    expect(text).toContain('[2] Far Lantern  -  40c');
+    expect(text).toContain('+1.5 tiles sight');
+  });
+
+  it('marks a fitted upgrade', () => {
+    const text = upgradeMenuText({ coins: 100, upgrades: UPGRADES, purchased: new Set(['wheels']) });
+    expect(text).toContain('Reinforced Wheels  -  50c   (fitted)');
+  });
+
+  it('marks affordable and unaffordable upgrades', () => {
+    const text = upgradeMenuText({ coins: 45, upgrades: UPGRADES, purchased: new Set() });
+    expect(text).toContain('Reinforced Wheels  -  50c   need 5 more coins');
+    expect(text).toContain('Far Lantern  -  40c   affordable');
+  });
+
+  it('shows the current coin total', () => {
+    const text = upgradeMenuText({ coins: 123, upgrades: UPGRADES, purchased: new Set() });
+    expect(text).toContain('Coins: 123');
   });
 });

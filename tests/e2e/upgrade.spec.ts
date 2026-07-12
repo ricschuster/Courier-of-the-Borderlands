@@ -1,11 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, driveToTile, pressUntil, readTick, type Arrow } from './drive';
+import {
+  bootE2E,
+  collectErrors,
+  driveToTile,
+  pressUntil,
+  readTick,
+  setUpgradeMenu,
+  type Arrow,
+} from './drive';
 
 // Input-driven upgrade purchase: boot the real built game, complete a
-// delivery to earn coins, then drive back to the home town and buy the
-// cheapest vehicle upgrade with a real key press ("B"). Verifies coins drop
-// by the upgrade cost and the purchase persists to the save. Shared drive
-// helpers live in ./drive.
+// delivery to earn coins, then drive back to the home town, open the upgrade
+// menu ("B") and buy a specific vehicle upgrade by its number key. Verifies
+// coins drop by the upgrade cost and the purchase persists to the save. Shared
+// drive helpers live in ./drive.
 
 test('completes a delivery and buys the cheapest upgrade at home', async ({ page }) => {
   test.setTimeout(90_000);
@@ -61,13 +69,17 @@ test('completes a delivery and buys the cheapest upgrade at home', async ({ page
   const backHome = await readTick(page, home.tileX, home.tileY);
   expect(backHome.state.atHome).toBe(true);
 
-  // 6. Buy the cheapest upgrade with a real key press ("B"), re-pressing until
-  //    it registers. The cheapest Greybridge upgrade is "far-lantern" at cost
-  //    40 (see src/data/upgrades-greybridge.ts); with 10 coins left after the
-  //    purchase, no further upgrade is affordable, so extra presses are no-ops.
-  await pressUntil(page, 'B', async () =>
+  // 6. Open the upgrade menu ("B", home-gated) and buy the Far Lantern by its
+  //    number key. It is the second upgrade in data order (see
+  //    src/data/upgrades-greybridge.ts), so it maps to key "2" and costs 40.
+  //    Re-press until it registers (a single press can be dropped under CI
+  //    load); with 10 coins left after the purchase nothing else is affordable,
+  //    so extra presses are no-ops. The menu stays open while buying.
+  await setUpgradeMenu(page, true);
+  await pressUntil(page, '2', async () =>
     (await readTick(page, home.tileX, home.tileY)).state.upgrades.includes('far-lantern'),
   );
+  await setUpgradeMenu(page, false);
   const afterBuy = await readTick(page, home.tileX, home.tileY);
   expect(afterBuy.state.coins).toBe(coinsAfterDelivery - 40);
 
