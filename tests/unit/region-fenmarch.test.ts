@@ -14,11 +14,11 @@ import {
 } from '../../src/data/region-fenmarch';
 import { REGIONS } from '../../src/systems/region-system';
 
-const MAP_WIDTH = 20;
-const MAP_HEIGHT = 11;
+const MAP_WIDTH = 32;
+const MAP_HEIGHT = 22;
 
 describe('Fenmarch map', () => {
-  it('is a valid 20x11 map and createTileMap does not throw', () => {
+  it('is a valid 32x22 map and createTileMap does not throw', () => {
     const map = createTileMap(FENMARCH_ROWS, FENMARCH_LEGEND);
     expect(map.width).toBe(MAP_WIDTH);
     expect(map.height).toBe(MAP_HEIGHT);
@@ -58,11 +58,11 @@ describe('Fenmarch tidal-flat pocket (Fenholt)', () => {
   const mossgate = FENMARCH_SETTLEMENTS.mossgate!;
   const fenholt = FENMARCH_SETTLEMENTS.fenholt!;
   // The single gated crossing over the fen mere that walls off the pocket.
-  const crossing = { x: 16, y: 7 };
+  const crossing = { x: 27, y: 13 };
 
   // The premium contract runs Mossgate -> Fenholt. The mere walls the pocket
-  // north and south, so the tidal flat is a real shortcut and the dry way round
-  // (out to the east verge on column 19) is always open.
+  // down column 27, so the tidal flat is a real shortcut and the dry marsh way
+  // round the south end of the mere is always open.
   function routeLength(keys: ReadonlySet<string>): number | null {
     const path = findPath({
       width: map.width,

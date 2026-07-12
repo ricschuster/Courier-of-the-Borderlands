@@ -1,34 +1,42 @@
 // Saltreach Region tile data.
 //
 // A coastal salt-marsh borderland at the western edge of the known world.
-// Water runs in a single channel down column 7, crossed by two bridges (rows
-// 2 and 8) and a locked ford shortcut (row 6). A north-south road on column 5
-// links the main east-west route to both crossings. Twin peaks guard the
-// north-west and a mountain range closes the south-west corner.
+// Water runs in a single channel down column 11, crossed by a north bridge
+// (row 5), the main bridge on the west-east road (row 10), and a locked ford
+// shortcut (row 15). A north-south road on column 5 links the main route to
+// both the north bridge and the ford. Twin peaks guard the north-west and a
+// mountain range closes the south-west corner.
+//
+// The region is larger than the Greybridge hub and its settlements sit off the
+// road, reached across the northern forest belt or the southern marsh. That is
+// deliberate (issue #151): a route is only a real travel sink when it crosses
+// rough ground, so the later maps push deliveries off the road rather than just
+// adding road length. See docs/design/07_roads_gate_the_wagon.md.
 //
 // Legend:
 //   . plains    f forest   # road
-//   b bridge    ~ water    ^ mountain    x ford    t tidal-flat (wagon-gated)
+//   b bridge    ~ water    ^ mountain    h hills    m marsh
+//   x ford    t tidal-flat (wagon-gated)
 //
-// Grid is 20 wide by 11 tall. createTileMap validates row lengths and symbols
+// Grid is 30 wide by 20 tall. createTileMap validates row lengths and symbols
 // at load time.
 //
-// A salt lagoon runs down column 18 (rows 4-8 and 10), walling off the
-// south-east corner. A single tidal-flat tile at (18, 9) is the short way
+// A salt lagoon seals the Saltmere pocket in the south-east: a water wall down
+// column 25 (rows 11-19) and across row 11 (cols 25-29), with one dry gap at
+// the bottom (row 19). A single tidal-flat tile at (25, 12) is the short way
 // across, opened by the Salt Runners upgrade or Off-road rank 3; without it
-// Saltmere is reached the long way round, up to row 3 and down column 19. See
-// docs/design/07_roads_gate_the_wagon.md.
+// Saltmere is reached the long marsh way down to the gap and back up the pocket.
 //
 // Settlements:
-//   tidewatch      (5,  5)  home town, on the main west-east road
-//   reedford       (13, 2)  reed-cutter settlement north-east of the bridge
-//   saltkeep       (13, 8)  fortified salt store east of the south bridge
-//   cormorant-rock (18, 0)  cliff-top perch at the far north-east corner
-//   saltmere       (19, 9)  drowned hamlet behind the lagoon, far south-east
+//   tidewatch      (4,  10)  home town, on the main west-east road
+//   reedford       (22, 2)   reed-cutter settlement in the north forest belt
+//   saltkeep       (22, 17)  fortified salt store deep in the southern marsh
+//   cormorant-rock (28, 1)   cliff-top perch at the far north-east corner
+//   saltmere       (28, 12)  drowned hamlet behind the lagoon, south-east pocket
 //
-// Gateway (0, 5) leads west to Greybridge. Row 5 road runs directly east to
-// Tidewatch. Column 5 road runs north and south to the bridges.
-// Spawn  (1, 5) is one step east of the gateway on the road.
+// Gateway (0, 10) leads west to Greybridge. Row 10 road runs directly east to
+// Tidewatch. Column 5 road runs north and south to the north bridge and ford.
+// Spawn  (1, 10) is one step east of the gateway on the road.
 
 import type { Settlement } from './settlements-greybridge';
 import type { Contract } from '../systems/contract-system';
@@ -40,29 +48,39 @@ import { FLAG_SALTREACH_METHOD } from './dialogue-content';
 // ---------------------------------------------------------------------------
 
 export const SALTREACH_ROWS: readonly string[] = [
-  // row 0: mountains NW, single water column, road east to cormorant-rock
-  '....^^.~..f..######.',
-  // row 1: peaks continue, road south from cormorant-rock
-  '....^..~..f..#......',
-  // row 2: north bridge crosses water; reedford east of bridge on road
-  '.....#.b..f..#......',
-  // row 3: road col 5 continues; plains and forest east of water
-  '.....#.~..f.........',
-  // row 4: road col 5 continues; forest thickens east; salt lagoon begins (18)
-  '.....#.~..f.ff....~.',
-  // row 5: main west-east road; gateway(0), spawn(1), tidewatch(5); lagoon (18)
-  '######.~..ff......~.',
-  // row 6: ford shortcut (locked) at col 7; road col 5 south; lagoon (18)
-  '.....#.x..ff......~.',
-  // row 7: road col 5 approaches south bridge; lagoon (18)
-  '.....#.~..ff......~.',
-  // row 8: south bridge crosses water; saltkeep east of bridge on road; lagoon (18)
-  '.....#.b..ff.##...~.',
-  // row 9: southern mountains; road east continues; tidal-flat crossing (18)
-  // of the lagoon opens the short way to Saltmere in the SE corner (19)
-  '....^^.~..f..##...t.',
-  // row 10: mountain range closes south-west corner; lagoon closes south (18)
-  '..^^^^.~..f.......~.',
+  // rows 0-3: NW peaks, water channel (col 11), northern forest belt (cols 12+)
+  '^^^^.......~ffffffffffffffffff',
+  '^^^^.......~ffffffffffffffffff',
+  '^^^^.......~ffffffffffffffffff',
+  '...........~ffffffffffffffffff',
+  // row 4: north-road spur east from the north bridge toward reedford
+  '...........~........#.........',
+  // row 5: north bridge (col 11); west approach on col 5, spur east
+  '.....######b#########.........',
+  // rows 6-9: west hills off the road; open plains east of the channel
+  '.....#.....~..................',
+  '.hhh.#.....~..................',
+  '.hhh.#.....~..................',
+  '.hhh.#.....~..................',
+  // row 10: main west-east road; gateway(0), spawn(1), tidewatch(4); bridge(11)
+  '###################...........',
+  // rows 11-14: west hills; a south spur (col 18) drops toward the marsh; the
+  // salt lagoon seals the Saltmere pocket - west wall on col 25, north wall on
+  // row 11 (cols 25-29), tidal-flat crossing at (25,12) beside Saltmere
+  '.....#.....~......#......~~~~~',
+  '.....#.hhh.~......#.mmmmmtmmmm',
+  '.....#.hhh.~......#.mmmmm~mmmm',
+  '.....#.....~......#.mmmmm~mmmm',
+  // row 15: ford shortcut (col 11, locked); west approach on col 5; the
+  // southern marsh belt begins east of the ford
+  '.....######x####mmmmmmmmm~mmmm',
+  // row 16: southern marsh; the lagoon wall continues down col 25
+  '...........~mmmmmmmmmmmmm~mmmm',
+  // rows 17-19: SW mountain range; southern marsh; the one dry gap into the
+  // pocket is at the bottom of the lagoon (row 19, col 25)
+  '^^^^^......~mmmmmmmmmmmmm~mmmm',
+  '^^^^^......~mmmmmmmmmmmmm~mmmm',
+  '^^^^^......~mmmmmmmmmmmmmmmmmm',
 ];
 
 // ---------------------------------------------------------------------------
@@ -76,6 +94,8 @@ export const SALTREACH_LEGEND: Readonly<Record<string, string>> = {
   b: 'bridge',
   '~': 'water',
   '^': 'mountain',
+  h: 'hills',
+  m: 'marsh',
   x: 'ford-saltreach',
   t: 'tidal-flat',
 };
@@ -88,31 +108,31 @@ export const SALTREACH_SETTLEMENTS: Readonly<Record<string, Settlement>> = {
   tidewatch: {
     id: 'tidewatch',
     name: 'Tidewatch',
-    tile: { x: 5, y: 5 },
+    tile: { x: 4, y: 10 },
     note: 'A salt-stained waystation where the road turns uncertain and the tides remember everything.',
   },
   reedford: {
     id: 'reedford',
     name: 'Reedford',
-    tile: { x: 13, y: 2 },
+    tile: { x: 22, y: 2 },
     note: 'A small settlement of reed-cutters and net-menders who trust nobody who arrives dry.',
   },
   saltkeep: {
     id: 'saltkeep',
     name: 'Saltkeep',
-    tile: { x: 13, y: 8 },
+    tile: { x: 22, y: 17 },
     note: 'A fortified salt store ringed by marsh fog. The garrison is smaller than the walls suggest.',
   },
   'cormorant-rock': {
     id: 'cormorant-rock',
     name: 'Cormorant Rock',
-    tile: { x: 18, y: 0 },
+    tile: { x: 28, y: 1 },
     note: 'A cliff-top perch reached by one narrow road. The birds here carry news faster than any courier.',
   },
   saltmere: {
     id: 'saltmere',
     name: 'Saltmere',
-    tile: { x: 19, y: 9 },
+    tile: { x: 28, y: 12 },
     note: 'A drowned hamlet in the south-east corner, ringed by a salt lagoon that took the causeway and never gave it back. Dry-shod couriers come the long way round; the bold wade the flats.',
   },
 };
@@ -225,10 +245,10 @@ export const SALTREACH_CONTRACTS: readonly Contract[] = [
 // ---------------------------------------------------------------------------
 
 /** Starting position for the player courier in the Saltreach region. */
-export const SALTREACH_SPAWN: { readonly x: number; readonly y: number } = { x: 1, y: 5 };
+export const SALTREACH_SPAWN: { readonly x: number; readonly y: number } = { x: 1, y: 10 };
 
 /**
  * Gateway tile on the west edge (x === 0) that connects back to the
  * Greybridge region. The main road leads directly east from here to Tidewatch.
  */
-export const SALTREACH_GATEWAY: { readonly x: number; readonly y: number } = { x: 0, y: 5 };
+export const SALTREACH_GATEWAY: { readonly x: number; readonly y: number } = { x: 0, y: 10 };

@@ -130,6 +130,21 @@ a real UI change and probably its own issue once the frame (D1) exists.
    constant. Ties to #111 (routes) and the corner-carving note in the slice-5
    plan; feeds, but does not replace, the coin tuning in #110. Tracked in #151.
 
+   **Implemented (#151):** Saltreach is now 30x20 and Fenmarch 32x22 (both were
+   20x11), with settlements spread off-road across forest/marsh so deliveries
+   cross rough ground rather than hugging roads (wear is per-tile and dominated
+   by roughness, so road length alone does not tax the wagon). A region-invariant
+   test locks in the bigger maps so a spoke cannot silently shrink back. The
+   `MEASURE_DIFF=standard` arc confirms the sink grew: coins ended ~500 lower than
+   the v11/v12 baseline for the same capstone, with 0 strand events. But the
+   per-region min-condition still leans easier late (greybridge 18, saltreach 60,
+   fenmarch 79): by the later regions the wagon has a bigger condition tank and
+   wear-relief upgrades, and the tidal/mire capability lets the player cross the
+   premium pockets by the short route instead of the long wear-heavy detour. So
+   geography raised the floor but progression still blunts the late curve.
+   Flattening it the rest of the way is wear/economy tuning, which #110 owns and
+   is playtest-gated (#109) - do not tune those constants blind.
+
 3. Scope of the first UI pass: **staged, as proposed.** Ship the HUD frame (D1)
    and the overlap fix (item 6) first as the foundation, then layer the
    just-in-time explanations (D2), then the upgrade menu (D3). Tracked in #149.

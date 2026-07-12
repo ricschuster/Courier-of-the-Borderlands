@@ -153,6 +153,44 @@ describe.each(regionEntries)('region invariants: %s', (_id, region) => {
   });
 });
 
+// #151 difficulty-curve guard. The travel sink (ADR 0005) wears the wagon per
+// tile, so a region that is quicker to cross wears the wagon less. The first
+// map (Greybridge, the hub) is the largest; the two later spoke regions used to
+// be a third its size, which inverted the curve (later maps got easier). We
+// proxy "how much a region taxes the wagon" by the longest base (no-unlock)
+// home -> settlement route, and require each spoke to be at least the hub's. If
+// a future edit shrinks a spoke back down, this fails loudly rather than
+// silently re-inverting the curve. Route length is a coarse proxy for wear, but
+// it moves in the same direction and is cheap and non-flaky to check here; the
+// precise per-region wear is measured by tests/e2e/travel-sink-measure.spec.ts.
+function longestHomeRoute(region: Region): number {
+  const map = gridFor(region);
+  const home = region.settlements[region.home]!;
+  let max = 0;
+  for (const s of Object.values(region.settlements)) {
+    const r = route(map, home.tile, s.tile, NO_UNLOCKS);
+    if (r.reachable) {
+      max = Math.max(max, r.distance);
+    }
+  }
+  return max;
+}
+
+describe('difficulty curve: later regions are no easier to cross than the hub', () => {
+  const hub = longestHomeRoute(REGIONS.greybridge!);
+
+  it.each(['saltreach', 'fenmarch'])(
+    '%s longest home route is at least the Greybridge hub route',
+    (id) => {
+      const spoke = longestHomeRoute(REGIONS[id]!);
+      expect(
+        spoke,
+        `${id} longest home route (${spoke}) is shorter than the hub's (${hub}); the difficulty curve would invert`,
+      ).toBeGreaterThanOrEqual(hub);
+    },
+  );
+});
+
 const fordRegions = regionEntries.filter(([, r]) => r.fordUnlockId !== undefined);
 
 describe.each(fordRegions)('ford shortcut invariants: %s', (_id, region) => {
