@@ -53,14 +53,13 @@ const STATUS_WRAP_W = STATUS_PANEL.w - 16;
 const MINIMAP_CELL = 6;
 const MINIMAP_MAX_PX = 192;
 
-// Toasts are centred horizontally but must clear the top-left status panel
-// (which now extends to STATUS_PANEL bottom); at the old y=60 they sat on top of
-// the Coins/objective/Terrain lines. Toasts are top-anchored at TOAST_TOP, just
-// below that panel, so a tall multi-line toast grows downward into the map
-// rather than up over the status. TOAST_GAP stacks simultaneous toasts (arrival,
-// achievement, delivery). See docs/design/05_playtest_notes.md.
+// Toasts stack downward from TOAST_TOP, just below the top-left status panel, so
+// a tall multi-line toast grows into the map rather than up over the status.
+// They flow by measured height (TOAST_GAP between them) rather than a fixed slot
+// pitch, so a wrapped multi-line toast never overlaps the next one. See
+// docs/design/05_playtest_notes.md and docs/design/08_ui_and_onboarding.md.
 const TOAST_TOP = 162;
-const TOAST_GAP = 40;
+const TOAST_GAP = 8;
 
 /** Wallet line inputs, assembled into the top status line by the HUD. */
 export interface WalletView {
@@ -301,10 +300,16 @@ export class MapHud {
   /** Show the contract board with the given text, or hide it when text is null. */
   setBoard(text: string | null): void {
     if (text === null) {
-      this.board.setVisible(false);
+      if (this.board.visible) {
+        this.board.setVisible(false);
+        // The board just left; re-centre any toast that was sitting beside it.
+        this.layoutToasts();
+      }
       return;
     }
     this.board.setText(text).setVisible(true);
+    // Board width can change with contract count; keep toasts clear of it.
+    this.layoutToasts();
   }
 
   setJournalText(text: string): void {
@@ -369,6 +374,16 @@ export class MapHud {
 
   isMinimapVisible(): boolean {
     return this.minimapVisible;
+  }
+
+  /**
+   * Whether a blocking, screen-filling overlay (journal, skills, or codex) is
+   * open. The scene uses this to suppress the always-on contract board so only
+   * one overlay shows at a time (D1 reserved region, #149): the board no longer
+   * shows through the journal when both are open at home.
+   */
+  isBlockingOverlayOpen(): boolean {
+    return this.journalPanel.visible || this.skillPanel.visible || this.legendPanel.visible;
   }
 
   /** Route a mouse-wheel delta to whichever scrollable overlay is currently open. */
@@ -488,24 +503,59 @@ export class MapHud {
    * than fading on a timer that was always either too short or too long (Session
    * 5 playtest). `slot` stacks simultaneous toasts (0 = first, below the status
    * column; 1, 2 sit under it); a new toast in a slot replaces the old one.
+   *
+   * Toasts are laid out in a band that clears the contract board: when the board
+   * is up (at home) they sit in the free area to its right, otherwise centred.
+   * This removes the toast-over-board overlap the D1 pass targets (#149).
    */
   showToast(message: string, slot = 0): void {
     this.toasts.get(slot)?.destroy();
-    const y = TOAST_TOP + slot * TOAST_GAP;
     const toast = this.scene.add
-      .text(GAME_WIDTH / 2, y, message, {
+      .text(GAME_WIDTH / 2, TOAST_TOP, message, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#00000088',
         padding: { x: 8, y: 4 },
         align: 'center',
-        wordWrap: { width: GAME_WIDTH - 80 },
       })
       .setOrigin(0.5, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
     this.toasts.set(slot, toast);
+    // Lay out every active toast, so a new one at home also nudges any lingering
+    // road toast out from over the board.
+    this.layoutToasts();
+  }
+
+  /** The horizontal band toasts occupy: right of the board when it is up, else centred. */
+  private toastBand(): { centerX: number; wrapW: number } {
+    const gap = 16;
+    if (this.board.visible) {
+      const left = this.board.x + this.board.displayWidth + gap;
+      const right = GAME_WIDTH - gap;
+      return { centerX: (left + right) / 2, wrapW: Math.max(240, right - left) };
+    }
+    return { centerX: GAME_WIDTH / 2, wrapW: GAME_WIDTH - 80 };
+  }
+
+  /**
+   * Anchor every active toast to the current band and stack them by measured
+   * height (lowest slot on top), so a wrapped multi-line toast never overlaps
+   * the next one and none of them overlap the board.
+   */
+  layoutToasts(): void {
+    const band = this.toastBand();
+    let y = TOAST_TOP;
+    for (const slot of [...this.toasts.keys()].sort((a, b) => a - b)) {
+      const toast = this.toasts.get(slot);
+      if (toast === undefined) {
+        continue;
+      }
+      // Set the wrap width first: it re-renders the text and updates height.
+      toast.setWordWrapWidth(band.wrapW).setX(band.centerX).setY(y);
+      y += toast.height + TOAST_GAP;
+    }
   }
 
   /** Whether any toast is currently on screen, so the scene can show a dismiss cue. */

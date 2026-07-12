@@ -1447,10 +1447,14 @@ export class MapScene extends Phaser.Scene {
   private refreshBoard(): void {
     // The end-of-arc finale owns the screen; keep the home board from showing
     // through it (the courier is at the home town when the blockade breaks).
+    // The board also yields to any blocking overlay (journal/skills/codex) or the
+    // run summary, so only one overlay shows at a time (D1 reserved region, #149).
     const show =
       this.activeContract === undefined &&
       this.atSettlement(this.region.home) &&
-      !this.shouldShowCapstone();
+      !this.shouldShowCapstone() &&
+      !this.hud.isSummaryVisible() &&
+      !this.hud.isBlockingOverlayOpen();
     if (!show) {
       this.hud.setBoard(null);
       return;
