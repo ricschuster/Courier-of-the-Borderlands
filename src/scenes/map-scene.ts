@@ -103,7 +103,7 @@ import {
   courierTitle,
   type AchievementStat,
 } from '../systems/achievements';
-import { weatherByIndex, pickWeather, type Weather } from '../systems/weather';
+import { weatherByIndex, pickWeather, weatherEffectLabel, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
 import { bonusFor, bonusAchieved } from '../systems/contract-bonus';
 import {
@@ -260,6 +260,12 @@ declare global {
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
 
+// Story-flag ids for the one-time onboarding teaches (D2, #149). Reserved
+// prefix so they never collide with dialogue-authored flags; they persist in
+// the save (surviving region travel) and clear on a New Game.
+const ONBOARD_SKILLS = 'onboarding:skills';
+const ONBOARD_UPGRADES = 'onboarding:upgrades';
+
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
   readonly A: Phaser.Input.Keyboard.Key;
@@ -350,6 +356,11 @@ export class MapScene extends Phaser.Scene {
   // discrete events, so a level crossed mid-drive left the HUD's level and skill
   // points stale versus the live K panel. Tracked here to refresh on the change.
   private hudLevel = 0;
+  // Standing tier (by reputation) reflected to the player, so a tier-up fires a
+  // one-time perk notification instead of re-firing every frame. Initialised
+  // from the loaded reputation on scene create, so region travel does not
+  // re-announce a tier the player already holds (D2 onboarding, #149).
+  private hudTier = 0;
   private usedFordThisContract = false;
   // True while the courier sits beside a still-locked ford, so the "ford is
   // blocked" hint fires once per approach instead of every frame. Reset when the
@@ -391,6 +402,9 @@ export class MapScene extends Phaser.Scene {
     // to the max it affords, so the profile must be in place first.
     this.applyDifficulty(loadDifficulty());
     this.restoreState(snapshot);
+    // Baseline the standing tier the player already holds, so a tier-up notice
+    // only fires on a genuine increase and never on a region-travel reload.
+    this.hudTier = tierFor(totalReputation(this.state.ledger)).minReputation;
 
     this.map = createTileMap(this.region.rows, this.region.legend);
     // The map is drawn at the world origin; the camera handles centring small
@@ -475,7 +489,7 @@ export class MapScene extends Phaser.Scene {
     // from the clock keeps weather varied between runs while routing the roll
     // through the deterministic, testable generator.
     this.weather = pickWeather(createRng(Date.now()));
-    this.hud.setWeather(`Weather: ${this.weather.label}`);
+    this.hud.setWeather(`Weather: ${this.weather.label} (${weatherEffectLabel(this.weather)})`);
 
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
@@ -936,6 +950,7 @@ export class MapScene extends Phaser.Scene {
     this.hud.setTerrain(`${terrainLabel}   ${this.wagonConditionLabel()}`);
     this.refreshObjective();
     this.refreshHint();
+    this.refreshOnboarding();
   }
 
   private courierTile(): { x: number; y: number } {
@@ -1630,6 +1645,66 @@ export class MapScene extends Phaser.Scene {
 
     segments.push('N: new game');
     this.hud.setHint(segments.join('   '));
+  }
+
+  /**
+   * Just-in-time onboarding (D2, docs/design/08_ui_and_onboarding.md). The
+   * systems were never explained; a first-time player finished unsure what
+   * skills, upgrades, and standing did. Each teach fires the moment its system
+   * first becomes relevant, once per run:
+   *
+   * - the first skill point earned explains skills and points at K;
+   * - the first upgrade affordable-to-see at home explains the upgrade key;
+   * - a standing tier-up names the reward perk it unlocked.
+   *
+   * The two one-time teaches persist as story flags, so they survive region
+   * travel and reset on a New Game (fresh state). The tier-up uses the hudTier
+   * baseline instead, since it is an event, not a one-time card.
+   */
+  private refreshOnboarding(): void {
+    if (availablePoints(this.courierLevel(), this.skills) > 0) {
+      this.teachOnce(
+        ONBOARD_SKILLS,
+        'You earned a skill point. Skills sharpen your wagon: faster terrain, ' +
+          'tougher axles, warmer welcomes. Press K to spend points.',
+      );
+    }
+
+    if (
+      this.atSettlement(this.region.home) &&
+      cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null
+    ) {
+      this.teachOnce(
+        ONBOARD_UPGRADES,
+        'Upgrades are for sale here. Each fits a lasting improvement to the ' +
+          'wagon (more speed, range, or resilience). Press B to buy one.',
+      );
+    }
+
+    const reputation = totalReputation(this.state.ledger);
+    const tier = tierFor(reputation);
+    if (tier.minReputation > this.hudTier) {
+      this.hudTier = tier.minReputation;
+      const perk = perkFor(reputation);
+      const bonus = Math.round((perk.rewardMultiplier - 1) * 100);
+      const gain =
+        bonus > 0 ? `Deliveries now pay ${perk.label} (+${bonus}%).` : `You now hold ${perk.label}.`;
+      this.hud.showToast(`Standing risen to ${tier.name}. ${gain}`);
+    }
+  }
+
+  /**
+   * Show a one-time teaching toast the first time it is relevant, keyed by a
+   * story flag so it never repeats within a run. The flag is persisted so a
+   * region-travel reload does not re-teach.
+   */
+  private teachOnce(flagId: string, message: string): void {
+    if (hasFlag(this.storyFlags, flagId)) {
+      return;
+    }
+    this.storyFlags = setFlags(this.storyFlags, [flagId]);
+    this.hud.showToast(message);
+    this.save();
   }
 
   /** Gateway at the given tile, if the courier is standing on one. */
