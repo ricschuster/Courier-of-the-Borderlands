@@ -15,6 +15,7 @@ import { traversalKeys } from '../systems/traversal';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import {
   objectiveText,
+  navRevealFor,
   type ObjectiveContractView,
   type ObjectiveView,
 } from '../systems/objective';
@@ -2117,6 +2118,7 @@ export class MapScene extends Phaser.Scene {
       atHome: this.atSettlement(this.region.home),
       gatewayNames: this.gatewayDestinationNames(),
       gatewayTiles: this.region.gateways.map((g) => g.tile),
+      navReveal: navRevealFor(this.difficulty),
     };
   }
 

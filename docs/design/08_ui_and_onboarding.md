@@ -149,6 +149,25 @@ a real UI change and probably its own issue once the frame (D1) exists.
    and the overlap fix (item 6) first as the foundation, then layer the
    just-in-time explanations (D2), then the upgrade menu (D3). Tracked in #149.
 
+4. Wayfinding by difficulty (#171, from the 2026-07-12 playtest idea): **gradual
+   3-step scale, one level per preset.** The objective line's delivery help
+   scales with the chosen difficulty so navigation becomes a skill on the harder
+   tiers instead of a compass-follow:
+
+   - **Relaxed:** full help - heading and distance, e.g. `deliver to Mirewatch -
+     head SE (12 tiles)`.
+   - **Standard:** heading only, no distance, e.g. `deliver to Mirewatch - head
+     SE`.
+   - **Demanding:** neither; just the place name, e.g. `deliver to Mirewatch`.
+
+   Applies to both the pickup (accepted leg) and destination (carrying leg)
+   wayfinding. The settlement marker still appears once discovered, and the
+   cleared-region gateway prompt keeps its heading (it is a region-exit cue, not
+   the delivery challenge). Logic lives in `navRevealFor` / `objectiveText` in
+   `src/systems/objective.ts`. Note this changes the **Standard default**: the
+   validated 2026-07-12 balance arc ran with full info, so distance-hiding on
+   Standard is a deliberate difficulty increase to re-check on the next playtest.
+
 ## Art (deferred: fix first, then discuss)
 
 Decision 2026-07-12: **not yet.** Fix the gameplay and UI issues first, then open

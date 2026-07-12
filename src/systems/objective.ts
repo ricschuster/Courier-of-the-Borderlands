@@ -5,8 +5,31 @@
 // the Phaser scene.
 
 import { bearingLabel } from './bearing';
+import type { Difficulty } from './wagon-condition';
 
 export type ObjectiveStatus = 'accepted' | 'carrying' | 'delivered';
+
+/**
+ * How much wayfinding help the objective line gives (#171). Higher difficulty
+ * strips it away so the player navigates from the revealed map instead of a
+ * compass-follow:
+ * - 'full':    heading and distance (the guided default).
+ * - 'heading': direction only, no distance.
+ * - 'none':    neither; just the place name.
+ */
+export type NavReveal = 'full' | 'heading' | 'none';
+
+/** Wayfinding help by difficulty preset: gradual scale, easiest guides most. */
+export function navRevealFor(difficulty: Difficulty): NavReveal {
+  switch (difficulty) {
+    case 'relaxed':
+      return 'full';
+    case 'standard':
+      return 'heading';
+    case 'demanding':
+      return 'none';
+  }
+}
 
 /** A tile coordinate. */
 export interface Tile {
@@ -44,6 +67,8 @@ export interface ObjectiveView {
   readonly gatewayNames: string;
   /** All region gateway tiles, used to point toward the nearest one. */
   readonly gatewayTiles: readonly Tile[];
+  /** How much delivery wayfinding help to show, by difficulty (#171). */
+  readonly navReveal: NavReveal;
 }
 
 /** Compass heading from the courier to a target tile, or '' when standing on it. */
@@ -91,20 +116,26 @@ export function objectiveText(view: ObjectiveView): string {
     case 'accepted': {
       // Spell out both legs and point the way to the pickup: a player could not
       // tell which direction to drive to a still-fogged place, nor where the cargo
-      // was ultimately bound (see docs/design/05_playtest_notes.md).
+      // was ultimately bound (see docs/design/05_playtest_notes.md). The heading is
+      // withheld on the hardest tier so the player reads the map instead (#171).
       const pickupDir =
-        contract.pickupTile === null ? '' : headingTo(view.courierTile, contract.pickupTile);
+        view.navReveal === 'none' || contract.pickupTile === null
+          ? ''
+          : headingTo(view.courierTile, contract.pickupTile);
       const pickupWhere =
         pickupDir === '' ? contract.pickupName : `${contract.pickupName} (${pickupDir})`;
       return `${contract.title}: collect ${contract.cargo} at ${pickupWhere}, then deliver to ${contract.destinationName}`;
     }
     case 'carrying': {
+      // Heading is dropped on 'none'; the distance note only shows on 'full', so
+      // the middle tier gives direction but not range (#171).
       const dir =
-        contract.destinationTile === null
+        view.navReveal === 'none' || contract.destinationTile === null
           ? ''
           : headingTo(view.courierTile, contract.destinationTile);
       const heading = dir === '' ? '' : ` - head ${dir}`;
-      return `${contract.title}: deliver to ${contract.destinationName}${heading}${contract.pathNote}`;
+      const note = view.navReveal === 'full' ? contract.pathNote : '';
+      return `${contract.title}: deliver to ${contract.destinationName}${heading}${note}`;
     }
     case 'delivered':
       return `${contract.title}: delivered. Well driven.`;
