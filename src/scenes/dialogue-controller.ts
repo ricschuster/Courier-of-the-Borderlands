@@ -156,6 +156,10 @@ export class DialogueController {
     if (start === undefined) {
       return false;
     }
+    // Clear any lingering toasts (the "arrival" note persists until dismissed) so
+    // they do not sit over the conversation. The dialogue is now the focus; a
+    // stale popup overlapping the greeting was a 2026-07-12 playtest complaint.
+    this.host.getHud().dismissToasts();
     this.activeDialogue = dialogue;
     this.dialogueNodeId = start.id;
     this.showDialogueNode();
