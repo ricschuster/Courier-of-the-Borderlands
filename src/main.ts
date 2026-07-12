@@ -6,6 +6,16 @@ import { MapScene } from './scenes/map-scene';
 import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from './config/game-config';
 import { clearSave } from './systems/save-system';
 
+// Test-only frame pacing. Phaser's default TimeStep lets a starved frame carry
+// up to 200ms of physics (min fps 5), which on a loaded CI runner moves the
+// wagon nearly two tiles in one step with stale velocity: it coasts past
+// settlement tiles and waypoints, and every exact-tile interaction gate misses.
+// With ?e2e, clamp the per-frame delta to 50ms (min fps 20) so worst-case
+// movement stays under one tile. Not applied to real play: it would trade
+// catch-up for slow-motion under load, which is a feel decision, not a bug fix.
+const isE2E =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('e2e');
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   title: GAME_TITLE,
@@ -14,6 +24,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: GAME_HEIGHT,
   backgroundColor: BACKGROUND_COLOR,
   pixelArt: true,
+  ...(isE2E ? { fps: { min: 20 } } : {}),
   physics: {
     default: 'arcade',
     arcade: { debug: false },

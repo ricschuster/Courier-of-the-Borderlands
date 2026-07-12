@@ -234,6 +234,18 @@ interface CourierE2EApi {
   // the current tile). null if the goal is unreachable with the current
   // unlocks. Lets tests assert which route pathfinding chooses.
   pathTo(tileX: number, tileY: number): readonly { x: number; y: number }[] | null;
+  // Monotonic update-frame counter. Tests wait on this advancing instead of on
+  // wall-clock time, so key holds and settle waits span real game frames even
+  // when a loaded runner starves the frame loop. Cheap on purpose: polled per
+  // animation frame by waitForFunction.
+  getFrame(): number;
+  // Zero the wagon's velocity and snap it onto the given tile's centre. Only a
+  // short settle (within 3 tiles), never a teleport: returns false when the
+  // wagon is too far away, so a spec cannot use it to skip driving. Exists
+  // because a drive arrives with residual velocity that one sparse frame can
+  // carry a tile past the goal before update() re-reads the released keys,
+  // making every exact-tile interaction gate miss under CI load.
+  seat(tileX: number, tileY: number): boolean;
 }
 
 declare global {
@@ -325,6 +337,9 @@ export class MapScene extends Phaser.Scene {
   private dialogue!: DialogueController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
+  // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
+  // counting across scene.restart (region travel) instead of resetting.
+  private frameNo = 0;
   private usedFordThisContract = false;
   // True while the courier sits beside a still-locked ford, so the "ford is
   // blocked" hint fires once per approach instead of every frame. Reset when the
@@ -611,14 +626,28 @@ export class MapScene extends Phaser.Scene {
   /**
    * Test-only wagon speed multiplier. The full-arc e2e drives ~20 deliveries at
    * real wheel speed, which is slow; `?turbo` doubles the speed so the CI arc
-   * check finishes in about half the wall-clock. Kept to 2x on purpose: the
-   * drive loop samples position every ~80ms, and 2x still moves the wagon less
-   * than one tile per sample, so goal-tile detection stays reliable. Never set
-   * in normal play. Gated behind `?e2e` so a stray URL param cannot speed up the
-   * real game.
+   * check finishes in about half the wall-clock. Kept to 2x on purpose: with the
+   * e2e-gated frame-delta clamp in main.ts (min fps 20, so at most 50ms of
+   * physics per frame), 2x tops out under one tile per frame even on a starved
+   * runner, so goal-tile detection stays reliable. Never set in normal play.
+   * Gated behind `?e2e` so a stray URL param cannot speed up the real game.
    */
   private speedFactor(): number {
     return this.isE2E() && new URLSearchParams(window.location.search).has('turbo') ? 2 : 1;
+  }
+
+  /**
+   * Test-only switch that disables wagon wear (ADR 0005). The full-arc e2e is a
+   * reachability / soft-lock guard, not a travel-sink test: the sink is unit
+   * tested and cannot soft-lock (a dry wagon still limps to a settlement and a
+   * tow-home rescue is always available). On a loaded CI runner, though, a long
+   * leg can drain the wagon to limp speed mid-drive, which the driver reads as a
+   * stall. Gate wear off via `?nowear` so the arc measures reachability without
+   * that harness-only fragility. Requires `?e2e` so a stray URL param cannot
+   * disable wear in the real game.
+   */
+  private wearDisabled(): boolean {
+    return this.isE2E() && new URLSearchParams(window.location.search).has('nowear');
   }
 
   /** Attach the read-plus-navigate test API to window, gated on `?e2e`. */
@@ -627,12 +656,36 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     globalThis.__courier = {
-      version: 12,
+      version: 13,
       getState: () => this.e2eState(),
       nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
       isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
       pathTo: (tileX, tileY) => this.e2ePathTo(tileX, tileY),
+      getFrame: () => this.frameNo,
+      seat: (tileX, tileY) => this.e2eSeat(tileX, tileY),
     };
+  }
+
+  /**
+   * Test-only settle (see CourierE2EApi.seat). Snaps the wagon onto a nearby
+   * tile centre with zero velocity. prevX/prevY are synced like the rescue tow,
+   * so the snap books no driven distance (no wear, no trip miles).
+   */
+  private e2eSeat(tileX: number, tileY: number): boolean {
+    const tile = this.courierTile();
+    // Refuse long snaps so a spec cannot skip driving, but allow up to 3 tiles:
+    // a drive can coast a couple of tiles past home before the keys are re-read,
+    // and worst-case coast at full kit can just exceed a 2-tile radius, which
+    // would hard-fail the re-seat instead of settling. 3 gives margin.
+    if (Math.abs(tile.x - tileX) > 3 || Math.abs(tile.y - tileY) > 3) {
+      return false;
+    }
+    const center = this.tileCenter(tileX, tileY);
+    this.courier.setVelocity(0, 0);
+    this.courier.sprite.setPosition(center.x, center.y);
+    this.prevX = center.x;
+    this.prevY = center.y;
+    return true;
   }
 
   /** Snapshot of live state for tests. Recomputed on every call. */
@@ -772,6 +825,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   update(): void {
+    // Count every update, including dialogue-frozen ones, so e2e frame waits
+    // keep advancing while a conversation is open.
+    this.frameNo += 1;
     // A conversation is modal: freeze the wagon and take only dialogue input so
     // number keys pick choices instead of accepting contracts or spending points.
     if (this.hud.isDialogueVisible()) {
@@ -878,9 +934,14 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(dx, dy) / TILE_SIZE;
     if (tiles > 0) {
       this.trip = addDistance(this.trip, tiles);
-      const worn = applyWear(this.wagonCondition, wearRate * tiles);
-      this.wagonWearTotal += this.wagonCondition - worn;
-      this.wagonCondition = worn;
+      // Skip only the condition-mutation when wear is disabled for the e2e arc;
+      // trip distance and tilesSinceAccept still track so every other system
+      // (via-ford bonus, objective progress) behaves exactly as in real play.
+      if (!this.wearDisabled()) {
+        const worn = applyWear(this.wagonCondition, wearRate * tiles);
+        this.wagonWearTotal += this.wagonCondition - worn;
+        this.wagonCondition = worn;
+      }
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
       }

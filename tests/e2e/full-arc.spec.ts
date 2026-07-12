@@ -3,9 +3,12 @@ import {
   bootE2E,
   collectErrors,
   driveToTile,
+  pressUntil,
+  seatAt,
   setSkillPanel,
   tapKey,
   travelTo,
+  waitForFrames,
   type Arrow,
 } from './drive';
 
@@ -53,22 +56,22 @@ async function walkDialogue(page: Page): Promise<void> {
     if (!s || !s.dialogueOpen) return;
     if (s.dialogueChoices.length === 0) {
       await tapKey(page, 'Escape');
-      await page.waitForTimeout(120);
+      await waitForFrames(page, 2);
       continue;
     }
     const sig = s.dialogueChoices.join('|');
     const hasProgress = s.dialogueChoices.some((c) => PROGRESS.some((p) => c.toLowerCase().includes(p)));
     if (seen.has(sig) && !hasProgress) {
       await tapKey(page, 'Escape');
-      await page.waitForTimeout(120);
+      await waitForFrames(page, 2);
       continue;
     }
     seen.add(sig);
     await tapKey(page, String(pickChoice(s.dialogueChoices) + 1));
-    await page.waitForTimeout(160);
+    await waitForFrames(page, 2);
   }
   await tapKey(page, 'Escape');
-  await page.waitForTimeout(120);
+  await waitForFrames(page, 2);
 }
 
 // Spend coins and skill points the way a completionist player would, so the buy
@@ -91,20 +94,20 @@ async function spendAtHome(page: Page): Promise<boolean> {
 
   // Buy the cheapest affordable upgrade (a no-op when none is affordable).
   await tapKey(page, 'B');
-  await page.waitForTimeout(150);
+  await waitForFrames(page, 2);
 
   // Repair the wagon at home (travel sink, ADR 0005). A no-op when already full
   // or broke. Keeps the driver from stranding at 0 condition (limp speed), and
   // the coins it spends are the recurring sink the mechanic exists to create.
   await tapKey(page, 'R');
-  await page.waitForTimeout(120);
+  await waitForFrames(page, 2);
 
   if (before.skillPoints > 0) {
     await setSkillPanel(page, true);
     // Off-road first (it opens the mire), then the rest, one point per key.
     for (const key of ['2', '1', '3', '4']) {
       await tapKey(page, key);
-      await page.waitForTimeout(110);
+      await waitForFrames(page, 2);
     }
     // Close it before returning so the number keys reach the contract board.
     await setSkillPanel(page, false);
@@ -115,17 +118,47 @@ async function spendAtHome(page: Page): Promise<boolean> {
   return after.upgrades.length > before.upgrades.length || after.skillPoints < before.skillPoints;
 }
 
+// Drive to a tile, recovering if the wagon strands en route. The travel sink
+// (ADR 0005) drops the wagon to limp speed (0.15x) the instant condition hits 0,
+// and under a loaded CI runner a long leg can drain it mid-drive, leaving
+// driveToTile unable to crawl the rest within its step budget ("courier stuck").
+// A stranded wagon can pay for a tow home (R off a settlement), so on a stuck
+// strand we tow home and repair (R on the home settlement), and the caller then
+// re-approaches on a full wagon. A stuck wagon that is NOT stranded is a genuine
+// unreachable-tile regression, so that re-throws untouched.
+async function driveOrRecover(
+  page: Page,
+  held: Set<Arrow>,
+  x: number,
+  y: number,
+): Promise<void> {
+  try {
+    await driveToTile(page, held, x, y);
+  } catch (err) {
+    if (!/courier stuck|no path/.test(String(err))) throw err;
+    const st = await readState(page);
+    if (!st || st.wagonCondition > 0) throw err;
+    await tapKey(page, 'R'); // tow home (stranded off a settlement)
+    await waitForFrames(page, 2);
+    await tapKey(page, 'R'); // repair on the home tile so the retry is not dry
+    await waitForFrames(page, 2);
+  }
+}
+
 arcTest('drives the whole arc to the blockade-broken capstone', async ({ page }) => {
   // The full arc is ~20 deliveries across three regions. With turbo it runs in
   // ~3m locally, but a loaded CI runner (or a busy dev machine) throttles the
   // frame loop and slows the drive, so give generous headroom over the clean
   // time to keep this a signal about the game, not about runner load.
-  test.setTimeout(480_000);
+  test.setTimeout(720_000);
 
   const errors = collectErrors(page);
   // Turbo doubles the wagon speed (test-only) so ~20 deliveries at real driving
-  // speed finish in about half the wall-clock. Same paths, same input.
-  await bootE2E(page, { turbo: true });
+  // speed finish in about half the wall-clock. Same paths, same input. noWear
+  // disables travel-sink wear: this arc guards reachability / soft-locks, and a
+  // wagon drained to limp speed mid-leg under CI load reads as a false stall
+  // (the sink is unit tested separately and cannot soft-lock).
+  await bootE2E(page, { turbo: true, noWear: true });
   // Start from a clean save so gate/reputation pacing is deterministic.
   await page.evaluate(() => localStorage.removeItem('courier-of-the-borderlands/save'));
   await page.reload({ waitUntil: 'networkidle' });
@@ -194,77 +227,86 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
     }
     if (s.summaryVisible) {
       await tapKey(page, 'Escape'); // the summary panel dismisses on Esc
-      await page.waitForTimeout(150);
+      await waitForFrames(page, 2);
       continue;
     }
 
     // Carrying: deliver at the destination.
     if (s.activeContractId && s.contractStatus === 'carrying' && s.destination) {
-      await driveToTile(page, held, s.destination.tileX, s.destination.tileY);
-      await page.waitForTimeout(250);
+      await driveOrRecover(page, held, s.destination.tileX, s.destination.tileY);
+      await waitForFrames(page, 2); // delivery fires per frame on the tile
       await tapKey(page, 'Space'); // dismiss the delivery toast
-      await page.waitForTimeout(100);
+      await waitForFrames(page, 2);
       continue;
     }
     // Accepted: drive the pickup leg first (may be a non-home settlement).
     if (s.activeContractId && s.contractStatus === 'accepted' && s.pickup) {
-      await driveToTile(page, held, s.pickup.tileX, s.pickup.tileY);
-      await page.waitForTimeout(200);
+      await driveOrRecover(page, held, s.pickup.tileX, s.pickup.tileY);
+      await waitForFrames(page, 2); // pickup fires per frame on the tile
       continue;
     }
 
-    if (s.atHome) {
-      // Spend coins and skill points before deciding the next move, then re-read
-      // (a real player kits out at home). Bounded, so it stops once broke.
-      if (await spendAtHome(page)) continue;
-      // Once the region is cleared, talk to the postmaster: this sets the reveal
-      // flag (opening the hidden-road arc contract) and, at Greywater with both
-      // spoke reveals known, breaks the blockade. Key on the arc-flag set so the
-      // final talk re-fires at the hub once the spoke flags are in.
-      const arcFlags = s.storyFlags
-        .filter((f) => /reveal|blockade|method|cost/.test(f))
-        .sort()
-        .join(',');
-      const talkKey = `${s.regionId}:${arcFlags}`;
-      if (s.regionCleared && !talked.has(talkKey)) {
-        // Re-seat on the home tile first (the wagon can coast a tile past it when
-        // a drive ends, and E only opens the conversation while standing on the
-        // settlement), then press E. Only mark the talk done once the dialogue
-        // actually opened: a missed or off-tile press then just retries on the
-        // next loop instead of being marked done without happening, which would
-        // otherwise leave the final blockade talk unfired. Self-correcting, with
-        // no hard per-press timeout (a stuck talk fails via the step budget with
-        // a clear "blockade not broken", not an opaque 15s predicate timeout).
-        await driveToTile(page, held, s.home.tileX, s.home.tileY);
-        await tapKey(page, 'E');
-        await page.waitForTimeout(250);
-        if ((await readState(page))?.dialogueOpen) {
-          talked.add(talkKey);
-          await walkDialogue(page);
-        }
-        continue;
+    // No active contract in hand: do home business. The wagon coasts a tile or
+    // two past the home settlement when a drive ends (further under a loaded CI
+    // frame loop), so a post-coast atHome read cannot gate this and a fixed tile
+    // threshold just moves the cliff. Instead always re-seat onto the home tile
+    // and act in the same iteration, before the next coast (the talk branch
+    // already does this). Reaching here at all means no pickup or delivery leg is
+    // pending, so heading home is unconditionally correct.
+    await driveOrRecover(page, held, s.home.tileX, s.home.tileY);
+    // Settle exactly onto the home tile: the drive can end with residual
+    // velocity that carries the wagon off it before the next frame, and the
+    // shop/repair/board inputs below are all exact-tile gated.
+    await seatAt(page, s.home.tileX, s.home.tileY);
+    // Spend coins and skill points (a real player kits out at home). Bounded, so
+    // it stops once broke.
+    if (await spendAtHome(page)) continue;
+    // Once the region is cleared, talk to the postmaster: this sets the reveal
+    // flag (opening the hidden-road arc contract) and, at Greywater with both
+    // spoke reveals known, breaks the blockade. Key on the arc-flag set so the
+    // final talk re-fires at the hub once the spoke flags are in.
+    const arcFlags = s.storyFlags
+      .filter((f) => /reveal|blockade|method|cost/.test(f))
+      .sort()
+      .join(',');
+    const talkKey = `${s.regionId}:${arcFlags}`;
+    if (s.regionCleared && !talked.has(talkKey)) {
+      // Settle back onto the home tile (the wagon does not move during
+      // spendAtHome, but seat is cheap and makes the E press's exact-tile gate
+      // certain), then press E. Only mark the talk done once the dialogue
+      // actually opened: a missed press then just retries on the next loop
+      // instead of being marked done without happening, which would otherwise
+      // leave the final blockade talk unfired.
+      await seatAt(page, s.home.tileX, s.home.tileY);
+      await tapKey(page, 'E');
+      await waitForFrames(page, 2);
+      if ((await readState(page))?.dialogueOpen) {
+        talked.add(talkKey);
+        await walkDialogue(page);
       }
-      if (s.availableContractIds.length > 0) {
-        // Accept the first offered contract. A dropped press just means the next
-        // loop iteration re-approaches and retries, so a single press is safe
-        // here (unlike the talk above, which is marked done once attempted).
-        await tapKey(page, '1');
-        await page.waitForTimeout(200);
-        continue;
-      }
-      // Nothing left here: travel to a region we have not exhausted.
-      doneRegions.add(s.regionId);
-      const gw =
-        s.gateways.find((g) => !doneRegions.has(g.to) && !triedGateways.has(`${s.regionId}->${g.to}`)) ??
-        s.gateways.find((g) => !triedGateways.has(`${s.regionId}->${g.to}`));
-      if (!gw) break;
-      triedGateways.add(`${s.regionId}->${gw.to}`);
-      await travelTo(page, held, gw.tileX, gw.tileY, s.regionId, gw.to);
       continue;
     }
-
-    // Not home, no contract in hand: head to the home town.
-    await driveToTile(page, held, s.home.tileX, s.home.tileY);
+    if (s.availableContractIds.length > 0) {
+      // Settle onto the home tile, then press 1 until the game confirms the
+      // accept (activeContractId set). The board only takes the key while the
+      // wagon is standing on the settlement; seated with no movement keys held,
+      // the wagon stays put between attempts, so the confirm loop cannot race
+      // the coast the way a fire-and-forget press could.
+      await seatAt(page, s.home.tileX, s.home.tileY);
+      await pressUntil(page, '1', async () => {
+        const now = await readState(page);
+        return now !== null && now.activeContractId !== null;
+      });
+      continue;
+    }
+    // Nothing left here: travel to a region we have not exhausted.
+    doneRegions.add(s.regionId);
+    const gw =
+      s.gateways.find((g) => !doneRegions.has(g.to) && !triedGateways.has(`${s.regionId}->${g.to}`)) ??
+      s.gateways.find((g) => !triedGateways.has(`${s.regionId}->${g.to}`));
+    if (!gw) break;
+    triedGateways.add(`${s.regionId}->${gw.to}`);
+    await travelTo(page, held, gw.tileX, gw.tileY, s.regionId, gw.to);
   }
 
   const end = (await readState(page)) as State;
