@@ -111,6 +111,21 @@ export function availablePoints(level: number, ranks: SkillRanks): number {
 }
 
 /**
+ * Whether to fire the recurring "you have unspent skill points" nudge (#174).
+ * True only when the player just gained a level, still has points banked, and
+ * has already seen the one-time first-point teach, so the two never stack on the
+ * very first point and the reminder recurs at most once per level while points
+ * sit unspent.
+ */
+export function shouldNudgeUnspentSkills(input: {
+  readonly leveledUp: boolean;
+  readonly unspentPoints: number;
+  readonly firstTeachSeen: boolean;
+}): boolean {
+  return input.leveledUp && input.unspentPoints > 0 && input.firstTeachSeen;
+}
+
+/**
  * True when the skill exists, has not reached its max rank, and the player
  * has at least one skill point available to spend.
  */

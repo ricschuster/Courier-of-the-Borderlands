@@ -4,6 +4,7 @@ import {
   rankOf,
   pointsSpent,
   availablePoints,
+  shouldNudgeUnspentSkills,
   canRankUp,
   rankUp,
   skillSpeedBonus,
@@ -69,6 +70,32 @@ describe('availablePoints', () => {
 
   it('never goes negative even if data is over-spent', () => {
     expect(availablePoints(1, { wayfinder: 3, 'off-road': 3 })).toBe(0);
+  });
+});
+
+describe('shouldNudgeUnspentSkills', () => {
+  it('nudges on a level-up with points banked after the first teach', () => {
+    expect(
+      shouldNudgeUnspentSkills({ leveledUp: true, unspentPoints: 2, firstTeachSeen: true }),
+    ).toBe(true);
+  });
+
+  it('stays quiet when the level did not just increase', () => {
+    expect(
+      shouldNudgeUnspentSkills({ leveledUp: false, unspentPoints: 2, firstTeachSeen: true }),
+    ).toBe(false);
+  });
+
+  it('stays quiet when there are no unspent points', () => {
+    expect(
+      shouldNudgeUnspentSkills({ leveledUp: true, unspentPoints: 0, firstTeachSeen: true }),
+    ).toBe(false);
+  });
+
+  it('defers to the one-time teach on the first point (teach not yet seen)', () => {
+    expect(
+      shouldNudgeUnspentSkills({ leveledUp: true, unspentPoints: 1, firstTeachSeen: false }),
+    ).toBe(false);
   });
 });
 
