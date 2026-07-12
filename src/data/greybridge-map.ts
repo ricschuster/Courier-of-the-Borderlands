@@ -9,7 +9,8 @@
 // Legend:
 //   . plains    f forest   # road      h hills
 //   b bridge    ~ water    ^ mountain   m marsh   M deep-mire (wagon-gated)
-//   x ford (locked shortcut)
+//   x ford (locked shortcut)    p trail (rough path; drives like a path, wears
+//     like the marsh it crosses, so it is a visual connection, not relief - #176)
 //
 // Landmarks (col,row):
 //   Greywater  (2,8)   home town on the main road, far west
@@ -18,8 +19,9 @@
 //   Eastwatch  (19,8)  watchtower on the main road, east of the river
 //   Southmill  (21,14) mill on the south-east reeds
 //   Fenmarch gateway (21,18) southern terminus of the east-bank road, off Southmill
-//   Mirewatch  (24,20) stilt-village off the road, deep in the south-east marsh
-//              (reached only by wading south through the reeds from the row-18 road)
+//   Mirewatch  (24,20) stilt-village off the road, deep in the south-east marsh,
+//              linked to the row-18 road by a short trail spur at (24,19) so it no
+//              longer looks stranded; the approach still crosses marsh-grade wear
 //   Reedgrave  (28,19) drowned cairn in the far south-east reeds, walled off by a
 //              black channel (col 16-21 at column 26). A single deep-mire tile at
 //              (26,19) is the short way across, opened by the Marsh Treads upgrade
@@ -42,6 +44,7 @@ export const GREYBRIDGE_LEGEND: Readonly<Record<string, string>> = {
   m: 'marsh',
   M: 'deep-mire',
   x: 'ford-greybridge',
+  p: 'trail',
 };
 
 export const GREYBRIDGE_ROWS: readonly string[] = [
@@ -64,7 +67,7 @@ export const GREYBRIDGE_ROWS: readonly string[] = [
   '^^^^^#^^^^....~~mmmmm#mmmm~mmm',
   '^^^^^#^^^^....~~mmmmm#mmmm~mmm',
   '^^^^##^^^^....~~mmmmm#####~mmm',
-  '^^^^^^^^^^....~~mmmmmmmmmmMmmm',
+  '^^^^^^^^^^....~~mmmmmmmmpmMmmm',
   '^^^^^^^^^.....~~mmmmmmmmmm~mmm',
   '^^^^^^^^......~~mmmmmmmmmm~mmm',
 ];

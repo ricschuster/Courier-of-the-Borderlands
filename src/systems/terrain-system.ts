@@ -36,3 +36,17 @@ export function isPassableWith(terrainId: string, unlocks: ReadonlySet<string>):
 export function getSpeedModifier(terrainId: string): number {
   return getTerrain(terrainId)?.speedModifier ?? 0;
 }
+
+/**
+ * Speed modifier used for wear (ADR 0005), which may be decoupled from movement
+ * speed via `wearSpeedModifier`. Falls back to the movement `speedModifier` when
+ * unset, so terrain without an override wears exactly as before. Unknown terrain
+ * returns 0 (maximum roughness), matching getSpeedModifier's safe default.
+ */
+export function getWearSpeedModifier(terrainId: string): number {
+  const terrain = getTerrain(terrainId);
+  if (terrain === undefined) {
+    return 0;
+  }
+  return terrain.wearSpeedModifier ?? terrain.speedModifier;
+}

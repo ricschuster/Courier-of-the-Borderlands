@@ -17,6 +17,14 @@ export interface TerrainType {
    */
   readonly speedModifier: number;
   /**
+   * Speed modifier used for WEAR only (ADR 0005 roughness), decoupled from the
+   * movement `speedModifier`. Absent means wear derives from `speedModifier` as
+   * before, so every existing tile is unchanged. The trail sets this so it can
+   * read as a slightly quicker path while staying as rough on the wagon as the
+   * off-road ground it connects (#176).
+   */
+  readonly wearSpeedModifier?: number;
+  /**
    * If set, the tile is passable only when this unlock id is active. Used for
    * routes that start blocked and open later (for example the ford crossing).
    */
@@ -36,6 +44,19 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   // Marsh: passable but the slowest open terrain, so the southern reeds punish
   // anyone who leaves the road for a straight line.
   marsh: { id: 'marsh', name: 'Marsh', color: 0x4a6a4a, passable: true, speedModifier: 0.45 },
+  // Trail: a rough dirt track that connects the off-road settlements to the road
+  // network so no village looks stranded in blank wilderness (#176). It reads and
+  // drives as a path (a touch quicker than trackless forest/marsh), but its wear
+  // is held as high as the rough ground it crosses (wearSpeedModifier), so it is
+  // a fictional/visual connection, not a difficulty relief. See ADR 0005.
+  trail: {
+    id: 'trail',
+    name: 'Trail',
+    color: 0x7a6a45,
+    passable: true,
+    speedModifier: 0.6,
+    wearSpeedModifier: 0.45,
+  },
   // Deep mire: sodden ground the base wagon cannot cross at all. It opens as a
   // shortcut only once the courier holds the "mire-crossing" capability (the
   // Marsh Treads upgrade, or Off-road rank 2). Slower than marsh once

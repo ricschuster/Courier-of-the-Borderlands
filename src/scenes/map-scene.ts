@@ -10,7 +10,12 @@ import {
 } from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
-import { getTerrain, getSpeedModifier, isPassableWith } from '../systems/terrain-system';
+import {
+  getTerrain,
+  getSpeedModifier,
+  getWearSpeedModifier,
+  isPassableWith,
+} from '../systems/terrain-system';
 import { traversalKeys } from '../systems/traversal';
 import { computeVelocity, type MoveInput } from '../systems/movement';
 import {
@@ -902,8 +907,11 @@ export class MapScene extends Phaser.Scene {
 
     // Wear per tile is computed off the RAW terrain roughness, so relief upgrades
     // and Off-road cut it through their own weaker floored factors (ADR 0005).
+    // The wear modifier is separate from movement speed so a trail can drive like
+    // a path yet wear like the rough ground it crosses (#176).
+    const rawWearModifier = terrainId === undefined ? 1 : getWearSpeedModifier(terrainId);
     const wearRate = wearPerTile(
-      rawTerrainModifier,
+      rawWearModifier,
       countReliefUpgrades(this.state.upgrades, UPGRADES_GREYBRIDGE),
       rankOf(this.skills, 'off-road'),
       this.wagonTuning,

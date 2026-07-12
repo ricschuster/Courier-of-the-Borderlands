@@ -4,6 +4,7 @@ import {
   isPassable,
   isPassableWith,
   getSpeedModifier,
+  getWearSpeedModifier,
 } from '../../src/systems/terrain-system';
 
 describe('terrain-system', () => {
@@ -31,6 +32,23 @@ describe('terrain-system', () => {
     expect(getSpeedModifier('water')).toBe(0);
     expect(getSpeedModifier('mountain')).toBe(0);
     expect(getSpeedModifier('nope')).toBe(0);
+  });
+
+  describe('getWearSpeedModifier (#176)', () => {
+    it('falls back to the movement speed modifier when no override is set', () => {
+      expect(getWearSpeedModifier('forest')).toBe(getSpeedModifier('forest'));
+      expect(getWearSpeedModifier('road')).toBe(getSpeedModifier('road'));
+      expect(getWearSpeedModifier('nope')).toBe(0);
+    });
+
+    it('decouples the trail: it drives faster than marsh but wears the same', () => {
+      // Trail is passable and moves a touch quicker than the marsh it crosses...
+      expect(isPassable('trail')).toBe(true);
+      expect(getSpeedModifier('trail')).toBeGreaterThan(getSpeedModifier('marsh'));
+      // ...but its wear modifier matches marsh, so it is not a difficulty relief.
+      expect(getWearSpeedModifier('trail')).toBe(getSpeedModifier('marsh'));
+      expect(getWearSpeedModifier('trail')).toBeLessThan(getSpeedModifier('trail'));
+    });
   });
 
   describe('isPassableWith', () => {
