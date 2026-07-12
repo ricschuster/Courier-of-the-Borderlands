@@ -7,6 +7,7 @@ import {
   revealRadius,
   cheapestUnpurchased,
   terrainSpeedFactor,
+  upgradeEffectLabel,
 } from '../../src/systems/upgrade-system';
 import type { Upgrade } from '../../src/systems/upgrade-system';
 
@@ -280,5 +281,57 @@ describe('terrainSpeedFactor', () => {
     // result = 0.5 + (1 - 0.5) * 1.0 = 1.0
     const purchased = new Set(['sprung-axle', 'cushion-mounts']);
     expect(terrainSpeedFactor(0.5, purchased, RELIEF_UPGRADES)).toBeCloseTo(1.0);
+  });
+});
+
+describe('upgradeEffectLabel', () => {
+  it('summarises a speed upgrade', () => {
+    expect(upgradeEffectLabel(WHEEL_UPGRADE)).toBe('+25% speed');
+  });
+
+  it('summarises a reveal upgrade with a fractional tile count', () => {
+    expect(
+      upgradeEffectLabel({
+        id: 'far-lantern',
+        name: 'Far Lantern',
+        description: '',
+        cost: 40,
+        speedBonus: 0,
+        revealBonus: 1.5,
+      }),
+    ).toBe('+1.5 tiles sight');
+  });
+
+  it('summarises a roughness-relief upgrade', () => {
+    expect(
+      upgradeEffectLabel({
+        id: 'sprung-axle',
+        name: 'Sprung Axle',
+        description: '',
+        cost: 60,
+        speedBonus: 0,
+        roughnessRelief: 0.5,
+      }),
+    ).toBe('-50% rough-ground drag');
+  });
+
+  it('joins multiple effects', () => {
+    expect(
+      upgradeEffectLabel({
+        id: 'combo',
+        name: 'Combo',
+        description: '',
+        cost: 100,
+        speedBonus: 0.25,
+        revealBonus: 2,
+        roughnessRelief: 0.5,
+      }),
+    ).toBe('+25% speed, +2 tiles sight, -50% rough-ground drag');
+  });
+
+  it('falls back when an upgrade has no direct stat effect', () => {
+    expect(
+      upgradeEffectLabel({ id: 'x', name: 'X', description: '', cost: 10, speedBonus: 0 }),
+    ).toBe('no direct effect');
   });
 });

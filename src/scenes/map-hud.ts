@@ -102,6 +102,7 @@ export class MapHud {
   private readonly board: Phaser.GameObjects.Text;
   private readonly journalPanel: ScrollablePanel;
   private readonly skillPanel: ScrollablePanel;
+  private readonly upgradePanel: ScrollablePanel;
   private readonly summaryPanel: Phaser.GameObjects.Text;
   private readonly capstonePanel: Phaser.GameObjects.Text;
   private readonly legendPanel: Phaser.GameObjects.Text;
@@ -182,6 +183,8 @@ export class MapHud {
     this.journalPanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
     // Skills panel (toggled with K): same scrollable box.
     this.skillPanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
+    // Upgrade menu (toggled with B at home): same scrollable box.
+    this.upgradePanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
 
     // Run summary panel, shown when the region is cleared.
     this.summaryPanel = scene.add
@@ -316,6 +319,10 @@ export class MapHud {
     this.journalPanel.setText(text);
   }
 
+  setUpgradeText(text: string): void {
+    this.upgradePanel.setText(text);
+  }
+
   setSkillText(text: string): void {
     this.skillPanel.setText(text);
   }
@@ -376,14 +383,23 @@ export class MapHud {
     return this.minimapVisible;
   }
 
+  isUpgradeMenuVisible(): boolean {
+    return this.upgradePanel.visible;
+  }
+
   /**
-   * Whether a blocking, screen-filling overlay (journal, skills, or codex) is
-   * open. The scene uses this to suppress the always-on contract board so only
-   * one overlay shows at a time (D1 reserved region, #149): the board no longer
-   * shows through the journal when both are open at home.
+   * Whether a blocking, screen-filling overlay (journal, skills, codex, or the
+   * upgrade menu) is open. The scene uses this to suppress the always-on contract
+   * board so only one overlay shows at a time (D1 reserved region, #149): the
+   * board no longer shows through the journal when both are open at home.
    */
   isBlockingOverlayOpen(): boolean {
-    return this.journalPanel.visible || this.skillPanel.visible || this.legendPanel.visible;
+    return (
+      this.journalPanel.visible ||
+      this.skillPanel.visible ||
+      this.legendPanel.visible ||
+      this.upgradePanel.visible
+    );
   }
 
   /** Route a mouse-wheel delta to whichever scrollable overlay is currently open. */
@@ -392,6 +408,8 @@ export class MapHud {
       this.journalPanel.scrollBy(deltaY);
     } else if (this.skillPanel.visible) {
       this.skillPanel.scrollBy(deltaY);
+    } else if (this.upgradePanel.visible) {
+      this.upgradePanel.scrollBy(deltaY);
     }
   }
 
@@ -416,13 +434,21 @@ export class MapHud {
     return show;
   }
 
+  /** Toggle the upgrade menu; returns the new visibility so the scene can refresh on open. */
+  toggleUpgrades(): boolean {
+    const show = !this.upgradePanel.visible;
+    this.upgradePanel.setVisible(show);
+    return show;
+  }
+
   /**
    * Hide the mutually exclusive blocking overlays, keeping the named one open.
-   * The journal, skills, and codex all sit centre or side and read badly stacked
-   * on top of each other, so only one is shown at a time (the minimap is a
-   * non-blocking corner map and is left alone). See docs/design/05_playtest_notes.md.
+   * The journal, skills, codex, and upgrade menu all sit centre or side and read
+   * badly stacked on top of each other, so only one is shown at a time (the
+   * minimap is a non-blocking corner map and is left alone). See
+   * docs/design/05_playtest_notes.md.
    */
-  closeOverlaysExcept(keep: 'journal' | 'skills' | 'legend'): void {
+  closeOverlaysExcept(keep: 'journal' | 'skills' | 'legend' | 'upgrades'): void {
     if (keep !== 'journal') {
       this.journalPanel.setVisible(false);
     }
@@ -431,6 +457,9 @@ export class MapHud {
     }
     if (keep !== 'legend') {
       this.legendPanel.setVisible(false);
+    }
+    if (keep !== 'upgrades') {
+      this.upgradePanel.setVisible(false);
     }
   }
 

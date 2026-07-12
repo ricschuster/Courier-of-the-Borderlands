@@ -40,11 +40,11 @@ import {
 import {
   speedMultiplier,
   purchase,
-  canAfford,
   revealRadius,
   cheapestUnpurchased,
   terrainSpeedFactor,
   countReliefUpgrades,
+  type Upgrade,
 } from '../systems/upgrade-system';
 import {
   wearPerTile,
@@ -63,7 +63,13 @@ import {
   type WagonTuning,
   type Difficulty,
 } from '../systems/wagon-condition';
-import { boardText, summaryText, skillPanelText, capstoneText } from '../systems/panel-text';
+import {
+  boardText,
+  summaryText,
+  skillPanelText,
+  capstoneText,
+  upgradeMenuText,
+} from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
 import { buildJournalText } from '../systems/journal-text';
 import {
@@ -923,8 +929,9 @@ export class MapScene extends Phaser.Scene {
     this.checkArrival();
     this.handleFordHint();
     this.handleSkillInput();
+    this.handleUpgradeInput();
     this.handleBoardInput();
-    this.handlePurchaseInput();
+    this.handleUpgradeToggle();
     this.handleRepairInput();
     this.handleResetInput();
     this.handleDismissInput();
@@ -1418,9 +1425,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   private handleBoardInput(): void {
-    // The skill panel reuses the number keys to spend points; do not also
-    // accept a contract with the same press.
-    if (this.hud.isSkillPanelVisible()) {
+    // The skill panel and upgrade menu reuse the number keys (spend points / buy
+    // upgrades); do not also accept a contract with the same press.
+    if (this.hud.isSkillPanelVisible() || this.hud.isUpgradeMenuVisible()) {
       return;
     }
     if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
@@ -1469,29 +1476,72 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
-  private handlePurchaseInput(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.buyKey) || !this.atSettlement(this.region.home)) {
+  /**
+   * B toggles the wagon upgrade menu at home (D3, #161). The old single-key "buy
+   * the cheapest" hid the choice and what each upgrade did; now B opens a
+   * selectable menu and the actual purchase happens by number key in
+   * handleUpgradeInput. Opening is gated to the home shop; closing works anywhere
+   * so a menu left open when travel restarts the scene is not sticky.
+   */
+  private handleUpgradeToggle(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.buyKey)) {
       return;
     }
-    const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
-    if (target === null) {
-      this.hud.showToast('Every upgrade is already fitted.');
+    if (!this.hud.isUpgradeMenuVisible() && !this.atSettlement(this.region.home)) {
       return;
     }
-    const result = purchase(this.state.upgrades, this.state.ledger.coins, target);
+    if (this.hud.toggleUpgrades()) {
+      this.hud.closeOverlaysExcept('upgrades');
+      this.refreshUpgradeMenu();
+    }
+  }
+
+  /** Buy an upgrade by number key while the upgrade menu is open. */
+  private handleUpgradeInput(): void {
+    if (!this.hud.isUpgradeMenuVisible()) {
+      return;
+    }
+    for (let i = 0; i < UPGRADES_GREYBRIDGE.length && i < this.numberKeys.length; i++) {
+      const key = this.numberKeys[i];
+      const upgrade = UPGRADES_GREYBRIDGE[i];
+      if (key === undefined || upgrade === undefined || !Phaser.Input.Keyboard.JustDown(key)) {
+        continue;
+      }
+      this.buyUpgrade(upgrade);
+    }
+  }
+
+  /** Attempt to fit one upgrade, with feedback for already-owned and unaffordable. */
+  private buyUpgrade(upgrade: Upgrade): void {
+    if (this.state.upgrades.has(upgrade.id)) {
+      this.hud.showToast(`${upgrade.name} is already fitted.`);
+      return;
+    }
+    const result = purchase(this.state.upgrades, this.state.ledger.coins, upgrade);
     if (!result.ok) {
-      this.hud.showToast(`Not enough coins for ${target.name} (${target.cost}).`);
+      this.hud.showToast(`Not enough coins for ${upgrade.name} (${upgrade.cost}).`);
       return;
     }
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
-    this.hud.showToast(`Fitted ${target.name}. ${target.description}`);
+    this.hud.showToast(`Fitted ${upgrade.name}. ${upgrade.description}`);
     // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
     // mire); open any tiles it now unlocks so the route is drivable at once.
     this.refreshGatedColliders();
     this.refreshWallet();
+    this.refreshUpgradeMenu();
     this.refreshAchievements(true);
     this.save();
+  }
+
+  private refreshUpgradeMenu(): void {
+    this.hud.setUpgradeText(
+      upgradeMenuText({
+        coins: this.state.ledger.coins,
+        upgrades: UPGRADES_GREYBRIDGE,
+        purchased: this.state.upgrades,
+      }),
+    );
   }
 
   private handleToggles(): void {
@@ -1625,11 +1675,10 @@ export class MapScene extends Phaser.Scene {
     }
 
     if (this.atSettlement(this.region.home)) {
-      // At home the board is open: surface the contract and upgrade keys.
-      const target = cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE);
-      if (target !== null) {
-        const affordable = canAfford(this.state.ledger.coins, target);
-        segments.push(`B: ${target.name} (${target.cost}c)${affordable ? '' : ' - need coins'}`);
+      // At home the board is open: point at the upgrade menu while any upgrade
+      // is still unfitted.
+      if (cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null) {
+        segments.push('B: upgrades');
       }
     } else {
       // On the road the useful keys are the exploration references.
@@ -1681,7 +1730,7 @@ export class MapScene extends Phaser.Scene {
       this.teachOnce(
         ONBOARD_UPGRADES,
         'Upgrades are for sale here. Each fits a lasting improvement to the ' +
-          'wagon (more speed, range, or resilience). Press B to buy one.',
+          'wagon (more speed, range, or resilience). Press B to open the upgrade menu.',
       );
     }
 
