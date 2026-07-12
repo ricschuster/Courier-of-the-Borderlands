@@ -23,9 +23,29 @@ export const STATUS_COLOR: Readonly<Record<SettlementStatus, number>> = {
 
 // Semi-transparent dark backing for HUD text so it stays legible over any
 // terrain once fog is cleared (the help line washed out over light tiles; see
-// docs/design/05_playtest_notes.md).
+// docs/design/05_playtest_notes.md). The contextual hint line keeps its own
+// per-line box; the top-left status rows share one framed panel instead (below).
 const HUD_BG = 'rgba(11, 11, 11, 0.66)';
 const HUD_PAD = { x: 4, y: 1 } as const;
+
+// Unified top-left status panel. The status used to be a stack of independently
+// boxed lines that read as scatter and jumped whenever the ford or skill-point
+// line appeared (2026-07-12 playtest, docs/design/08_ui_and_onboarding.md). The
+// rows now sit at fixed y-slots on one shared backing panel so nothing moves.
+// STATUS_ROW_Y reserves two line-heights for the objective (it can wrap to a
+// second line) so the rows below never shift.
+const STATUS_PANEL = { x: 6, y: 6, w: 452, h: 146 } as const;
+const STATUS_ROW_Y = {
+  title: 12,
+  wallet: 34,
+  objective: 56,
+  terrain: 94,
+  ford: 114,
+  weather: 132,
+} as const;
+// Objective can be long (contract + pickup + destination); wrap it within the
+// panel rather than let it run off the right edge.
+const STATUS_WRAP_W = STATUS_PANEL.w - 16;
 
 // Minimap layout. Cells are MINIMAP_CELL pixels per tile, but shrink so the
 // whole minimap fits inside a MINIMAP_MAX_PX box on large maps that would
@@ -33,13 +53,13 @@ const HUD_PAD = { x: 4, y: 1 } as const;
 const MINIMAP_CELL = 6;
 const MINIMAP_MAX_PX = 192;
 
-// Toasts are centred horizontally but must clear the top-left status column
-// (title through weather ends near y=116); at the old y=60 they sat on top of
+// Toasts are centred horizontally but must clear the top-left status panel
+// (which now extends to STATUS_PANEL bottom); at the old y=60 they sat on top of
 // the Coins/objective/Terrain lines. Toasts are top-anchored at TOAST_TOP, just
-// below that column, so a tall multi-line toast grows downward into the map
+// below that panel, so a tall multi-line toast grows downward into the map
 // rather than up over the status. TOAST_GAP stacks simultaneous toasts (arrival,
 // achievement, delivery). See docs/design/05_playtest_notes.md.
-const TOAST_TOP = 120;
+const TOAST_TOP = 162;
 const TOAST_GAP = 40;
 
 /** Wallet line inputs, assembled into the top status line by the HUD. */
@@ -49,6 +69,8 @@ export interface WalletView {
   readonly tierName: string;
   readonly level: number;
   readonly skillPoints: number;
+  /** Locked run difficulty, shown read-only (chosen at the title screen, #150). */
+  readonly difficulty: string;
 }
 
 /** A conversation node to render: who is speaking, what they say, and the choices. */
@@ -94,33 +116,45 @@ export class MapHud {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    const line = (y: number, color: string): Phaser.GameObjects.Text =>
+    // Shared backing panel for the status rows. Drawn first so the row text
+    // (added just after, same depth) renders on top of it.
+    scene.add
+      .rectangle(
+        STATUS_PANEL.x,
+        STATUS_PANEL.y,
+        STATUS_PANEL.w,
+        STATUS_PANEL.h,
+        0x0b0b0b,
+        0.66,
+      )
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD);
+
+    const line = (y: number, color: string, wrap = false): Phaser.GameObjects.Text =>
       scene.add
-        .text(8, y, '', {
+        .text(14, y, '', {
           fontFamily: 'monospace',
           fontSize: '12px',
           color,
-          backgroundColor: HUD_BG,
-          padding: HUD_PAD,
+          ...(wrap ? { wordWrap: { width: STATUS_WRAP_W } } : {}),
         })
         .setScrollFactor(0)
         .setDepth(DEPTH_HUD);
 
     scene.add
-      .text(8, 8, GAME_TITLE, {
+      .text(14, STATUS_ROW_Y.title, GAME_TITLE, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#e8e8e8',
-        backgroundColor: HUD_BG,
-        padding: HUD_PAD,
       })
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
-    this.wallet = line(28, '#e8e8e8');
-    this.objective = line(46, '#f2d98f');
-    this.terrainReadout = line(64, '#e8e8e8');
-    this.fordStatus = line(82, '#e8e8e8');
-    this.weatherLine = line(100, '#a9c7e8');
+    this.wallet = line(STATUS_ROW_Y.wallet, '#e8e8e8');
+    this.objective = line(STATUS_ROW_Y.objective, '#f2d98f', true);
+    this.terrainReadout = line(STATUS_ROW_Y.terrain, '#e8e8e8');
+    this.fordStatus = line(STATUS_ROW_Y.ford, '#e8e8e8');
+    this.weatherLine = line(STATUS_ROW_Y.weather, '#a9c7e8');
     this.hint = scene.add
       .text(8, GAME_HEIGHT - 24, '', {
         fontFamily: 'monospace',
@@ -133,7 +167,7 @@ export class MapHud {
       .setDepth(DEPTH_HUD);
 
     this.board = scene.add
-      .text(8, 118, '', {
+      .text(8, STATUS_PANEL.y + STATUS_PANEL.h + 8, '', {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#f2efe4',
@@ -231,7 +265,8 @@ export class MapHud {
   setWallet(view: WalletView): void {
     const pointsNote = view.skillPoints > 0 ? `   Skill points: ${view.skillPoints} (K)` : '';
     this.wallet.setText(
-      `Coins: ${view.coins}   Rep: ${view.reputation} (${view.tierName})   Lv ${view.level}${pointsNote}`,
+      `Coins: ${view.coins}   Rep: ${view.reputation} (${view.tierName})   Lv ${view.level}` +
+        `   ${view.difficulty}${pointsNote}`,
     );
   }
 
