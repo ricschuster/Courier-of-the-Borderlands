@@ -85,6 +85,7 @@ import {
   SKILLS,
   sanitizeRanks,
   availablePoints,
+  shouldNudgeUnspentSkills,
   canRankUp,
   rankUp,
   rankOf,
@@ -926,8 +927,26 @@ export class MapScene extends Phaser.Scene {
     // Distance and discoveries just changed, so a level (and its skill point) can
     // cross mid-drive. Resync the wallet only on the change so the HUD level and
     // skill-point count match the live K panel without refreshing every frame.
-    if (this.courierLevel() !== this.hudLevel) {
+    const liveLevel = this.courierLevel();
+    if (liveLevel !== this.hudLevel) {
+      const leveledUp = liveLevel > this.hudLevel;
       this.refreshWallet();
+      // Recurring skill nudge (#174): each level-up that leaves points banked
+      // re-surfaces them, so skills stop being forgotten past the first teach.
+      const points = availablePoints(liveLevel, this.skills);
+      if (
+        shouldNudgeUnspentSkills({
+          leveledUp,
+          unspentPoints: points,
+          firstTeachSeen: hasFlag(this.storyFlags, ONBOARD_SKILLS),
+        })
+      ) {
+        const s = points === 1 ? '' : 's';
+        const it = points === 1 ? 'it' : 'them';
+        this.hud.showToast(
+          `You have ${points} unspent skill point${s}. Press K to fit ${it} to your wagon.`,
+        );
+      }
     }
     this.updateDelivery();
     this.checkArrival();

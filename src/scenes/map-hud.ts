@@ -100,6 +100,9 @@ export class MapHud {
   private readonly weatherLine: Phaser.GameObjects.Text;
   private readonly hint: Phaser.GameObjects.Text;
   private readonly board: Phaser.GameObjects.Text;
+  // Salient unspent-skill-points cue (#174): a bright chip in the free top-right
+  // corner, shown only when points are banked, so skills stop being forgotten.
+  private readonly skillCue: Phaser.GameObjects.Text;
   private readonly journalPanel: ScrollablePanel;
   private readonly skillPanel: ScrollablePanel;
   private readonly upgradePanel: ScrollablePanel;
@@ -175,6 +178,25 @@ export class MapHud {
         padding: { x: 10, y: 8 },
         lineSpacing: 4,
       })
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
+
+    // Unspent-skill-points chip: dark text on the warm gold accent (STATUS_COLOR
+    // reconnected), so it reads as a call-to-action against the map. Anchored to
+    // the free top-right corner (the minimap lives bottom-right). Hidden until
+    // points are banked (#174).
+    this.skillCue = scene.add
+      .text(GAME_WIDTH - 12, 10, '', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#1b1300',
+        backgroundColor: '#f2c14e',
+        padding: { x: 8, y: 4 },
+        fontStyle: 'bold',
+        align: 'right',
+      })
+      .setOrigin(1, 0)
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD)
       .setVisible(false);
@@ -265,11 +287,19 @@ export class MapHud {
   // --- One-line status setters ------------------------------------------
 
   setWallet(view: WalletView): void {
-    const pointsNote = view.skillPoints > 0 ? `   Skill points: ${view.skillPoints} (K)` : '';
     this.wallet.setText(
       `Coins: ${view.coins}   Rep: ${view.reputation} (${view.tierName})   Lv ${view.level}` +
-        `   ${view.difficulty}${pointsNote}`,
+        `   ${view.difficulty}`,
     );
+    // The unspent-points cue moves out of the dense wallet line into its own
+    // salient chip so it stops being overlooked (#174).
+    const points = view.skillPoints;
+    this.skillCue.setVisible(points > 0);
+    if (points > 0) {
+      const s = points === 1 ? '' : 's';
+      const it = points === 1 ? 'it' : 'them';
+      this.skillCue.setText(`${points} skill point${s} to spend  -  press K to fit ${it}`);
+    }
   }
 
   setObjective(text: string): void {
