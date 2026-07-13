@@ -78,9 +78,11 @@ Terrain `deep-mire` requires `mire-crossing`; the base wagon is blocked, but
 Marsh Treads (coins) or Off-road rank 2 (skill points) opens it, and a longer
 passable route always exists.
 
-Hidden routes reuse the existing fog + reveal radius: a shortcut tile that is only
-*found* once reveal (Wayfinder skill / lantern upgrades) has uncovered it. This is
-a discovery gate, separate from the passability gate above.
+A discovery gate reuses the existing fog + reveal radius: content that is only
+*found* once reveal (Wayfinder skill / lantern upgrades) has uncovered it,
+separate from the passability gate above. The pre-build pass (#111) reframed the
+payoff from a hidden *shortcut* (rejected) to hidden *lore* (see slice 5b): the
+same reveal-reward mechanic, but the reward is story rather than a route.
 
 ## Build order (slices)
 
@@ -127,6 +129,36 @@ a discovery gate, separate from the passability gate above.
      with a single tidal-flat crossing at (16,7). Premium standing contract
      `fenmarch-cipher-for-fenholt` (115 coins). The crossing saves ~4 tiles from
      Mossgate; the dry way round the east verge (column 19) stays open.
+
+5b. **Reveal-rewarded discoveries (not hidden routes).** SHIPPED. Slice 5
+   originally paired the passability gates with a *hidden shortcut* found only by
+   a reveal upgrade. The pre-build design pass (#111) rejected that: an invisible
+   shortcut fights the "desire a visible route" pull the whole roads-gate
+   direction is built on, and reveal is a soft, path- and radius-dependent
+   property that is far harder to keep the arc honest about than a passability
+   `true`/`false`. Owner call (2026-07-13): reframe the discovery gate as
+   **lore, not a route**.
+
+   - A **wayside discovery** is a coordinate-anchored scrap of lore hidden in the
+     fog (`src/systems/discovery.ts`, content in `src/data/discoveries.ts`). It is
+     *found* the moment the courier's fog reveals its tile, so investing in reveal
+     (Wayfinder skill, far-lantern upgrade) earns a non-buff payoff. It never
+     touches the critical path, the economy, or passability, so it dodges both the
+     arc-soft-lock and testability problems: the reward is story, serving the
+     "Story through places" pillar and the Hidden Road / Cipher thread.
+   - Fully **derived from fog**: a discovery is found iff its tile is revealed, and
+     revealed fog is already saved per region, so there is no new save state
+     (matching story-threads, missions, encounters). Found once via the
+     newly-revealed set (no re-toast on reload); re-readable in the journal's
+     "Wayside discoveries" section.
+   - **Cipher** decodes a deeper `cipherNote` line per discovery, giving that story
+     skill (#183) a concrete second surface without gating the base find.
+   - Placement is off the direct routes in a quiet corner of each region
+     (Greybridge NE forest 25,1; Saltreach north wood 16,1; Fenmarch west hills
+     2,8), guarded by `discovery-invariants.test.ts` (base-passable, off any
+     settlement, unique) the same way encounter tiles are.
+   - Playtest-gated: whether reveal now feels worth investing in is the #109-class
+     play signal this slice exists to answer.
 
 ## Non-goals
 

@@ -88,6 +88,13 @@ import {
 import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { ENCOUNTERS } from '../data/encounters';
 import { activeEncounters } from '../systems/encounter-system';
+import { DISCOVERIES } from '../data/discoveries';
+import {
+  discoveryLines,
+  foundDiscoveries,
+  newlyFound,
+  type Discovery,
+} from '../systems/discovery';
 import { totalXp, levelForXp, levelProgress } from '../systems/experience';
 import {
   SKILLS,
@@ -1333,6 +1340,23 @@ export class MapScene extends Phaser.Scene {
       this.fogRects[index]?.destroy();
       this.fogRects[index] = undefined;
     }
+    // A wayside discovery is found the moment its tile first reveals, so a
+    // courier who invests in reveal is paid in lore, not just sight (#111).
+    // Derived from the newly-revealed set, so it fires once and never on reload.
+    for (const discovery of newlyFound(DISCOVERIES, this.region.id, revealed)) {
+      this.announceDiscovery(discovery);
+    }
+  }
+
+  /** True once the courier can read the coded cipher lines (Cipher skill owned). */
+  private hasCipher(): boolean {
+    return rankOf(this.skills, 'cipher') > 0;
+  }
+
+  /** Toast a found discovery and keep its lore re-readable in the journal. */
+  private announceDiscovery(discovery: Discovery): void {
+    const [title, ...body] = discoveryLines(discovery, this.hasCipher());
+    this.logEvent(`You found ${title}. ${body.join(' ')}`);
   }
 
   /** Courier experience, derived from cumulative play stats (not stored). */
@@ -2064,6 +2088,10 @@ export class MapScene extends Phaser.Scene {
           regions: Object.values(REGIONS).map((r) => ({ name: r.name, contracts: r.contracts })),
           completedIds: this.completed,
           flags: this.effectiveFlags(),
+        },
+        discoveries: {
+          found: foundDiscoveries(DISCOVERIES, this.region.id, this.fog),
+          hasCipher: this.hasCipher(),
         },
         recentEvents: this.recentEvents,
         achievements: ACHIEVEMENTS.map((a) => ({

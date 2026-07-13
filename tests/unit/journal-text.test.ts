@@ -59,6 +59,7 @@ function makeInput(overrides: Partial<JournalTextInput> = {}): JournalTextInput 
     distanceText: '12 tiles',
     mission: { missions: [MISSION], state: { completedContractIds: [], flags: new Set(), visitedIds: ['ashford'] }, regionId: 'greybridge' },
     threads: { regions: THREAD_REGIONS, completedIds: new Set(), flags: emptyFlags() },
+    discoveries: { found: [], hasCipher: false },
     recentEvents: [],
     achievements: [{ name: 'First Delivery', earned: true }, { name: 'Explorer', earned: false }],
     ...overrides,
@@ -111,6 +112,51 @@ describe('buildJournalText', () => {
     }));
     expect(text).toContain('The Hidden Road');
     expect(text).toContain('Unsigned Letters');
+  });
+
+  it('hides the wayside-discoveries section until something is found', () => {
+    expect(buildJournalText(makeInput())).not.toContain('Wayside discoveries');
+  });
+
+  it('lists a found discovery, hiding its cipher line without the skill', () => {
+    const text = buildJournalText(makeInput({
+      discoveries: {
+        found: [
+          {
+            id: 'd1',
+            regionId: 'greybridge',
+            tile: { x: 1, y: 1 },
+            title: 'The Cairn',
+            note: 'Grey stones.',
+            cipherNote: 'The coded line.',
+          },
+        ],
+        hasCipher: false,
+      },
+    }));
+    expect(text).toContain('Wayside discoveries:');
+    expect(text).toContain('The Cairn');
+    expect(text).toContain('Grey stones.');
+    expect(text).not.toContain('The coded line.');
+  });
+
+  it('reveals the cipher line for a found discovery when Cipher is owned', () => {
+    const text = buildJournalText(makeInput({
+      discoveries: {
+        found: [
+          {
+            id: 'd1',
+            regionId: 'greybridge',
+            tile: { x: 1, y: 1 },
+            title: 'The Cairn',
+            note: 'Grey stones.',
+            cipherNote: 'The coded line.',
+          },
+        ],
+        hasCipher: true,
+      },
+    }));
+    expect(text).toContain('The coded line.');
   });
 
   it('lists recent events newest first, and omits the section when empty', () => {
