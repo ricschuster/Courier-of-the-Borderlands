@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   pickEncounter,
+  activeEncounters,
   isEncounterResolved,
   resolutionFlags,
   outcomeForFlag,
@@ -118,6 +119,33 @@ describe('pickEncounter', () => {
     expect(
       pickEncounter([a, b], { regionId: 'greybridge', tile: { x: 7, y: 8 }, flags: emptyFlags() })?.id,
     ).toBe('a');
+  });
+});
+
+describe('activeEncounters', () => {
+  const here = makeEncounter({ id: 'here' });
+  const elsewhere = makeEncounter({ id: 'elsewhere', regionId: 'saltreach', tile: { x: 1, y: 1 } });
+  const gated = makeEncounter({ id: 'gated', tile: { x: 2, y: 2 }, requires: { allOf: ['arc'] } });
+  const all = [here, elsewhere, gated];
+
+  it('returns unresolved, requirement-met encounters in the region', () => {
+    const active = activeEncounters(all, 'greybridge', emptyFlags());
+    expect(active.map((e) => e.id)).toEqual(['here']);
+  });
+
+  it('includes a gated encounter once its requirement is met', () => {
+    const active = activeEncounters(all, 'greybridge', flagsFromArray(['arc']));
+    expect(active.map((e) => e.id).sort()).toEqual(['gated', 'here']);
+  });
+
+  it('drops an encounter once it is resolved', () => {
+    const active = activeEncounters(all, 'greybridge', flagsFromArray(['enc_paid']));
+    expect(active.map((e) => e.id)).toEqual([]);
+  });
+
+  it('only returns encounters for the queried region', () => {
+    const active = activeEncounters(all, 'saltreach', emptyFlags());
+    expect(active.map((e) => e.id)).toEqual(['elsewhere']);
   });
 });
 
