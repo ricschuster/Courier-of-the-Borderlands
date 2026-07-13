@@ -1145,6 +1145,12 @@ export class MapScene extends Phaser.Scene {
    */
   private handleFordHint(): void {
     const { x, y } = this.courierTile();
+    // Only hint when the courier genuinely cannot cross the gated tile. Check
+    // the full traversal key set, not the raw unlock set: a capability gate like
+    // tidal-crossing is satisfied by an owned upgrade or an off-road skill rank,
+    // so a player who holds the capability must not be told it is "blocked"
+    // (2026-07-12 playtest, #180: Saltmere with Off-road 3).
+    const keys = this.traversalKeys();
     const beside = [
       { x: x + 1, y },
       { x: x - 1, y },
@@ -1153,7 +1159,7 @@ export class MapScene extends Phaser.Scene {
     ].some((n) => {
       const id = getTerrainIdAt(this.map, n.x, n.y);
       const unlockId = id === undefined ? undefined : getTerrain(id)?.unlockId;
-      return unlockId !== undefined && !isUnlocked(this.state, unlockId);
+      return unlockId !== undefined && !keys.has(unlockId);
     });
     if (beside && !this.atLockedFordHinted) {
       this.atLockedFordHinted = true;
