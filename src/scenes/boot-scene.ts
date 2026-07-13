@@ -4,9 +4,11 @@ import {
   TERRAIN_ATLAS_KEY,
   TERRAIN_ATLAS_FRAME_CONFIG,
 } from '../data/terrain-art';
-// Vite resolves this import to a hashed, base-path-aware URL that works in dev,
+import { MARKER_ATLAS_KEY, MARKER_ATLAS_FRAME_CONFIG } from '../data/marker-art';
+// Vite resolves these imports to hashed, base-path-aware URLs that work in dev,
 // the production build, and GitHub Pages. Typed via vite/client in tsconfig.
 import terrainSheetUrl from '../../assets/sprites/roguelike-rpg-sheet.png';
+import markerSheetUrl from '../../assets/sprites/tiny-town-sheet.png';
 
 // Boot scene: the entry scene for the game. Later this will preload assets; for
 // now it routes to the right first screen.
@@ -30,6 +32,7 @@ export class BootScene extends Phaser.Scene {
   // (straight in, or via the title screen).
   preload(): void {
     this.load.spritesheet(TERRAIN_ATLAS_KEY, terrainSheetUrl, TERRAIN_ATLAS_FRAME_CONFIG);
+    this.load.spritesheet(MARKER_ATLAS_KEY, markerSheetUrl, MARKER_ATLAS_FRAME_CONFIG);
   }
 
   create(): void {
