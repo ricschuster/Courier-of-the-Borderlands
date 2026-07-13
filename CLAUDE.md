@@ -513,6 +513,21 @@ it to a one-line mention per relevant issue; do not dump the whole list or act
 on issues the owner did not ask about. Issues are the durable tracker between
 sessions, so this is how stale items get resurfaced.
 
+## Repo-local skills
+
+This repo ships Claude Code skills in `.claude/skills/` that encode recurring,
+multi-step workflows so any session runs them the same way. Reach for them
+instead of re-deriving the steps:
+
+- `region-map` when authoring or resizing a region map (reachability invariants,
+  the sealed-pocket shortcut rule, the wear estimate, and the `test:arc`
+  coordinate-drift trap).
+- `playtest-triage` when the owner pastes a batch of playtest notes (bucket into
+  issues, ship the clear fixes one PR at a time).
+
+See `.claude/skills/README.md` for what each covers and the line between a skill
+and plain `CLAUDE.md` / `docs/` guidance.
+
 ## Claude Code operating mode
 
 Act as an autonomous coding agent, but keep the project owner in control of design direction.
