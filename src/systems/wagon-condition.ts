@@ -254,6 +254,29 @@ export function isStranded(condition: number): boolean {
   return clampCondition(condition) <= MIN_CONDITION;
 }
 
+/** Fraction of capacity remaining, in [0, 1]. A non-positive max reads as empty. */
+export function conditionFraction(condition: number, max: number): number {
+  if (max <= 0) {
+    return 0;
+  }
+  return clampCondition(condition, max) / max;
+}
+
+/**
+ * At or below this fraction of capacity the wagon is "low": still moving, but
+ * close enough to stranding to warn the player so they can repair in time (#182).
+ */
+export const LOW_CONDITION_FRACTION = 0.3;
+
+/**
+ * Whether the wagon is low enough to warn about: it still moves (not stranded)
+ * but has dropped to LOW_CONDITION_FRACTION or less of capacity. Stranded is its
+ * own louder state (the HUD already shouts STRANDED there), so it is not "low".
+ */
+export function isLowCondition(condition: number, max: number): boolean {
+  return !isStranded(condition) && conditionFraction(condition, max) <= LOW_CONDITION_FRACTION;
+}
+
 export interface RescueResult {
   readonly ok: boolean;
   readonly coins: number;

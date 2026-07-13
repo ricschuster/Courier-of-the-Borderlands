@@ -306,8 +306,13 @@ export class MapHud {
     this.objective.setText(text);
   }
 
-  setTerrain(text: string): void {
-    this.terrainReadout.setText(text);
+  /**
+   * Set the terrain + wagon status line. The colour cues wagon condition (#182):
+   * neutral when healthy, amber when low, red when stranded, so the line warns at
+   * a glance before the wagon runs dry.
+   */
+  setTerrain(text: string, color = '#e8e8e8'): void {
+    this.terrainReadout.setText(text).setColor(color);
   }
 
   setWeather(text: string): void {

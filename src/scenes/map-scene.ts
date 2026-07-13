@@ -57,6 +57,7 @@ import {
   applyWear,
   limpMultiplier,
   isStranded,
+  isLowCondition,
   repair,
   repairCost,
   rescue,
@@ -335,6 +336,12 @@ export class MapScene extends Phaser.Scene {
   private wagonCondition = MAX_CONDITION;
   /** Cumulative condition points worn away this session, for tuning telemetry. */
   private wagonWearTotal = 0;
+  /**
+   * True once the low-condition warning has fired for the current low spell, so
+   * it toasts once on the way down and re-arms only after a repair lifts the
+   * wagon back above the low threshold (#182).
+   */
+  private lowConditionWarned = false;
   /** Chosen difficulty preset. Loaded from the persisted preference on boot. */
   private difficulty: Difficulty = 'standard';
   /**
@@ -988,7 +995,11 @@ export class MapScene extends Phaser.Scene {
       terrain === undefined
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`;
-    this.hud.setTerrain(`${terrainLabel}   ${this.wagonConditionLabel()}`);
+    this.hud.setTerrain(
+      `${terrainLabel}   ${this.wagonConditionLabel()}`,
+      this.wagonStatusColor(),
+    );
+    this.warnLowConditionOnce();
     this.refreshObjective();
     this.refreshHint();
     this.refreshOnboarding();
@@ -1033,6 +1044,35 @@ export class MapScene extends Phaser.Scene {
   private applyDifficulty(difficulty: Difficulty): void {
     this.difficulty = difficulty;
     this.wagonTuning = WAGON_TUNING[difficulty];
+  }
+
+  /** Colour for the terrain/wagon status line, cueing wagon condition (#182). */
+  private wagonStatusColor(): string {
+    if (isStranded(this.wagonCondition)) {
+      return '#e88f8f'; // red: dead in the water
+    }
+    if (isLowCondition(this.wagonCondition, this.wagonMax())) {
+      return '#f2c94c'; // amber: running low, repair soon
+    }
+    return '#e8e8e8';
+  }
+
+  /**
+   * Toast once when the wagon first drops into the low band, so the player gets a
+   * salient heads-up before stranding (#182). Re-arms only after a repair lifts
+   * it back above the threshold, so it does not nag every frame while low.
+   */
+  private warnLowConditionOnce(): void {
+    if (isLowCondition(this.wagonCondition, this.wagonMax())) {
+      if (!this.lowConditionWarned) {
+        this.lowConditionWarned = true;
+        this.hud.showToast('Wagon condition low. Repair at a town before it strands.');
+      }
+    } else if (!isStranded(this.wagonCondition)) {
+      // Back above the low band (a repair): re-arm for the next low spell. Stay
+      // armed through stranding so it does not re-fire on the way down to 0.
+      this.lowConditionWarned = false;
+    }
   }
 
   /** HUD label for the wagon condition, cueing repair/rescue and its cost. */
