@@ -15,8 +15,9 @@
 export const MAX_CONDITION = 100;
 export const MIN_CONDITION = 0;
 
-// Structural, not difficulty-tunable: the road/bridge speed modifier, so roads
-// normalise to roughness 0.
+// Structural, not difficulty-tunable: the road/bridge WEAR speed modifier, so
+// roads normalise to roughness 0 (no wear). Roads now move at 1.2x but pin their
+// wear modifier at 1.4x (terrain-types wearSpeedModifier), so this stays the max.
 export const MAX_SPEED_MODIFIER = 1.4;
 
 /**

@@ -34,8 +34,27 @@ export interface TerrainType {
 export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   plains: { id: 'plains', name: 'Plains', color: 0x5a8f4a, passable: true, speedModifier: 1 },
   forest: { id: 'forest', name: 'Forest', color: 0x2f5a2a, passable: true, speedModifier: 0.55 },
-  road: { id: 'road', name: 'Road', color: 0xb89a6a, passable: true, speedModifier: 1.4 },
-  bridge: { id: 'bridge', name: 'Bridge', color: 0x8a6a3a, passable: true, speedModifier: 1.4 },
+  // Road/bridge: the fast way to travel. Movement was 1.4x but read as too fast
+  // on the open road (2026-07-12 playtest, #185), so it is eased to 1.2x. Wear is
+  // pinned at 1.4x via wearSpeedModifier so roads still normalise to roughness 0
+  // (no wear), keeping the felt-speed change decoupled from the travel-sink
+  // economy (#110 stays as tuned). See ADR 0005 and getWearSpeedModifier.
+  road: {
+    id: 'road',
+    name: 'Road',
+    color: 0xb89a6a,
+    passable: true,
+    speedModifier: 1.2,
+    wearSpeedModifier: 1.4,
+  },
+  bridge: {
+    id: 'bridge',
+    name: 'Bridge',
+    color: 0x8a6a3a,
+    passable: true,
+    speedModifier: 1.2,
+    wearSpeedModifier: 1.4,
+  },
   water: { id: 'water', name: 'Water', color: 0x2f5fa0, passable: false, speedModifier: 0 },
   mountain: { id: 'mountain', name: 'Mountain', color: 0x6b6b6b, passable: false, speedModifier: 0 },
   // Hills: passable high ground. Slower than plains but a fair bit quicker than
