@@ -11,6 +11,9 @@ import {
   repair,
   limpMultiplier,
   isStranded,
+  conditionFraction,
+  isLowCondition,
+  LOW_CONDITION_FRACTION,
   rescue,
   maxConditionForLevel,
   MAX_CONDITION,
@@ -235,6 +238,32 @@ describe('limpMultiplier and isStranded', () => {
   it('is limp speed at 0', () => {
     expect(limpMultiplier(0)).toBe(LIMP_SPEED);
     expect(isStranded(0)).toBe(true);
+  });
+});
+
+describe('conditionFraction and isLowCondition', () => {
+  it('reports the fraction of capacity remaining', () => {
+    expect(conditionFraction(50, 100)).toBe(0.5);
+    expect(conditionFraction(30, 60)).toBe(0.5);
+    expect(conditionFraction(100, 100)).toBe(1);
+  });
+
+  it('treats a non-positive capacity as empty', () => {
+    expect(conditionFraction(10, 0)).toBe(0);
+  });
+
+  it('is low at or below the threshold fraction but above stranded', () => {
+    const max = 50;
+    // Exactly at the threshold counts as low.
+    expect(isLowCondition(max * LOW_CONDITION_FRACTION, max)).toBe(true);
+    // Just below the threshold is low.
+    expect(isLowCondition(max * LOW_CONDITION_FRACTION - 1, max)).toBe(true);
+    // Comfortably above the threshold is not low.
+    expect(isLowCondition(max * 0.8, max)).toBe(false);
+  });
+
+  it('is not "low" when stranded (that is its own louder state)', () => {
+    expect(isLowCondition(0, 50)).toBe(false);
   });
 });
 
