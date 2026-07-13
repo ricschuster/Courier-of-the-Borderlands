@@ -925,6 +925,7 @@ export class MapScene extends Phaser.Scene {
       countReliefUpgrades(this.state.upgrades, UPGRADES_GREYBRIDGE),
       rankOf(this.skills, 'off-road'),
       this.wagonTuning,
+      this.region.wearMultiplier ?? 1,
     );
     this.courier.setVelocity(velocity.x, velocity.y);
 

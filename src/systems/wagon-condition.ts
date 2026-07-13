@@ -157,14 +157,22 @@ export function offRoadWearFactor(
 /**
  * Condition points lost per tile travelled on the given terrain, after relief.
  * `rawSpeedModifier` is the terrain's own modifier (not relief-adjusted).
+ *
+ * `regionWearMultiplier` scales only the roughness-dependent term, so a rougher
+ * region (Fenmarch, #186) wears the wagon harder off-road without touching the
+ * flat road-wear base: roads stay at roughness 0 and wear nothing regardless.
+ * This is the lever for the late-game curve inversion, where a big tank plus
+ * maxed relief/off-road otherwise soak up a whole region's wear.
  */
 export function wearPerTile(
   rawSpeedModifier: number,
   reliefUpgradeCount: number,
   offRoadRank: number,
   tuning: WagonTuning = DEFAULT_WAGON_TUNING,
+  regionWearMultiplier = 1,
 ): number {
-  const base = tuning.wearBase + tuning.wearCoef * roughness(rawSpeedModifier);
+  const base =
+    tuning.wearBase + tuning.wearCoef * roughness(rawSpeedModifier) * regionWearMultiplier;
   return (
     base * wearReliefFactor(reliefUpgradeCount, tuning) * offRoadWearFactor(offRoadRank, tuning)
   );
