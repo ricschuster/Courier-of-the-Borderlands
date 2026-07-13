@@ -35,6 +35,9 @@ test('opens the postmaster dialogue and a choice sets a persisted story flag', a
     async () => (await readTick(page, home.tileX, home.tileY)).state.dialogueOpen,
   );
   expect((await readTick(page, home.tileX, home.tileY)).state.dialogueOpen).toBe(true);
+  // The home contract board yields to the open dialogue so the two do not
+  // overlap (#181): while talking, the board is hidden.
+  expect((await readTick(page, home.tileX, home.tileY)).state.boardVisible).toBe(false);
 
   // 3. Take the first choice ("What is happening to the roads?"), which sets the
   //    met-postmaster flag. Re-press until the flag lands.
@@ -57,7 +60,11 @@ test('opens the postmaster dialogue and a choice sets a persisted story flag', a
     'Escape',
     async () => !(await readTick(page, home.tileX, home.tileY)).state.dialogueOpen,
   );
-  expect((await readTick(page, home.tileX, home.tileY)).state.dialogueOpen).toBe(false);
+  const closed = await readTick(page, home.tileX, home.tileY);
+  expect(closed.state.dialogueOpen).toBe(false);
+  // With the dialogue closed and still at home with no active contract, the
+  // board returns: it was suppressed by the dialogue, not by anything else.
+  expect(closed.state.boardVisible).toBe(true);
 
   // 5. The story flag must persist to the save.
   const save = await page.evaluate(() => localStorage.getItem('courier-of-the-borderlands/save'));
