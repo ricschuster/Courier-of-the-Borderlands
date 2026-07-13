@@ -49,6 +49,13 @@ export interface Region {
   readonly signpost?: TileCoord;
   /** Unlock id for this region's own ford crossing, if it has one. */
   readonly fordUnlockId?: string;
+  /**
+   * Optional multiplier on the roughness-dependent wear per tile (#186). Defaults
+   * to 1. A rougher region (e.g. Fenmarch) sets this above 1 so its off-road legs
+   * bite harder late in the arc, when a big tank and maxed relief/off-road would
+   * otherwise soak up the wear. Roads (roughness 0) are unaffected.
+   */
+  readonly wearMultiplier?: number;
 }
 
 export const GREYBRIDGE_REGION: Region = {
@@ -104,6 +111,14 @@ export const FENMARCH_REGION: Region = {
   // Immediately west of the ford tile (12,16), matching the Greybridge convention.
   signpost: { x: 11, y: 16 },
   fordUnlockId: 'ford-crossing-fenmarch',
+  // The final, roughest region reads too soft in the travel-sink measure (min
+  // condition ~79 vs greybridge 0): by here the wagon has a big tank and maxed
+  // relief/off-road, so its fen legs barely register. Push its off-road wear up
+  // decisively so Fenmarch bites (#186). Playtest-gated starting value: at 2.2x
+  // Fenmarch becomes the highest-wearing region in the measure (its off-road legs
+  // cost the most coin to repair and strand a careless courier), which is the
+  // decisive push the owner asked for. Easy to dial from here after a playtest.
+  wearMultiplier: 2.2,
 };
 
 export const REGIONS: Readonly<Record<string, Region>> = {

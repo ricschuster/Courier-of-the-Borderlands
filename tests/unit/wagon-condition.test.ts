@@ -100,6 +100,23 @@ describe('wearPerTile', () => {
     expect(maxed).toBeCloseTo(bare * 0.55 * 0.7, 5);
     expect(maxed).toBeGreaterThan(0);
   });
+
+  it('scales only the roughness term by the region wear multiplier (#186)', () => {
+    // Rough terrain wears more under a >1 region multiplier.
+    const normal = wearPerTile(0.45, 0, 0, DEFAULT_WAGON_TUNING, 1);
+    const rough = wearPerTile(0.45, 0, 0, DEFAULT_WAGON_TUNING, 1.8);
+    expect(rough).toBeGreaterThan(normal);
+    // The extra is exactly the coef * roughness term scaled by (1.8 - 1).
+    const extra = WEAR_COEF * roughness(0.45) * 0.8;
+    expect(rough - normal).toBeCloseTo(extra, 5);
+  });
+
+  it('leaves road wear untouched by the region multiplier (roughness 0)', () => {
+    // Roads normalise to roughness 0, so the multiplier has nothing to scale:
+    // a rough region never makes the open road wear the wagon.
+    const road = wearPerTile(1.4, 0, 0, DEFAULT_WAGON_TUNING, 1.8);
+    expect(road).toBeCloseTo(WEAR_BASE, 5);
+  });
 });
 
 describe('applyWear and clampCondition', () => {
