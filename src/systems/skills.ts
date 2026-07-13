@@ -43,7 +43,8 @@ export const SKILLS: readonly Skill[] = [
   {
     id: 'cipher',
     name: 'Cipher',
-    description: 'You have learned to read what you carry. Unlocks new lines in conversation.',
+    description:
+      'You can read the coded letters and secrets in your cargo, unlocking hidden dialogue about who is quietly rebuilding the roads. A story skill: it reveals lore, not speed or coin.',
     maxRank: 1,
     perRank: {},
   },
