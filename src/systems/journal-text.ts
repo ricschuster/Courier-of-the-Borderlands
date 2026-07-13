@@ -24,6 +24,7 @@ import {
   hiddenRoadProgress,
   type ThreadRegion,
 } from './story-threads';
+import { discoveryLines, type Discovery } from './discovery';
 import type { StoryFlags } from './dialogue';
 
 export interface JournalMissionInput {
@@ -43,6 +44,13 @@ export interface JournalAchievementInput {
   readonly earned: boolean;
 }
 
+export interface JournalDiscoveryInput {
+  /** Discoveries already found in the current region, in list order. */
+  readonly found: readonly Discovery[];
+  /** Whether the courier can read the decoded cipher lines. */
+  readonly hasCipher: boolean;
+}
+
 export interface JournalTextInput {
   /** Passed through to buildJournal for the redacted places and summary. */
   readonly journal: JournalInput;
@@ -52,6 +60,7 @@ export interface JournalTextInput {
   readonly distanceText: string;
   readonly mission: JournalMissionInput;
   readonly threads: JournalThreadsInput;
+  readonly discoveries: JournalDiscoveryInput;
   /** Recent story messages, oldest first (shown newest first). */
   readonly recentEvents: readonly string[];
   readonly achievements: readonly JournalAchievementInput[];
@@ -71,6 +80,27 @@ function missionLines(input: JournalMissionInput): string[] {
     const progressNote = !entry.done && count.total > 1 ? ` (${count.done}/${count.total})` : '';
     lines.push(`    ${mark} ${entry.step.summary}${progressNote}`);
   });
+  lines.push('');
+  return lines;
+}
+
+/**
+ * Wayside-discovery lines: the lore found by revealing the fog in this region.
+ * Empty until at least one is found, so it never hints at what has not been
+ * uncovered. Each entry shows its title, note, and (with Cipher) decoded line.
+ */
+function discoverySection(input: JournalDiscoveryInput): string[] {
+  if (input.found.length === 0) {
+    return [];
+  }
+  const lines = ['Wayside discoveries:'];
+  for (const discovery of input.found) {
+    const [title, ...body] = discoveryLines(discovery, input.hasCipher);
+    lines.push(`  ${title}`);
+    for (const paragraph of body) {
+      lines.push(`    ${paragraph}`);
+    }
+  }
   lines.push('');
   return lines;
 }
@@ -101,6 +131,7 @@ export function buildJournalText(input: JournalTextInput): string {
     '',
     ...missionLines(input.mission),
     ...threadLines,
+    ...discoverySection(input.discoveries),
     ...recentLines(input.recentEvents),
     'Places:',
   ];
