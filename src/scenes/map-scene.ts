@@ -9,6 +9,7 @@ import {
   CAMERA_LERP,
 } from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
+import { terrainArt, TERRAIN_ATLAS_KEY, type TerrainArt } from '../data/terrain-art';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import {
   getTerrain,
@@ -284,6 +285,7 @@ declare global {
 
 // Depth layers, from bottom to top. HUD depth lives in map-hud.ts and marker
 // depth in map-markers.ts.
+const DEPTH_TERRAIN = 0;
 const DEPTH_COURIER = 6;
 const DEPTH_FOG = 5;
 
@@ -1272,7 +1274,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   private drawTiles(): void {
-    const tiles = this.add.graphics();
+    // Grey-box fill remains the fallback for any terrain without an art entry,
+    // so the map still renders if a skin is partial (art Phase 2, #152).
+    const tiles = this.add.graphics().setDepth(DEPTH_TERRAIN);
     for (let y = 0; y < this.map.height; y++) {
       for (let x = 0; x < this.map.width; x++) {
         const terrainId = getTerrainIdAt(this.map, x, y);
@@ -1283,9 +1287,29 @@ export class MapScene extends Phaser.Scene {
         if (terrain === undefined) {
           continue;
         }
-        tiles.fillStyle(terrain.color, 1);
-        tiles.fillRect(x * TILE_SIZE, this.mapOriginY + y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        const art = terrainArt(terrainId);
+        if (art === undefined) {
+          tiles.fillStyle(terrain.color, 1);
+          tiles.fillRect(x * TILE_SIZE, this.mapOriginY + y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          continue;
+        }
+        this.drawTileArt(x, y, art);
       }
+    }
+  }
+
+  /** Draw a terrain tile from the atlas: the ground frame, then any overlay. */
+  private drawTileArt(x: number, y: number, art: TerrainArt): void {
+    const center = this.tileCenter(x, y);
+    this.add
+      .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.base)
+      .setDisplaySize(TILE_SIZE, TILE_SIZE)
+      .setDepth(DEPTH_TERRAIN);
+    if (art.overlay !== undefined) {
+      this.add
+        .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.overlay)
+        .setDisplaySize(TILE_SIZE, TILE_SIZE)
+        .setDepth(DEPTH_TERRAIN);
     }
   }
 
