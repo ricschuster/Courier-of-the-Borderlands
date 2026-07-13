@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { TILE_SIZE } from '../config/game-config';
 import { getRegion, type Region } from '../systems/region-system';
 import type { SettlementStatus } from '../systems/world-state';
+import type { EncounterTile } from '../systems/encounter-system';
 import { STATUS_COLOR } from './map-hud';
 
 // Markers sit at the bottom of the stack, below fog and the courier (fog and
@@ -20,6 +21,9 @@ export class MapMarkers {
   // Settlement marker rectangles keyed by settlement id, so their fill can be
   // recoloured when a delivery reconnects a place.
   private readonly settlementMarkers = new Map<string, Phaser.GameObjects.Rectangle>();
+  // Road-encounter markers (a diamond + "?" per active encounter tile). Rebuilt
+  // as encounters activate or resolve, so the list is torn down and redrawn.
+  private encounterMarkers: Phaser.GameObjects.GameObject[] = [];
 
   constructor(scene: Phaser.Scene, mapOriginY: number) {
     this.scene = scene;
@@ -59,6 +63,38 @@ export class MapMarkers {
   refreshSettlements(status: Record<string, SettlementStatus>): void {
     for (const [id, marker] of this.settlementMarkers) {
       marker.setFillStyle(STATUS_COLOR[status[id] ?? 'silent']);
+    }
+  }
+
+  /**
+   * Redraw the road-encounter markers: a small amber diamond with a "?" above
+   * each active encounter tile, telling the player something waits there before
+   * they drive onto it (#184). Called on load and whenever encounters activate
+   * or resolve. Markers sit at DEPTH_MARKER, so fog still hides each one until
+   * the courier reveals its tile.
+   */
+  setEncounters(tiles: readonly EncounterTile[]): void {
+    for (const marker of this.encounterMarkers) {
+      marker.destroy();
+    }
+    this.encounterMarkers = [];
+    for (const tile of tiles) {
+      const center = this.tileCenter(tile.x, tile.y);
+      const diamond = this.scene.add
+        .rectangle(center.x, center.y, TILE_SIZE * 0.42, TILE_SIZE * 0.42, 0xe0a83a)
+        .setStrokeStyle(2, 0x3a2a10)
+        .setAngle(45)
+        .setDepth(DEPTH_MARKER);
+      const glyph = this.scene.add
+        .text(center.x, center.y, '?', {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#3a2a10',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_MARKER);
+      this.encounterMarkers.push(diamond, glyph);
     }
   }
 

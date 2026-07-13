@@ -118,6 +118,26 @@ export function pickEncounter(
 }
 
 /**
+ * Encounters worth foreshadowing with a map marker: in the region, their
+ * `requires` gate met, and not yet resolved. This is the same gate as
+ * pickEncounter minus the tile match, so a marker appears exactly where driving
+ * on would trigger something, and disappears once the encounter is spent (#184).
+ * Fog still hides each marker until the courier reveals its tile.
+ */
+export function activeEncounters(
+  encounters: readonly RoadEncounter[],
+  regionId: string,
+  flags: StoryFlags,
+): RoadEncounter[] {
+  return encounters.filter(
+    (encounter) =>
+      encounter.regionId === regionId &&
+      conditionMet(flags, encounter.requires) &&
+      !isEncounterResolved(encounter, flags),
+  );
+}
+
+/**
  * Structural validation for authored encounters, mirroring validateDialogue.
  * Reports: an underlying dialogue that is malformed, an encounter with no
  * outcomes (so it could never resolve and would re-fire forever), and any

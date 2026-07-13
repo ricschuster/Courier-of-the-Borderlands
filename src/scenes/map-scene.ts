@@ -86,6 +86,8 @@ import {
   type SettlementStatus,
 } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
+import { ENCOUNTERS } from '../data/encounters';
+import { activeEncounters } from '../systems/encounter-system';
 import { totalXp, levelForXp, levelProgress } from '../systems/experience';
 import {
   SKILLS,
@@ -363,6 +365,10 @@ export class MapScene extends Phaser.Scene {
   // Story flags set through dialogue, persisted across regions. Presence means
   // set. Derived situational flags are added at dialogue time, not stored here.
   private storyFlags: StoryFlags = emptyFlags();
+  // Story-flag count the encounter markers were last built at. Flags are only
+  // ever added, so a size change means an encounter may have activated (a
+  // `requires` gate met) or resolved: rebuild the markers then, not every frame.
+  private encounterMarkerFlagCount = -1;
   private talkKey!: Phaser.Input.Keyboard.Key;
   private escapeKey!: Phaser.Input.Keyboard.Key;
   private dismissKey!: Phaser.Input.Keyboard.Key;
@@ -473,6 +479,7 @@ export class MapScene extends Phaser.Scene {
     }
     this.markers.addSettlements(this.region, this.worldState());
     this.markers.addGateways(this.region, this.map.width, this.map.height);
+    this.refreshEncounterMarkers();
     this.addFog();
     this.restoreFog();
     this.setupInput();
@@ -981,6 +988,12 @@ export class MapScene extends Phaser.Scene {
     this.handleTravelInput();
     this.dialogue.handleTalk();
     this.dialogue.handleEncounters();
+    // An encounter just resolved, or an arc flag just activated one: rebuild its
+    // markers so the "?" appears/disappears in step (#184). Keyed on flag count,
+    // which only moves when flags change, so this is a cheap no-op most frames.
+    if (this.storyFlags.size !== this.encounterMarkerFlagCount) {
+      this.refreshEncounterMarkers();
+    }
     this.handleToggles();
     this.refreshBoard();
     // Detect the blockade breaking, which happens through a dialogue choice
@@ -1210,6 +1223,16 @@ export class MapScene extends Phaser.Scene {
     } else if (!beside) {
       this.atLockedFordHinted = false;
     }
+  }
+
+  /**
+   * Rebuild the road-encounter markers for the current region and flags, and
+   * remember the flag count so update() only rebuilds when it changes (#184).
+   */
+  private refreshEncounterMarkers(): void {
+    const tiles = activeEncounters(ENCOUNTERS, this.region.id, this.storyFlags).map((e) => e.tile);
+    this.markers.setEncounters(tiles);
+    this.encounterMarkerFlagCount = this.storyFlags.size;
   }
 
   private terrainUnderCourier(): string | undefined {
