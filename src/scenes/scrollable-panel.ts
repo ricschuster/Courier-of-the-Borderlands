@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/game-config';
+import {
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  UI_PANEL_TEXTURE_KEY,
+  UI_PANEL_CORNER,
+} from '../config/game-config';
 
 // A toggled reference overlay (journal, skills) whose content is often taller
 // than the screen. Earlier these were a single centred Text with no width or
@@ -15,7 +20,8 @@ const PANEL_TOP = 8;
 // Leave room below the panel for the bottom help line (~y=516), which the
 // full-height panel used to cover. See docs/design/05_playtest_notes.md.
 const PANEL_BOTTOM_MARGIN = 40;
-const PANEL_PAD = 12;
+// Padding clears the 9-slice frame's border so text sits on the flat interior.
+const PANEL_PAD = 20;
 // Pixels scrolled per wheel notch; a notch reports ~100 in deltaY.
 const WHEEL_STEP = 0.6;
 // Height of the reserved footer strip that holds the scroll affordance, so the
@@ -33,7 +39,7 @@ export interface ScrollablePanelOptions {
  * the mask tracks the text even when the map camera follows the courier.
  */
 export class ScrollablePanel {
-  private readonly bg: Phaser.GameObjects.Rectangle;
+  private readonly bg: Phaser.GameObjects.NineSlice;
   private readonly text: Phaser.GameObjects.Text;
   private readonly scrollHint: Phaser.GameObjects.Text;
   private readonly maskShape: Phaser.GameObjects.Graphics;
@@ -45,10 +51,22 @@ export class ScrollablePanel {
   private offset = 0;
 
   constructor(scene: Phaser.Scene, opts: ScrollablePanelOptions) {
+    // A Kenney RPG panel drawn as a 9-slice, so the decorative border and corner
+    // bolts stay crisp while the centre stretches to the panel size (art Phase 2).
     this.bg = scene.add
-      .rectangle(this.left, this.viewportTop, PANEL_WIDTH, this.viewportHeight, 0x0b0b0b, 0.96)
+      .nineslice(
+        this.left,
+        this.viewportTop,
+        UI_PANEL_TEXTURE_KEY,
+        undefined,
+        PANEL_WIDTH,
+        this.viewportHeight,
+        UI_PANEL_CORNER,
+        UI_PANEL_CORNER,
+        UI_PANEL_CORNER,
+        UI_PANEL_CORNER,
+      )
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x555049)
       .setScrollFactor(0)
       .setDepth(opts.depth)
       .setVisible(false);

@@ -20,6 +20,12 @@ export const BACKGROUND_COLOR = '#1a1a1a';
 export const COURIER_SIZE = 20;
 export const COURIER_COLOR = 0xf2c14e;
 export const WAGON_TEXTURE_KEY = 'courier-wagon';
+
+// Kenney UI panel (RPG Expansion, CC0) used as a 9-slice frame behind overlay
+// panels. The source is 100x100; UI_PANEL_CORNER is the slice inset that keeps
+// the decorative border and corner bolts undistorted while the centre stretches.
+export const UI_PANEL_TEXTURE_KEY = 'ui-panel';
+export const UI_PANEL_CORNER = 24;
 // Base movement speed in pixels per second (before terrain effects).
 export const COURIER_SPEED = 160;
 
