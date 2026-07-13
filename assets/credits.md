@@ -10,6 +10,16 @@
 - **Local file path:** `assets/sprites/roguelike-rpg-sheet.png`
   (the pack's `roguelikeSheet_transparent.png`: 16x16 tiles, 1px spacing, 57 columns)
 
+## Map markers (settlements, signposts)
+
+- **Asset name:** Tiny Town (houses and signpost used for map markers)
+- **Source URL:** https://kenney.nl/assets/tiny-town
+- **Author:** Kenney (www.kenney.nl)
+- **Licence:** Creative Commons Zero (CC0), public domain
+- **Required attribution:** none required (CC0). Credited here voluntarily.
+- **Local file path:** `assets/sprites/tiny-town-sheet.png`
+  (the pack's `tilemap_packed.png`: 16x16 tiles, no spacing, 12 columns)
+
 ---
 
 When third-party assets are added, list them here with:

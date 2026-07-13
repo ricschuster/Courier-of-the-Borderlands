@@ -4,6 +4,12 @@ import { getRegion, type Region } from '../systems/region-system';
 import type { SettlementStatus } from '../systems/world-state';
 import type { EncounterTile } from '../systems/encounter-system';
 import { STATUS_COLOR } from './map-hud';
+import {
+  MARKER_ATLAS_KEY,
+  SIGNPOST_FRAME,
+  houseForIndex,
+  type HouseArt,
+} from '../data/marker-art';
 
 // Markers sit at the bottom of the stack, below fog and the courier (fog and
 // courier depths live in map-scene.ts).
@@ -18,9 +24,10 @@ const DEPTH_MARKER = 1;
 export class MapMarkers {
   private readonly scene: Phaser.Scene;
   private readonly mapOriginY: number;
-  // Settlement marker rectangles keyed by settlement id, so their fill can be
-  // recoloured when a delivery reconnects a place.
-  private readonly settlementMarkers = new Map<string, Phaser.GameObjects.Rectangle>();
+  // Settlement status pips keyed by settlement id, so their colour can be
+  // recoloured when a delivery reconnects a place (the house sprite itself does
+  // not change; the pip below it carries the world-state feedback).
+  private readonly settlementMarkers = new Map<string, Phaser.GameObjects.Arc>();
   // Road-encounter markers (a diamond + "?" per active encounter tile). Rebuilt
   // as encounters activate or resolve, so the list is torn down and redrawn.
   private encounterMarkers: Phaser.GameObjects.GameObject[] = [];
@@ -37,32 +44,53 @@ export class MapMarkers {
     };
   }
 
-  /** Draw a box and label for every settlement, coloured by world-state. */
+  /** Draw a little house, a status pip, and a label for every settlement. */
   addSettlements(region: Region, status: Record<string, SettlementStatus>): void {
     this.settlementMarkers.clear();
-    for (const settlement of Object.values(region.settlements)) {
+    Object.values(region.settlements).forEach((settlement, i) => {
       const center = this.tileCenter(settlement.tile.x, settlement.tile.y);
-      const fill = STATUS_COLOR[status[settlement.id] ?? 'silent'];
-      const marker = this.scene.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.5, TILE_SIZE * 0.5, fill)
+      this.drawHouse(center, houseForIndex(i));
+      // The house sits on its tile with the roof rising above it; the pip and
+      // label sit just below, so nothing overlaps the building.
+      const baseY = center.y + TILE_SIZE * 0.5;
+      const pip = this.scene.add
+        .circle(center.x, baseY + TILE_SIZE * 0.12, TILE_SIZE * 0.1, STATUS_COLOR[status[settlement.id] ?? 'silent'])
         .setStrokeStyle(2, 0x1a1a1a)
         .setDepth(DEPTH_MARKER);
-      this.settlementMarkers.set(settlement.id, marker);
+      this.settlementMarkers.set(settlement.id, pip);
       this.scene.add
-        .text(center.x, center.y + TILE_SIZE * 0.5, settlement.name, {
+        .text(center.x, baseY + TILE_SIZE * 0.32, settlement.name, {
           fontFamily: 'monospace',
           fontSize: '11px',
           color: '#f2efe4',
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_MARKER);
-    }
+    });
   }
 
-  /** Recolour the settlement markers to match current world-state. */
+  /**
+   * A settlement building: a wall-with-door tile on its ground tile, a pitched
+   * roof stacked directly above it, so the house reads as rising off the map.
+   */
+  private drawHouse(center: { x: number; y: number }, art: HouseArt): void {
+    const size = TILE_SIZE * 0.82;
+    const tileBottom = center.y + TILE_SIZE * 0.5;
+    const wallY = tileBottom - size * 0.5;
+    this.scene.add
+      .image(center.x, wallY, MARKER_ATLAS_KEY, art.wall)
+      .setDisplaySize(size, size)
+      .setDepth(DEPTH_MARKER);
+    this.scene.add
+      .image(center.x, wallY - size, MARKER_ATLAS_KEY, art.roof)
+      .setDisplaySize(size, size)
+      .setDepth(DEPTH_MARKER);
+  }
+
+  /** Recolour the settlement status pips to match current world-state. */
   refreshSettlements(status: Record<string, SettlementStatus>): void {
-    for (const [id, marker] of this.settlementMarkers) {
-      marker.setFillStyle(STATUS_COLOR[status[id] ?? 'silent']);
+    for (const [id, pip] of this.settlementMarkers) {
+      pip.setFillStyle(STATUS_COLOR[status[id] ?? 'silent']);
     }
   }
 
@@ -107,8 +135,8 @@ export class MapMarkers {
       // See docs/design/05_playtest_notes.md.
       const center = this.tileCenter(gateway.tile.x, gateway.tile.y);
       this.scene.add
-        .rectangle(center.x, center.y, TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-        .setStrokeStyle(2, 0x6fd0e0)
+        .image(center.x, center.y, MARKER_ATLAS_KEY, SIGNPOST_FRAME)
+        .setDisplaySize(TILE_SIZE * 0.7, TILE_SIZE * 0.7)
         .setDepth(DEPTH_MARKER);
       const destName = getRegion(gateway.to).name;
       const label = this.scene.add
@@ -142,13 +170,9 @@ export class MapMarkers {
     onReach: () => boolean,
   ): void {
     const center = this.tileCenter(tile.x, tile.y);
-    const signpost = this.scene.add.rectangle(
-      center.x,
-      center.y,
-      TILE_SIZE * 0.5,
-      TILE_SIZE * 0.5,
-      0xe8d8b0,
-    );
+    const signpost = this.scene.add
+      .image(center.x, center.y, MARKER_ATLAS_KEY, SIGNPOST_FRAME)
+      .setDisplaySize(TILE_SIZE * 0.7, TILE_SIZE * 0.7);
     this.scene.physics.add.existing(signpost, true);
     this.scene.add
       .text(center.x, center.y - TILE_SIZE * 0.6, 'ford key', {
