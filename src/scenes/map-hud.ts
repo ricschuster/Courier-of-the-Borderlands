@@ -379,6 +379,10 @@ export class MapHud {
     return this.capstonePanel.visible;
   }
 
+  isBoardVisible(): boolean {
+    return this.board.visible;
+  }
+
   /** Show a conversation node, or hide the dialogue box when view is null. */
   setDialogue(view: DialogueView | null): void {
     if (view === null) {

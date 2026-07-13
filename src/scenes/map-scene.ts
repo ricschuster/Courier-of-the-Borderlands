@@ -233,6 +233,8 @@ interface E2EState {
   readonly summaryVisible: boolean;
   /** Whether the end-of-arc capstone panel is currently shown. */
   readonly capstoneVisible: boolean;
+  /** Whether the home contract board is currently shown. */
+  readonly boardVisible: boolean;
   /** Active mission id for the current region, or null when none is active. */
   readonly activeMissionId: string | null;
   /** The active mission's current step id, or null. */
@@ -803,6 +805,7 @@ export class MapScene extends Phaser.Scene {
       upgradeMenuOpen: this.hud.isUpgradeMenuVisible(),
       summaryVisible: this.hud.isSummaryVisible(),
       capstoneVisible: this.hud.isCapstoneVisible(),
+      boardVisible: this.hud.isBoardVisible(),
       activeMissionId: e2eObjective?.mission.id ?? null,
       activeMissionStepId: e2eObjective?.step.id ?? null,
     };
@@ -1493,11 +1496,14 @@ export class MapScene extends Phaser.Scene {
     // through it (the courier is at the home town when the blockade breaks).
     // The board also yields to any blocking overlay (journal/skills/codex) or the
     // run summary, so only one overlay shows at a time (D1 reserved region, #149).
+    // It likewise yields to an open dialogue (E at a settlement), so the
+    // postmaster conversation does not overlap the board (#181).
     const show =
       this.activeContract === undefined &&
       this.atSettlement(this.region.home) &&
       !this.shouldShowCapstone() &&
       !this.hud.isSummaryVisible() &&
+      !this.hud.isDialogueVisible() &&
       !this.hud.isBlockingOverlayOpen();
     if (!show) {
       this.hud.setBoard(null);
