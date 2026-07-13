@@ -37,8 +37,17 @@ describe('terrain-system', () => {
   describe('getWearSpeedModifier (#176)', () => {
     it('falls back to the movement speed modifier when no override is set', () => {
       expect(getWearSpeedModifier('forest')).toBe(getSpeedModifier('forest'));
-      expect(getWearSpeedModifier('road')).toBe(getSpeedModifier('road'));
+      expect(getWearSpeedModifier('plains')).toBe(getSpeedModifier('plains'));
       expect(getWearSpeedModifier('nope')).toBe(0);
+    });
+
+    it('decouples the road: eased movement (1.2x) but pinned at 1.4x wear so it never wears (#185)', () => {
+      // The road moves at 1.2x after the playtest ease, but its wear modifier is
+      // held at 1.4x (the max), so roads still normalise to roughness 0 and the
+      // travel-sink economy is unchanged by the speed ease.
+      expect(getSpeedModifier('road')).toBe(1.2);
+      expect(getWearSpeedModifier('road')).toBe(1.4);
+      expect(getWearSpeedModifier('road')).toBeGreaterThan(getSpeedModifier('road'));
     });
 
     it('decouples the trail: it drives faster than marsh but wears the same', () => {
