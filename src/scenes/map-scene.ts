@@ -150,7 +150,7 @@ import {
   type MissionState,
 } from '../systems/mission-system';
 import { MISSIONS } from '../data/missions';
-import { MapHud } from './map-hud';
+import { MapHud, type WagonState } from './map-hud';
 import { MapMarkers } from './map-markers';
 import {
   getRegion,
@@ -1018,10 +1018,8 @@ export class MapScene extends Phaser.Scene {
       terrain === undefined
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`;
-    this.hud.setTerrain(
-      `${terrainLabel}   ${this.wagonConditionLabel()}`,
-      this.wagonStatusColor(),
-    );
+    this.hud.setTerrain(terrainLabel);
+    this.hud.setWagonCondition(this.wagonCondition, this.wagonMax(), this.wagonState());
     this.warnLowConditionOnce();
     this.refreshObjective();
     this.refreshHint();
@@ -1069,15 +1067,15 @@ export class MapScene extends Phaser.Scene {
     this.wagonTuning = WAGON_TUNING[difficulty];
   }
 
-  /** Colour for the terrain/wagon status line, cueing wagon condition (#182). */
-  private wagonStatusColor(): string {
+  /** Wagon-condition band, driving the HUD meter's fill colour (#182/#203). */
+  private wagonState(): WagonState {
     if (isStranded(this.wagonCondition)) {
-      return '#e88f8f'; // red: dead in the water
+      return 'stranded';
     }
     if (isLowCondition(this.wagonCondition, this.wagonMax())) {
-      return '#f2c94c'; // amber: running low, repair soon
+      return 'low';
     }
-    return '#e8e8e8';
+    return 'healthy';
   }
 
   /**
@@ -1098,25 +1096,26 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** HUD label for the wagon condition, cueing repair/rescue and its cost. */
-  private wagonConditionLabel(): string {
-    const cur = Math.round(this.wagonCondition);
+  /**
+   * The wagon repair/rescue prompt for the bottom hint line, or null when the
+   * wagon is in full repair. Condition itself is shown by the HUD meter (#203);
+   * this carries only the actionable cost/key, kept next to the other key cues.
+   */
+  private wagonHintSegment(): string | null {
     const max = this.wagonMax();
     const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
     const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
     if (isStranded(this.wagonCondition)) {
       return here === undefined
-        ? `Wagon: ${cur}/${max} STRANDED (R: pay ${this.wagonTuning.rescueCost}c rescue, or limp to a town)`
-        : `Wagon: ${cur}/${max} STRANDED (R: repair ${cost}c)`;
+        ? `R: pay ${this.wagonTuning.rescueCost}c rescue (or limp to a town)`
+        : `R: repair ${cost}c`;
     }
     if (this.wagonCondition >= max) {
-      return `Wagon: ${cur}/${max}`;
+      return null;
     }
     // Damaged: always show what a full repair would cost, so the player can plan
     // before reaching a town; press R to do it once on a settlement.
-    return here === undefined
-      ? `Wagon: ${cur}/${max}  (repair ${cost}c at a town)`
-      : `Wagon: ${cur}/${max}  (R: repair ${cost}c)`;
+    return here === undefined ? `repair ${cost}c at a town` : `R: repair ${cost}c`;
   }
 
   /**
@@ -1821,6 +1820,14 @@ export class MapScene extends Phaser.Scene {
     const here = settlementAtTileIn(this.region, tile.x, tile.y);
     if (here !== undefined && dialogueForSettlement(here.id) !== undefined) {
       segments.push(`E: talk to ${here.name}`);
+    }
+
+    // Wagon repair/rescue prompt: only when there is something to do (worn or
+    // stranded). The condition itself is on the HUD meter (#203); this is the
+    // actionable cost/key, sitting with the other contextual cues.
+    const wagonSegment = this.wagonHintSegment();
+    if (wagonSegment !== null) {
+      segments.push(wagonSegment);
     }
 
     const gateway = this.gatewayAtTile(tile);

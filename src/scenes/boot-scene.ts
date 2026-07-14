@@ -5,13 +5,19 @@ import {
   TERRAIN_ATLAS_FRAME_CONFIG,
 } from '../data/terrain-art';
 import { MARKER_ATLAS_KEY, MARKER_ATLAS_FRAME_CONFIG } from '../data/marker-art';
-import { WAGON_TEXTURE_KEY, UI_PANEL_TEXTURE_KEY } from '../config/game-config';
+import {
+  WAGON_TEXTURE_KEY,
+  UI_PANEL_TEXTURE_KEY,
+  UI_BAR_TEXTURE_KEY,
+  UI_BAR_FRAME,
+} from '../config/game-config';
 // Vite resolves these imports to hashed, base-path-aware URLs that work in dev,
 // the production build, and GitHub Pages. Typed via vite/client in tsconfig.
 import terrainSheetUrl from '../../assets/sprites/roguelike-rpg-sheet.png';
 import markerSheetUrl from '../../assets/sprites/tiny-town-sheet.png';
 import wagonUrl from '../../assets/sprites/courier-wagon.png';
 import uiPanelUrl from '../../assets/sprites/ui-panel-brown.png';
+import uiBarUrl from '../../assets/sprites/ui-bar.png';
 
 // Boot scene: the entry scene for the game. Later this will preload assets; for
 // now it routes to the right first screen.
@@ -38,6 +44,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(MARKER_ATLAS_KEY, markerSheetUrl, MARKER_ATLAS_FRAME_CONFIG);
     this.load.image(WAGON_TEXTURE_KEY, wagonUrl);
     this.load.image(UI_PANEL_TEXTURE_KEY, uiPanelUrl);
+    this.load.spritesheet(UI_BAR_TEXTURE_KEY, uiBarUrl, UI_BAR_FRAME);
   }
 
   create(): void {
