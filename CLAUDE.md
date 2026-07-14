@@ -312,6 +312,12 @@ Commit style:
 
 Keep commits small and meaningful.
 
+PR flow (owner preference): work one feature or slice per branch and PR. Land it
+without stopping to ask: push, open the PR with `Closes #N`, arm auto-merge with
+`gh pr merge <n> --squash --auto`, watch checks, then move on. `main` is
+branch-protected, so everything goes through a PR. Verify before opening the PR
+(typecheck, lint, tests, and the browser/e2e gate the change warrants).
+
 ## Issue workflow
 
 GitHub issues are the durable, cross-session tracker. Split work by lifecycle:
@@ -332,6 +338,23 @@ Rules:
 4. Labels, kept minimal: `bug`, `enhancement` (features), `tech-debt`,
    `design-call` (needs an owner decision first), `playtest-gated` (blocked on a
    human playtest signal).
+
+## Where durable context lives
+
+The owner works across more than one Claude subscription and machine, so any
+Claude-local personal memory (for example `~/.claude*/.../memory/`) is NOT shared
+or permanent and MUST NOT be the home for durable project context. The repository
+is the single source of truth, because it travels through git to every machine:
+
+1. Trackable, open-then-closed work (features, bugs, tech debt, parked threads) ->
+   GitHub issues (see Issue workflow). Open = todo, closed = shipped.
+2. Owner direction and working preferences -> this file (CLAUDE.md).
+3. Design threads and decisions -> `docs/design/` and `docs/decisions/` (ADRs).
+4. Session narrative -> `docs/handoffs/`.
+
+Do not rely on personal memory to carry a fact from one session to the next; if
+something is worth remembering, write it to one of the four homes above. Personal
+memory is at most a scratch cache of what is already durable in the repo.
 
 ## Command style
 
