@@ -10,6 +10,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
+      // Multi-page: the game (index.html) plus the standalone telemetry
+      // dashboard (telemetry.html, #220). The dashboard reads the same-origin
+      // localStorage the game writes, so it works on the dev server and Pages.
+      input: {
+        main: 'index.html',
+        telemetry: 'telemetry.html',
+      },
       output: {
         // Split the Phaser engine into its own chunk, separate from app code.
         // First-load bytes are unchanged (Phaser must load to boot the game), but
