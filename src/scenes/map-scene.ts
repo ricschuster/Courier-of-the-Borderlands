@@ -9,7 +9,7 @@ import {
   CAMERA_LERP,
 } from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
-import { terrainArt, TERRAIN_ATLAS_KEY, type TerrainArt } from '../data/terrain-art';
+import { terrainTileArt, TERRAIN_ATLAS_KEY, type TileArt } from '../data/terrain-art';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
 import {
   getTerrain,
@@ -1286,7 +1286,7 @@ export class MapScene extends Phaser.Scene {
         if (terrain === undefined) {
           continue;
         }
-        const art = terrainArt(terrainId);
+        const art = terrainTileArt(terrainId, x, y);
         if (art === undefined) {
           tiles.fillStyle(terrain.color, 1);
           tiles.fillRect(x * TILE_SIZE, this.mapOriginY + y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -1297,17 +1297,24 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Draw a terrain tile from the atlas: the ground frame, then any overlay. */
-  private drawTileArt(x: number, y: number, art: TerrainArt): void {
+  /**
+   * Draw a terrain tile from the atlas: the ground frame, then any overlay. The
+   * frames and horizontal flip carry the per-tile variety resolved in
+   * terrainTileArt (#209); the overlay shares the base's flip so a tree and its
+   * ground mirror together.
+   */
+  private drawTileArt(x: number, y: number, art: TileArt): void {
     const center = this.tileCenter(x, y);
     this.add
       .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.base)
       .setDisplaySize(TILE_SIZE, TILE_SIZE)
+      .setFlipX(art.flipX)
       .setDepth(DEPTH_TERRAIN);
     if (art.overlay !== undefined) {
       this.add
         .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.overlay)
         .setDisplaySize(TILE_SIZE, TILE_SIZE)
+        .setFlipX(art.flipX)
         .setDepth(DEPTH_TERRAIN);
     }
   }

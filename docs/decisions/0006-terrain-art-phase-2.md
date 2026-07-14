@@ -51,6 +51,17 @@ self-contained.
 
 ## Non-goals
 
-- No animation, no per-tile variety or auto-tiling yet (flat single-tile fills).
+- No animation. No edge auto-tiling: this pack is a discrete object sheet, not a
+  Wang/blob set, so clean neighbour-aware transitions are not available from it.
 - No change to terrain rules, speeds, wear, or passability: this is rendering
   only. The grey-box colours remain as the fallback and drive the minimap.
+
+## Update: per-tile variety (#209)
+
+Flat single-frame fills were the last unfinished-looking part of the skin. Each
+open-ground terrain now carries a small pool of interchangeable same-family
+frames and/or a flip flag in `terrain-art.ts`; `terrainTileArt(id, x, y)` picks a
+frame and horizontal flip deterministically from the tile coordinate, so a field
+looks broken-up while staying stable across redraws/reloads and unit-testable.
+Flip is only enabled on non-directional ground (never roads/bridges/fords).
+Still no edge auto-tiling, for the pack reason above.
