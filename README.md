@@ -10,6 +10,9 @@ Play in your browser: https://ricschuster.github.io/Courier-of-the-Borderlands/
 
 Your progress is saved locally in the browser and resumes when you return.
 
+Balance telemetry dashboard (metrics from your own play):
+https://ricschuster.github.io/Courier-of-the-Borderlands/telemetry.html
+
 ## Status
 
 Playable and deployed, with grey-box art. Three regions are open (Greybridge, Saltreach, and Fenmarch), connected by travel. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
@@ -198,8 +201,10 @@ Start with the project brief, then read the core loop and milestones.
 
 The game records a compact metrics snapshot at each run milestone (a region
 cleared, or the arc finished) to `localStorage`, so balance can be read from
-real play instead of hand-reported numbers. Open `telemetry.html` in the same
-browser you play in (dev server or the deployed site) to see per-region averages
+real play instead of hand-reported numbers. Open the
+[telemetry dashboard](https://ricschuster.github.io/Courier-of-the-Borderlands/telemetry.html)
+(`telemetry.html`) in the same browser you play in (dev server or the deployed
+site) to see per-region averages
 (coins, wear, condition, deliveries, strands) and the recent-milestone history,
 with buttons to export the raw JSON or clear the store. The capture logic lives
 in `src/systems/telemetry.ts` (pure, unit tested); the dashboard is
