@@ -26,6 +26,19 @@ export const WAGON_TEXTURE_KEY = 'courier-wagon';
 // the decorative border and corner bolts undistorted while the centre stretches.
 export const UI_PANEL_TEXTURE_KEY = 'ui-panel';
 export const UI_PANEL_CORNER = 24;
+
+// Kenney UI bar (RPG Expansion, CC0) used as the HUD wagon-condition meter
+// (#203). The source is a 36x72 vertical strip of four 36x18 frames: 0 = empty
+// track, 1 = green fill, 2 = amber fill, 3 = red fill. Rendered as a horizontal
+// 3-slice, so UI_BAR_CAP is the left/right cap that stays undistorted while the
+// middle stretches to the bar's width.
+export const UI_BAR_TEXTURE_KEY = 'ui-bar';
+export const UI_BAR_FRAME = { frameWidth: 36, frameHeight: 18 } as const;
+export const UI_BAR_CAP = 9;
+export const UI_BAR_FRAME_TRACK = 0;
+export const UI_BAR_FRAME_GREEN = 1;
+export const UI_BAR_FRAME_AMBER = 2;
+export const UI_BAR_FRAME_RED = 3;
 // Base movement speed in pixels per second (before terrain effects).
 export const COURIER_SPEED = 160;
 

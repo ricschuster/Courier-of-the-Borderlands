@@ -57,6 +57,16 @@ export class FramedPanel {
     return this.text.visible;
   }
 
+  /** Left edge of the visible frame, for laying out around the panel (e.g. toasts). */
+  get x(): number {
+    return this.frame.x;
+  }
+
+  /** Width of the visible frame, for laying out around the panel. */
+  get displayWidth(): number {
+    return this.frame.displayWidth;
+  }
+
   setText(text: string): this {
     this.text.setText(text);
     this.fitFrame();

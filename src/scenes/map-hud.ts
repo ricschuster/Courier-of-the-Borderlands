@@ -1,5 +1,15 @@
 import Phaser from 'phaser';
-import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT } from '../config/game-config';
+import {
+  GAME_TITLE,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  UI_BAR_TEXTURE_KEY,
+  UI_BAR_CAP,
+  UI_BAR_FRAME_TRACK,
+  UI_BAR_FRAME_GREEN,
+  UI_BAR_FRAME_AMBER,
+  UI_BAR_FRAME_RED,
+} from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
 import { buildLegend } from '../systems/legend';
 import type { SettlementStatus } from '../systems/world-state';
@@ -47,6 +57,37 @@ const STATUS_ROW_Y = {
 // Objective can be long (contract + pickup + destination); wrap it within the
 // panel rather than let it run off the right edge.
 const STATUS_WRAP_W = STATUS_PANEL.w - 16;
+
+// Wagon-condition meter (#203). It shares the terrain row: the terrain label
+// ends by ~x=203, so a compact group sits in the free right portion. "Wagon"
+// label, then a Kenney bar (track + coloured fill), then the numeric n/n. The
+// 3-slice bar's height is fixed to the 18px source frame, so it is nudged up 3px
+// so its centre lines up with the 12px text and it still clears the ford row
+// (terrain y=94, ford y=114). Fill colour is the condition cue: green healthy,
+// amber low, red stranded (replacing the old #182 line-colour cue).
+const WAGON_LABEL_X = 214;
+const WAGON_BAR_X = 262;
+const WAGON_BAR_Y = STATUS_ROW_Y.terrain - 3;
+const WAGON_BAR_W = 84;
+const WAGON_NUM_X = WAGON_BAR_X + WAGON_BAR_W + 6;
+
+/** Wagon-condition band, mapped to the bar's fill colour. */
+export type WagonState = 'healthy' | 'low' | 'stranded';
+
+const WAGON_FILL_FRAME: Readonly<Record<WagonState, number>> = {
+  healthy: UI_BAR_FRAME_GREEN,
+  low: UI_BAR_FRAME_AMBER,
+  stranded: UI_BAR_FRAME_RED,
+};
+
+// The n/n readout is tinted by band too, so the condition cue survives even when
+// the fill is too short to show (stranded at 0 leaves an empty track). These are
+// the same warning colours the old #182 status line used.
+const WAGON_NUMBER_COLOR: Readonly<Record<WagonState, string>> = {
+  healthy: '#e8e8e8',
+  low: '#f2c94c',
+  stranded: '#e88f8f',
+};
 
 // Minimap layout. Cells are MINIMAP_CELL pixels per tile, but shrink so the
 // whole minimap fits inside a MINIMAP_MAX_PX box on large maps that would
@@ -100,7 +141,13 @@ export class MapHud {
   private readonly fordStatus: Phaser.GameObjects.Text;
   private readonly weatherLine: Phaser.GameObjects.Text;
   private readonly hint: Phaser.GameObjects.Text;
-  private readonly board: Phaser.GameObjects.Text;
+  // Wagon-condition meter (#203): a coloured fill sized to the condition
+  // fraction, and the numeric n/n beside it. The "Wagon" label and the track
+  // behind the fill are static, so they are added in the constructor but not
+  // retained.
+  private readonly wagonBarFill: Phaser.GameObjects.NineSlice;
+  private readonly wagonNumber: Phaser.GameObjects.Text;
+  private readonly board: FramedPanel;
   // Salient unspent-skill-points cue (#174): a bright chip in the free top-right
   // corner, shown only when points are banked, so skills stop being forgotten.
   private readonly skillCue: Phaser.GameObjects.Text;
@@ -159,6 +206,60 @@ export class MapHud {
     this.terrainReadout = line(STATUS_ROW_Y.terrain, '#e8e8e8');
     this.fordStatus = line(STATUS_ROW_Y.ford, '#e8e8e8');
     this.weatherLine = line(STATUS_ROW_Y.weather, '#a9c7e8');
+
+    // Wagon-condition meter on the terrain row. The bar is a horizontal 3-slice
+    // (topHeight/bottomHeight 0), so UI_BAR_CAP keeps its end caps crisp while
+    // the middle stretches. The fill draws over the track and is resized/tinted
+    // each frame by setWagonCondition.
+    scene.add
+      .text(WAGON_LABEL_X, STATUS_ROW_Y.terrain, 'Wagon', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e8e8e8',
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD);
+    scene.add
+      .nineslice(
+        WAGON_BAR_X,
+        WAGON_BAR_Y,
+        UI_BAR_TEXTURE_KEY,
+        UI_BAR_FRAME_TRACK,
+        WAGON_BAR_W,
+        undefined,
+        UI_BAR_CAP,
+        UI_BAR_CAP,
+        0,
+        0,
+      )
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD);
+    this.wagonBarFill = scene.add
+      .nineslice(
+        WAGON_BAR_X,
+        WAGON_BAR_Y,
+        UI_BAR_TEXTURE_KEY,
+        UI_BAR_FRAME_GREEN,
+        WAGON_BAR_W,
+        undefined,
+        UI_BAR_CAP,
+        UI_BAR_CAP,
+        0,
+        0,
+      )
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD);
+    this.wagonNumber = scene.add
+      .text(WAGON_NUM_X, STATUS_ROW_Y.terrain, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e8e8e8',
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD);
+
     this.hint = scene.add
       .text(8, GAME_HEIGHT - 24, '', {
         fontFamily: 'monospace',
@@ -170,18 +271,20 @@ export class MapHud {
       .setScrollFactor(0)
       .setDepth(DEPTH_HUD);
 
-    this.board = scene.add
-      .text(8, STATUS_PANEL.y + STATUS_PANEL.h + 8, '', {
+    this.board = new FramedPanel(scene, {
+      x: 8,
+      y: STATUS_PANEL.y + STATUS_PANEL.h + 8,
+      originX: 0,
+      originY: 0,
+      depth: DEPTH_HUD,
+      style: {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#f2efe4',
-        backgroundColor: '#0b0b0bcc',
         padding: { x: 10, y: 8 },
         lineSpacing: 4,
-      })
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
+      },
+    });
 
     // Unspent-skill-points chip: dark text on the warm gold accent (STATUS_COLOR
     // reconnected), so it reads as a call-to-action against the map. Anchored to
@@ -313,12 +416,34 @@ export class MapHud {
   }
 
   /**
-   * Set the terrain + wagon status line. The colour cues wagon condition (#182):
-   * neutral when healthy, amber when low, red when stranded, so the line warns at
-   * a glance before the wagon runs dry.
+   * Set the terrain status line. Wagon condition now lives in its own meter (see
+   * setWagonCondition), so this line is terrain only; the colour arg stays for
+   * any future per-terrain cueing but defaults to neutral.
    */
   setTerrain(text: string, color = '#e8e8e8'): void {
     this.terrainReadout.setText(text).setColor(color);
+  }
+
+  /**
+   * Update the wagon-condition meter: resize the coloured fill to cur/max and
+   * tint it by band. The fill colour is the at-a-glance condition cue (#182):
+   * green healthy, amber low, red stranded. The numeric n/n is kept beside it for
+   * precision.
+   */
+  setWagonCondition(cur: number, max: number, state: WagonState): void {
+    const fraction = max > 0 ? Phaser.Math.Clamp(cur / max, 0, 1) : 0;
+    const fillWidth = Math.round(fraction * WAGON_BAR_W);
+    if (fillWidth < UI_BAR_CAP) {
+      // Below one end-cap's worth the 3-slice cannot render cleanly; an empty bar
+      // reads as "spent" on its own, so just hide the fill.
+      this.wagonBarFill.setVisible(false);
+    } else {
+      this.wagonBarFill
+        .setVisible(true)
+        .setFrame(WAGON_FILL_FRAME[state])
+        .setSize(fillWidth, this.wagonBarFill.height);
+    }
+    this.wagonNumber.setText(`${Math.round(cur)}/${max}`).setColor(WAGON_NUMBER_COLOR[state]);
   }
 
   setWeather(text: string): void {
