@@ -205,6 +205,20 @@ with buttons to export the raw JSON or clear the store. The capture logic lives
 in `src/systems/telemetry.ts` (pure, unit tested); the dashboard is
 `src/telemetry/dashboard.ts`.
 
+### Releases
+
+Versioning follows [Semantic Versioning](https://semver.org), driven by the
+Conventional Commit messages the repo already uses (`feat:` bumps the minor,
+`fix:`/`perf:` the patch, a breaking change the major).
+
+Releases are cut with [release-please](https://github.com/googleapis/release-please):
+a GitHub Action keeps a standing "release PR" open on `main` that lists every
+user-facing change queued since the last release. To publish, review and merge
+that PR; it tags `vX.Y.Z`, creates the GitHub Release, and updates
+`CHANGELOG.md`. Leaving the PR open is harmless and it keeps updating as more
+commits land. No manual tagging or changelog editing is needed. See
+`docs/decisions/0007-release-versioning.md`.
+
 Full working rules for Claude Code are in `CLAUDE.md`.
 
 ## MVP definition of done

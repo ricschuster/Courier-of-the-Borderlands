@@ -1,0 +1,30 @@
+name: Release Please
+
+# Keeps a standing "release PR" open on main that lists every user-facing change
+# queued since the last release, built from Conventional Commit messages. The PR
+# is the release nudge: merge it to cut a release (tag + GitHub Release +
+# CHANGELOG update), or leave it and it keeps updating as more commits land. See
+# docs/decisions/0007-release-versioning.md.
+
+on:
+  push:
+    branches: [main]
+
+# release-please opens/updates the release PR and, on merge, creates the tag and
+# GitHub Release, so it needs write access to contents and pull requests.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
