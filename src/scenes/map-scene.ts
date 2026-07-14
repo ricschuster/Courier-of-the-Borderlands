@@ -121,6 +121,7 @@ import {
   formatDistance,
   type TripLog,
 } from '../systems/trip-log';
+import { recordRun, type RunMilestone } from '../systems/telemetry';
 import {
   ACHIEVEMENTS,
   earnedAchievements,
@@ -347,6 +348,13 @@ export class MapScene extends Phaser.Scene {
   private wagonCondition = MAX_CONDITION;
   /** Cumulative condition points worn away this session, for tuning telemetry. */
   private wagonWearTotal = 0;
+  /** Times the wagon hit 0 condition (stranded) this session, for telemetry (#220). */
+  private strandEvents = 0;
+  /**
+   * Region ids whose "cleared" telemetry milestone has already been captured this
+   * session, so refreshing after a clear does not record the same region twice.
+   */
+  private telemetryRecorded = new Set<string>();
   /**
    * True once the low-condition warning has fired for the current low spell, so
    * it toasts once on the way down and re-arms only after a repair lifts the
@@ -1046,9 +1054,14 @@ export class MapScene extends Phaser.Scene {
       // trip distance and tilesSinceAccept still track so every other system
       // (via-ford bonus, objective progress) behaves exactly as in real play.
       if (!this.wearDisabled()) {
+        const wasStranded = isStranded(this.wagonCondition);
         const worn = applyWear(this.wagonCondition, wearRate * tiles);
         this.wagonWearTotal += this.wagonCondition - worn;
         this.wagonCondition = worn;
+        // Count the rising edge into stranded (0 condition) for balance telemetry.
+        if (!wasStranded && isStranded(this.wagonCondition)) {
+          this.strandEvents++;
+        }
       }
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
@@ -1482,6 +1495,11 @@ export class MapScene extends Phaser.Scene {
     this.refreshObjective();
     this.refreshWallet();
     this.refreshSummary();
+    // This delivery may have cleared the region's standing routes: capture a
+    // telemetry milestone (once per region per session, ADR-free best-effort).
+    if (this.regionCleared()) {
+      this.captureTelemetry('region');
+    }
     this.refreshAchievements(true);
     // The delivery reconnects this settlement: recolour its marker (and the
     // minimap if it is open) so the change to the world is immediately visible.
@@ -2164,6 +2182,8 @@ export class MapScene extends Phaser.Scene {
       this.hud.dismissToasts();
       this.summaryDismissed = true;
       this.hud.setSummary(null);
+      // Rising edge of the finale: capture the arc-completion telemetry milestone.
+      this.captureTelemetry('arc');
     }
     this.hud.setCapstone(
       capstoneText({
@@ -2173,6 +2193,35 @@ export class MapScene extends Phaser.Scene {
         regionCount: Object.keys(REGIONS).length,
       }),
     );
+  }
+
+  /**
+   * Persist a gameplay-telemetry record for a run milestone (#220). Region
+   * clears are captured at most once per region per session; the arc capstone is
+   * only refreshed on its rising edge, so it too records once. Best-effort: a
+   * storage failure inside recordRun is swallowed and never interrupts play.
+   */
+  private captureTelemetry(milestone: RunMilestone): void {
+    if (milestone === 'region') {
+      if (this.telemetryRecorded.has(this.region.id)) {
+        return;
+      }
+      this.telemetryRecorded.add(this.region.id);
+    }
+    recordRun({
+      milestone,
+      regionId: this.region.id,
+      regionName: this.region.name,
+      difficulty: this.difficulty,
+      coins: this.state.ledger.coins,
+      deliveries: this.trip.deliveries,
+      distanceTiles: this.trip.distanceTiles,
+      wagonWearTotal: this.wagonWearTotal,
+      wagonCondition: this.wagonCondition,
+      strandEvents: this.strandEvents,
+      upgradesOwned: this.state.upgrades.size,
+      totalReputation: totalReputation(this.state.ledger),
+    });
   }
 
   private refreshSummary(): void {

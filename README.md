@@ -194,6 +194,17 @@ Start with the project brief, then read the core loop and milestones.
 - Use Conventional Commits, for example `feat: add fog-of-war reveal`.
 - Do not expand scope beyond the MVP without a short note in `docs/decisions/`.
 
+### Telemetry dashboard
+
+The game records a compact metrics snapshot at each run milestone (a region
+cleared, or the arc finished) to `localStorage`, so balance can be read from
+real play instead of hand-reported numbers. Open `telemetry.html` in the same
+browser you play in (dev server or the deployed site) to see per-region averages
+(coins, wear, condition, deliveries, strands) and the recent-milestone history,
+with buttons to export the raw JSON or clear the store. The capture logic lives
+in `src/systems/telemetry.ts` (pure, unit tested); the dashboard is
+`src/telemetry/dashboard.ts`.
+
 Full working rules for Claude Code are in `CLAUDE.md`.
 
 ## MVP definition of done
