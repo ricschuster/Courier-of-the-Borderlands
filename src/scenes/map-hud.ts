@@ -6,6 +6,7 @@ import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
 import { ScrollablePanel } from './scrollable-panel';
+import { FramedPanel } from './framed-panel';
 
 // Depth layer for every HUD and overlay object: always drawn on top of the
 // map, markers, and fog.
@@ -106,10 +107,10 @@ export class MapHud {
   private readonly journalPanel: ScrollablePanel;
   private readonly skillPanel: ScrollablePanel;
   private readonly upgradePanel: ScrollablePanel;
-  private readonly summaryPanel: Phaser.GameObjects.Text;
-  private readonly capstonePanel: Phaser.GameObjects.Text;
-  private readonly legendPanel: Phaser.GameObjects.Text;
-  private readonly dialoguePanel: Phaser.GameObjects.Text;
+  private readonly summaryPanel: FramedPanel;
+  private readonly capstonePanel: FramedPanel;
+  private readonly legendPanel: FramedPanel;
+  private readonly dialoguePanel: FramedPanel;
   private readonly minimapGfx: Phaser.GameObjects.Graphics;
   private minimapVisible = false;
   // Active toasts keyed by slot. They persist until the player dismisses them
@@ -209,37 +210,39 @@ export class MapHud {
     this.upgradePanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
 
     // Run summary panel, shown when the region is cleared.
-    this.summaryPanel = scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
+    this.summaryPanel = new FramedPanel(scene, {
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT / 2,
+      originX: 0.5,
+      originY: 0.5,
+      depth: DEPTH_HUD,
+      style: {
         fontFamily: 'monospace',
         fontSize: '13px',
         color: '#f2efe4',
-        backgroundColor: '#0b0b0bee',
         padding: { x: 16, y: 14 },
         lineSpacing: 6,
         align: 'center',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
+      },
+    });
 
     // End-of-arc capstone panel, shown once when the blockade is broken. Warm
-    // gold title colour and a near-opaque backing so the finale reads as special.
-    this.capstonePanel = scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
+    // gold title colour so the finale reads as special.
+    this.capstonePanel = new FramedPanel(scene, {
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT / 2,
+      originX: 0.5,
+      originY: 0.5,
+      depth: DEPTH_HUD,
+      style: {
         fontFamily: 'monospace',
         fontSize: '13px',
         color: '#f2c14e',
-        backgroundColor: '#0b0b0bf7',
         padding: { x: 22, y: 18 },
         lineSpacing: 7,
         align: 'center',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
+      },
+    });
 
     // Minimap graphics (toggled with M), drawn in drawMinimap.
     this.minimapGfx = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH_HUD).setVisible(false);
@@ -250,38 +253,41 @@ export class MapHud {
     for (const entry of legend) {
       legendLines.push(`  ${entry.name}: ${entry.speedLabel}${entry.passable ? '' : ' (impassable)'}`);
     }
-    this.legendPanel = scene.add
-      .text(GAME_WIDTH - 8, 40, legendLines.join('\n'), {
+    this.legendPanel = new FramedPanel(scene, {
+      x: GAME_WIDTH - 8,
+      y: 40,
+      originX: 1,
+      originY: 0,
+      depth: DEPTH_HUD,
+      style: {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#f2efe4',
-        backgroundColor: '#0b0b0bdd',
         padding: { x: 12, y: 10 },
         lineSpacing: 4,
         align: 'left',
-      })
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
+      },
+    });
+    this.legendPanel.setText(legendLines.join('\n'));
 
     // Dialogue box (opened with E at a settlement), anchored bottom-centre so
     // it reads like a conversation panel. Movement is frozen while it is open.
-    this.dialoguePanel = scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 36, '', {
+    this.dialoguePanel = new FramedPanel(scene, {
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT - 36,
+      originX: 0.5,
+      originY: 1,
+      depth: DEPTH_HUD,
+      style: {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#f2efe4',
-        backgroundColor: '#0b0b0bee',
         padding: { x: 14, y: 12 },
         lineSpacing: 5,
         align: 'left',
         wordWrap: { width: GAME_WIDTH - 120 },
-      })
-      .setOrigin(0.5, 1)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD)
-      .setVisible(false);
+      },
+    });
   }
 
   // --- One-line status setters ------------------------------------------
