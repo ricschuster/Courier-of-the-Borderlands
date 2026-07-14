@@ -1,0 +1,60 @@
+name: PR Preview
+
+# Deploy a live preview of each pull request to a gh-pages subfolder
+# (pr-preview/pr-<N>/) and comment its URL, so a change can be tried in the
+# browser before merge. The preview is updated on every push to the PR and
+# removed when the PR closes. See docs/decisions/0008-pr-preview-deploys.md.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+# The preview action commits to gh-pages and comments on the PR.
+permissions:
+  contents: write
+  pull-requests: write
+
+# Share the gh-pages writer group with the main deploy so their commits to the
+# branch are serialized, never interleaved.
+concurrency:
+  group: gh-pages-write
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    # Fork PRs get a read-only token and cannot deploy, so skip them rather than
+    # fail. Solo work runs from same-repo branches, which have write access.
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      # Build against the preview's own base path so asset URLs resolve under
+      # the subfolder. Skipped on close (nothing to build; the action removes it).
+      - name: Install and build
+        if: ${{ github.event.action != 'closed' }}
+        run: npm ci
+      - name: Build with preview base path
+        if: ${{ github.event.action != 'closed' }}
+        run: npm run build
+        env:
+          BASE_PATH: /Courier-of-the-Borderlands/pr-preview/pr-${{ github.event.number }}/
+
+      - name: Add .nojekyll
+        if: ${{ github.event.action != 'closed' }}
+        run: touch dist/.nojekyll
+
+      # Deploys dist to gh-pages under pr-preview/pr-<N>/ and comments the URL,
+      # or removes that folder when the PR closes. The action picks the deploy
+      # vs remove action from the event type.
+      - name: Deploy preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview

@@ -219,6 +219,15 @@ that PR; it tags `vX.Y.Z`, creates the GitHub Release, and updates
 commits land. No manual tagging or changelog editing is needed. See
 `docs/decisions/0007-release-versioning.md`.
 
+### Preview deploys
+
+Every pull request gets a live preview of the built game so a change can be
+tried in a browser before merge. A workflow deploys the PR to
+`https://ricschuster.github.io/Courier-of-the-Borderlands/pr-preview/pr-<N>/` and
+comments the URL; the preview updates on each push and is removed when the PR
+closes. This is why the main deploy is non-destructive (it preserves the
+`pr-preview/` subtree). See `docs/decisions/0008-pr-preview-deploys.md`.
+
 Full working rules for Claude Code are in `CLAUDE.md`.
 
 ## MVP definition of done
