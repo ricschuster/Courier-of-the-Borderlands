@@ -12,9 +12,13 @@ on:
 permissions:
   contents: write
 
+# Serialize every writer of the gh-pages branch (this deploy and the per-PR
+# preview workflow) so their commits never race. Queue rather than cancel: a
+# superseded deploy still matters because the next one may be a preview, not a
+# newer main build.
 concurrency:
-  group: pages-deploy
-  cancel-in-progress: true
+  group: gh-pages-write
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -36,16 +40,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Publish the built site to the gh-pages branch, served directly by Pages.
-      - name: Publish dist to gh-pages
-        run: |
-          cd dist
-          touch .nojekyll
-          git init -q -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -qm "Deploy ${GITHUB_SHA}"
-          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Pages serves the branch as-is; .nojekyll stops it from running Jekyll.
+      - name: Add .nojekyll
+        run: touch dist/.nojekyll
+
+      # Publish the built site to the gh-pages branch root. clean-exclude keeps
+      # the pr-preview/ subtree the preview workflow manages, so a main deploy
+      # refreshes the live game without wiping open PR previews.
+      - name: Publish to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist
+          clean: true
+          clean-exclude: |
+            pr-preview
