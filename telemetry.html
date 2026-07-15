@@ -123,9 +123,46 @@
         background: #3a3a44;
         color: #b4b4d6;
       }
+      /* Runtime error log (#221). */
+      .err {
+        border: 1px solid #4a3535;
+        border-radius: 6px;
+        background: #241d1d;
+        margin-bottom: 6px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+      }
+      .err summary {
+        cursor: pointer;
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .err .msg {
+        color: #f0c2c2;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .err .when {
+        color: #9a9a9a;
+        font-size: 0.78rem;
+      }
+      .err pre {
+        margin: 8px 0 0;
+        padding: 8px;
+        background: #1a1616;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.75rem;
+        color: #c9b8b8;
+      }
+      .pill.err-source {
+        background: #4a3535;
+        color: #f0c2c2;
+      }
     </style>
-    <script type="module" crossorigin src="/Courier-of-the-Borderlands/assets/telemetry-B7EXSIHW.js"></script>
-    <link rel="modulepreload" crossorigin href="/Courier-of-the-Borderlands/assets/telemetry-B_OKGuBJ.js">
+    <script type="module" crossorigin src="/Courier-of-the-Borderlands/assets/telemetry-BsV6cQXH.js"></script>
+    <link rel="modulepreload" crossorigin href="/Courier-of-the-Borderlands/assets/error-log-D2yIL4zf.js">
   </head>
   <body>
     <main id="app">
