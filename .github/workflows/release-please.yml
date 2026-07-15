@@ -11,7 +11,8 @@ on:
     branches: [main]
 
 # release-please opens/updates the release PR and, on merge, creates the tag and
-# GitHub Release, so it needs write access to contents and pull requests.
+# GitHub Release, so it needs write access to contents and pull requests. These
+# apply to the fallback GITHUB_TOKEN; RELEASE_PLEASE_TOKEN carries its own scopes.
 permissions:
   contents: write
   pull-requests: write
@@ -24,7 +25,15 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # Runs as RELEASE_PLEASE_TOKEN when that secret exists, falling back to the
+      # default GITHUB_TOKEN when it does not. The fallback matters: GitHub does
+      # not raise `pull_request` events for actions taken by GITHUB_TOKEN (it
+      # prevents recursive workflow runs), so a release PR opened with it gets no
+      # CI, and `main`'s required checks then block the merge. With a PAT or App
+      # token the PR is authored by a real identity, CI runs, and the release PR
+      # can merge unattended. See #238 and docs/decisions/0007-release-versioning.md.
       - uses: googleapis/release-please-action@v4
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
