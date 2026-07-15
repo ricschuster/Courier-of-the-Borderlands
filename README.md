@@ -228,6 +228,19 @@ Start with the project brief, then read the core loop and milestones.
 - Use Conventional Commits, for example `feat: add fog-of-war reveal`.
 - Do not expand scope beyond the MVP without a short note in `docs/decisions/`.
 
+### Security scanning
+
+`.github/workflows/security.yml` runs CodeQL static analysis and `npm audit` on
+pull requests, on merge to `main`, and weekly. The weekly run is the important
+one: a dependency that is clean today can be vulnerable next month with no
+commit touching the repo.
+
+Neither job is a required status check, so they never block a merge (`check` and
+`e2e` do that). CodeQL results appear in the repository Security tab. The audit
+fails on a high or critical advisory in a runtime dependency, since those reach
+a player's browser, and reports dev-dependency advisories without failing, since
+those never ship and are mostly transitive noise.
+
 ### Telemetry dashboard
 
 The game records a compact metrics snapshot at each run milestone (a region

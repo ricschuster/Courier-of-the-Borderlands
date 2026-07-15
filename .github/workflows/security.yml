@@ -1,0 +1,72 @@
+name: Security
+
+# Static analysis and dependency auditing (#223).
+#
+# Deliberately a separate workflow rather than steps in ci.yml: these are the
+# slow, mostly-quiet checks, and neither is a required status check, so they
+# must not sit in the path of a merge. `check` and `e2e` still gate main.
+#
+# The weekly schedule is the point of the whole file. A dependency that is fine
+# today can be vulnerable next month with no commit touching the repo, so a
+# scan that only runs on PRs would go quiet exactly when the code stops
+# changing.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, an hour after the nightly Arc, so a failure is easy to attribute.
+    - cron: '0 8 * * 1'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      # Least privilege: upload results to the Security tab, read the code, and
+      # read Actions metadata. Nothing here needs write access to the repo.
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          # TypeScript is analyzed from source, so CodeQL does not need to run
+          # the Vite build. `check` already proves the bundle compiles.
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm ci
+
+      # Runtime dependencies are the ones that reach a player's browser, and
+      # there is exactly one (phaser). A high or critical advisory here is real
+      # and worth failing on: the signal-to-noise is about as good as it gets.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Dev dependencies never ship, but the build toolchain is still a supply
+      # chain, so it is worth seeing. Advisory only: a transitive advisory in a
+      # linter or bundler should not turn a scheduled run red on a repo where
+      # nobody can act on it that morning. `|| true` keeps it reporting.
+      - name: Audit all dependencies (advisory)
+        run: npm audit --audit-level=high || true
