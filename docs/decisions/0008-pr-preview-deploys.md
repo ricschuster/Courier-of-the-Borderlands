@@ -57,6 +57,23 @@ preview folders on every merge.
   post-merge deploy.
 - Every PR now costs one extra build and a small, self-cleaning slice of the
   gh-pages branch.
+- **A preview shares an origin with the live game, and therefore its
+  localStorage** (found 2026-07-15, #278). This consequence was missed when the
+  decision was taken. `localStorage` is scoped to scheme plus host, not path, so
+  a preview at `/pr-preview/pr-N/` read and wrote the same save, difficulty,
+  telemetry, and error keys as the live game at `/`: opening a preview resumed
+  the player's real save and then autosaved over it.
+
+  Fixed by namespacing every storage key with the build's base path
+  (`src/systems/storage-namespace.ts`), which already differs per deploy and
+  reaches the bundle as `import.meta.env.BASE_URL`. The production base is the
+  one base that namespaces to nothing, so live keys are byte-for-byte unchanged;
+  renaming them would have orphaned every existing save, which is the #123
+  failure mode. Previews are also isolated from each other.
+
+  The general lesson for anything else hosted on this origin: path is not a
+  security or isolation boundary in the browser. Any new client-side storage must
+  route its key through `namespacedKey`.
 
 ## Alternatives considered
 

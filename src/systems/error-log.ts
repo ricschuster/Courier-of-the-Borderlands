@@ -13,11 +13,13 @@
 // serialize/summarize logic is pure and unit tested; the read/write helpers are a
 // thin guard over localStorage so a logging failure can never break the game.
 
+import { namespacedKey } from './storage-namespace';
+
 /** Record format version, so an older stored record can be recognized or dropped. */
 export const ERROR_LOG_SCHEMA = 1;
 
-/** localStorage key the rolling error history lives under. */
-export const ERROR_LOG_KEY = 'courier-of-the-borderlands/errors';
+/** localStorage key the rolling error history lives under. Namespaced per deploy (#278). */
+export const ERROR_LOG_KEY = namespacedKey('courier-of-the-borderlands/errors');
 
 /**
  * Cap on stored records. A ring: the oldest is dropped once the cap is reached.
