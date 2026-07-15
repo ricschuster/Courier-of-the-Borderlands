@@ -93,7 +93,7 @@ the landing page; the game itself is at `/play.html`.
 
 - Arrow keys or WASD: drive the courier
 - Number keys: accept a contract at the board, or spend a skill point in the skills panel
-- B: buy the next upgrade (at the home town)
+- B: open the upgrade menu (at the home town), then a number key to fit one
 - R: repair the wagon at a settlement, or pay for a tow when stranded on the road
 - E: talk to an NPC (at a settlement with dialogue)
 - T: travel to the connected region (on a gateway tile, when not carrying cargo)
