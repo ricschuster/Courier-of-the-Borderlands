@@ -1,0 +1,133 @@
+name: Token expiry
+
+# Watches RELEASE_PLEASE_TOKEN and files an issue only when rotation is
+# actually due (#243).
+#
+# Why this exists rather than a standing dated issue: the token's failure mode
+# is silent. When it expires, release-please falls back to GITHUB_TOKEN, which
+# by GitHub's design raises no `pull_request` events, so the release PR is
+# created with no checks and simply never merges. No red X, no error, months
+# after anyone remembers why (#238). Something has to notice.
+#
+# A dated reminder issue would notice, but it sits in `gh issue list` for months
+# as a todo nobody can act on, which is at odds with the repo's open = todo
+# convention. This checks the real condition instead and stays silent until
+# there is something to do.
+#
+# It also asks GitHub for the true expiry rather than trusting a date written
+# down by hand, and it catches revocation and scope changes, not just expiry.
+on:
+  schedule:
+    # Monthly, on the 1st. The warning window is far wider than the gap between
+    # runs, so a missed or delayed run cannot cause a surprise.
+    - cron: '0 9 1 * *'
+  # Run on demand to see the real expiry date at any time.
+  workflow_dispatch:
+  # Self-test: a monitor that only ever runs on a schedule is a monitor whose
+  # breakage is discovered months later, by which point it is not monitoring
+  # anything. Editing this file exercises it on the PR. Scoped to this path so
+  # it does not run on unrelated PRs. (Secrets are unavailable to PRs from
+  # forks, which would fail the empty-token check, but this repo does not take
+  # outside contributions.)
+  pull_request:
+    paths:
+      - '.github/workflows/token-expiry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      # Only to file the rotation reminder. Nothing here touches code.
+      issues: write
+    steps:
+      - name: Check the token and read its real expiry
+        env:
+          # A step-level `env:` may read secrets. A step-level `if:` may not,
+          # which is exactly the bug that broke main in #246, so keep the
+          # emptiness check in the script below rather than in an `if:`.
+          TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Rotate with this much runway. Comfortably more than the monthly
+          # cadence, so there is always at least one nudge before the cliff.
+          WARN_DAYS: '45'
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::RELEASE_PLEASE_TOKEN is not set. release-please will fall back to GITHUB_TOKEN and its release PR will never run checks (see #238)."
+            exit 1
+          fi
+
+          # -D writes the response headers to a file; the body is discarded. The
+          # token is only ever passed as a header, never echoed.
+          status="$(curl -sS -o /dev/null -D headers.txt -w '%{http_code}' \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            https://api.github.com/user)"
+
+          if [ "${status}" != "200" ]; then
+            echo "::error::RELEASE_PLEASE_TOKEN failed to authenticate (HTTP ${status}). It is expired, revoked, or missing scopes. Releases are blocked until it is rotated: see #238."
+            exit 1
+          fi
+          echo "Token authenticates (HTTP 200)."
+
+          # GitHub reports a PAT's expiry in a response header. Absent means the
+          # token does not expire, which needs no reminder.
+          expiry="$(grep -i '^github-authentication-token-expiration:' headers.txt | cut -d' ' -f2- | tr -d '\r' || true)"
+          if [ -z "${expiry}" ]; then
+            echo "No expiry header: this token does not expire. Nothing to track."
+            exit 0
+          fi
+
+          expiry_epoch="$(date -u -d "${expiry}" +%s)"
+          now_epoch="$(date -u +%s)"
+          days_left="$(( (expiry_epoch - now_epoch) / 86400 ))"
+          echo "RELEASE_PLEASE_TOKEN expires ${expiry} (${days_left} days away)."
+          echo "### Token expiry" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`RELEASE_PLEASE_TOKEN\` expires **${expiry}**, in **${days_left}** days." >> "${GITHUB_STEP_SUMMARY}"
+
+          if [ "${days_left}" -gt "${WARN_DAYS}" ]; then
+            echo "More than ${WARN_DAYS} days of runway. Staying quiet."
+            exit 0
+          fi
+
+          # Idempotent: the monthly run must not stack up duplicate reminders.
+          existing="$(gh issue list --repo "${REPO}" --label token-rotation --state open --json number --jq 'length')"
+          if [ "${existing}" != "0" ]; then
+            echo "A rotation issue is already open. Nothing to do."
+            exit 0
+          fi
+
+          gh label create token-rotation --repo "${REPO}" \
+            --description 'Credential rotation is due' --color 'D93F0B' --force
+
+          gh issue create --repo "${REPO}" \
+            --label token-rotation --label tech-debt \
+            --title "Rotate RELEASE_PLEASE_TOKEN (expires ${expiry})" \
+            --body "$(cat <<EOF
+          \`RELEASE_PLEASE_TOKEN\` expires **${expiry}**, in about **${days_left}** days. This issue was filed automatically by \`.github/workflows/token-expiry.yml\` once rotation came into range, and the date above is read from GitHub rather than written down by hand.
+
+          ## Why this matters
+
+          The failure is silent. If the PAT expires, \`release-please.yml\` falls back to \`secrets.GITHUB_TOKEN\`, which by GitHub's design does not raise \`pull_request\` events. The release PR is then created with **no checks at all**, and since \`main\` requires \`check\` and \`e2e\`, it is blocked forever. No red X: just a release PR that quietly will not merge. That was #238.
+
+          ## How to rotate
+
+          1. Create a new fine-grained PAT at https://github.com/settings/personal-access-tokens/new
+             - Resource owner \`ricschuster\`, "Only select repositories" -> \`Courier-of-the-Borderlands\`
+             - Repository permissions: **Contents: Read and write**, **Pull requests: Read and write**
+          2. \`gh secret set RELEASE_PLEASE_TOKEN\` (prompts for the value, so it never lands in shell history or a transcript)
+          3. Verify: run the **Token expiry** workflow manually. It reports the new expiry and turns green.
+          4. Close this issue. The workflow files a fresh one when the next token comes due.
+
+          ## Context
+
+          - #238: the original bug and fix (PR #242)
+          - \`docs/decisions/0007-release-versioning.md\`: records the tradeoff. The alternative is a GitHub App installation token, which does not expire but is more setup than a solo repo warrants.
+          EOF
+          )"
+          echo "Filed a rotation issue."
