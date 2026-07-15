@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         telemetry: 'telemetry.html',
+        manual: 'manual.html',
       },
       output: {
         // Split the Phaser engine into its own chunk, separate from app code.
