@@ -32,6 +32,9 @@ jobs:
       # CI, and `main`'s required checks then block the merge. With a PAT or App
       # token the PR is authored by a real identity, CI runs, and the release PR
       # can merge unattended. See #238 and docs/decisions/0007-release-versioning.md.
+      #
+      # The token expires 2026-12-31. On expiry this silently falls back to the
+      # blocked-PR behaviour above rather than failing loudly. Rotation: #243.
       - uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
