@@ -3,15 +3,18 @@
 // localStorage so the game keeps running even where storage is unavailable.
 import type { ContractStatus } from './contract-system';
 import { sanitizeCondition, isDifficulty, type Difficulty } from './wagon-condition';
+import { namespacedKey } from './storage-namespace';
 
 export const SAVE_VERSION = 1;
-export const SAVE_KEY = 'courier-of-the-borderlands/save';
+// Namespaced per deploy (#278) so a PR preview cannot resume and overwrite the
+// real save; on production these resolve to exactly the strings they always were.
+export const SAVE_KEY = namespacedKey('courier-of-the-borderlands/save');
 
 /** Marker that the one-time intro card has been shown, so it is not shown again. */
-export const INTRO_SEEN_KEY = 'courier-of-the-borderlands/intro-seen';
+export const INTRO_SEEN_KEY = namespacedKey('courier-of-the-borderlands/intro-seen');
 
 /** Chosen difficulty preset. A player preference, not save state. */
-export const DIFFICULTY_KEY = 'courier-of-the-borderlands/difficulty';
+export const DIFFICULTY_KEY = namespacedKey('courier-of-the-borderlands/difficulty');
 
 /**
  * Outcome of a save attempt. 'unavailable' means storage could not be reached at

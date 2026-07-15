@@ -10,6 +10,8 @@
 // where storage is unavailable (private mode, quota, storage disabled), exactly
 // like save-system.ts.
 
+import { namespacedKey } from './storage-namespace';
+
 /**
  * Record format version, so an older stored record can be recognized or dropped.
  *
@@ -19,8 +21,13 @@
  */
 export const TELEMETRY_SCHEMA = 2;
 
-/** localStorage key the rolling record history lives under. */
-export const TELEMETRY_KEY = 'courier-of-the-borderlands/telemetry';
+/**
+ * localStorage key the rolling record history lives under. Namespaced per deploy
+ * (#278): a preview run would otherwise pollute the real-play history that the
+ * `source` field (#264) exists to keep separate, and would be labelled 'play',
+ * since it is a human at a keyboard.
+ */
+export const TELEMETRY_KEY = namespacedKey('courier-of-the-borderlands/telemetry');
 
 /**
  * Cap on stored records. A ring: the oldest is dropped once the cap is reached,
