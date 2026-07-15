@@ -9,6 +9,12 @@ name: Release Please
 on:
   push:
     branches: [main]
+  # Re-run release-please on demand from the Actions tab. Without this the only
+  # way to make it reconsider the release PR is to land another commit on main,
+  # which is a poor fit for the times you need it most: after fixing the token
+  # (#238), or after rotating it (#243), when there is nothing to commit and you
+  # just want to know whether it works now.
+  workflow_dispatch:
 
 # release-please opens/updates the release PR and, on merge, creates the tag and
 # GitHub Release, so it needs write access to contents and pull requests. These
