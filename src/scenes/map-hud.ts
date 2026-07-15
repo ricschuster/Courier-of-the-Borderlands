@@ -578,15 +578,45 @@ export class MapHud {
     );
   }
 
-  /** Route a mouse-wheel delta to whichever scrollable overlay is currently open. */
+  /** Route a mouse-wheel delta to whichever scrollable overlay is currently open. See handleScrollPage for the keyboard route. */
   handleScroll(deltaY: number): void {
+    this.scrollablePanel()?.scrollBy(deltaY);
+  }
+
+  /**
+   * Page whichever scrollable overlay is open (direction 1 down, -1 up), the
+   * keyboard equivalent of the wheel. Returns true if a panel took it, so the
+   * scene can tell whether the key was consumed. Every other interaction in the
+   * game is keyed, so without this the overlays were the one surface that needed
+   * a pointer (#274).
+   */
+  handleScrollPage(direction: number): boolean {
+    const panel = this.scrollablePanel();
+    panel?.scrollByPage(direction);
+    return panel !== null;
+  }
+
+  /**
+   * Scroll offset of the open scrollable overlay, or null when none is open.
+   * Read-only, for the e2e hook: it is the only externally observable proof that
+   * a scroll input actually moved the panel (#274).
+   */
+  scrollOffset(): number | null {
+    return this.scrollablePanel()?.scrollOffset ?? null;
+  }
+
+  /** The open scrollable overlay, or null. The legend always fits, so it is not one. */
+  private scrollablePanel(): ScrollablePanel | null {
     if (this.journalPanel.visible) {
-      this.journalPanel.scrollBy(deltaY);
-    } else if (this.skillPanel.visible) {
-      this.skillPanel.scrollBy(deltaY);
-    } else if (this.upgradePanel.visible) {
-      this.upgradePanel.scrollBy(deltaY);
+      return this.journalPanel;
     }
+    if (this.skillPanel.visible) {
+      return this.skillPanel;
+    }
+    if (this.upgradePanel.visible) {
+      return this.upgradePanel;
+    }
+    return null;
   }
 
   /** Toggle the journal; returns the new visibility so the scene can refresh on open. */

@@ -120,7 +120,7 @@ export function buildJournalText(input: JournalTextInput): string {
     hiddenRoadProgress(input.threads.regions, input.threads.completedIds, input.threads.flags),
   );
   const lines = [
-    'DISCOVERIES JOURNAL   (J to close, mouse wheel to scroll)',
+    'DISCOVERIES JOURNAL   (J to close, PgUp/PgDn or wheel to scroll)',
     `Title: ${input.title}`,
     '',
     'Current objective:',

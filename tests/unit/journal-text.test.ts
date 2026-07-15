@@ -74,6 +74,15 @@ describe('buildJournalText', () => {
     expect(text).toContain('Distance driven: 12 tiles');
   });
 
+  // The journal is keyboard-scrollable (#274). The header used to name only the
+  // mouse wheel, which mattered most here: the journal is the longest panel and
+  // the one carrying the story threads and wayside discoveries.
+  it('names a keyboard scroll route in the header, not just the wheel', () => {
+    const text = buildJournalText(makeInput());
+    expect(text).toContain('PgUp/PgDn');
+    expect(text).not.toContain('mouse wheel to scroll');
+  });
+
   it('passes through buildJournal place masking and reconnection notes', () => {
     const text = buildJournalText(makeInput({
       journal: { ...makeInput().journal, visitedIds: ['greybridge', 'ashford'] },
