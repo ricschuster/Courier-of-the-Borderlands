@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 // outside Phaser and is exactly what a player sees when the game fails to boot.
 
 test('an uncaught error shows a recovery overlay with reset controls', async ({ page }) => {
-  await page.goto('./');
+  await page.goto('./play.html');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
 
   // The overlay is absent during a normal, error-free boot.

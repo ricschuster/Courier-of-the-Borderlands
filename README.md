@@ -6,7 +6,9 @@ A 2D fantasy courier exploration game for the web. Deliver goods, letters, rumou
 
 ## Play
 
-Play in your browser: https://ricschuster.github.io/Courier-of-the-Borderlands/
+Site and pitch: https://ricschuster.github.io/Courier-of-the-Borderlands/
+
+Straight into the game: https://ricschuster.github.io/Courier-of-the-Borderlands/play.html
 
 Your progress is saved locally in the browser and resumes when you return.
 
@@ -82,7 +84,8 @@ Run the game locally:
 npm run dev
 ```
 
-Then open the URL printed by Vite (typically http://localhost:5173).
+Then open the URL printed by Vite (typically http://localhost:5173). That serves
+the landing page; the game itself is at `/play.html`.
 
 ## Controls
 

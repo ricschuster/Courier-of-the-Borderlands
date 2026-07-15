@@ -60,7 +60,7 @@ try {
   await waitForServer(BASE);
   browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
-  await page.goto(`${BASE}?e2e`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}play.html?e2e`, { waitUntil: 'networkidle' });
   // Wait for the scene's e2e hook, which is installed in the same create() that
   // binds the keyboard handlers: a reliable "input is ready" signal, so a key
   // press does not race scene setup (a fixed delay was flaky).

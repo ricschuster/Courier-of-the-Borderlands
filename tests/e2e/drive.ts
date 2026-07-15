@@ -340,7 +340,7 @@ export async function bootE2E(
   const params = ['e2e=1'];
   if (options.turbo) params.push('turbo=1');
   if (options.noWear) params.push('nowear=1');
-  await page.goto(`./?${params.join('&')}`);
+  await page.goto(`./play.html?${params.join('&')}`);
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   // Focus the canvas so key events reach the game.
   await page.locator('#game canvas').click();

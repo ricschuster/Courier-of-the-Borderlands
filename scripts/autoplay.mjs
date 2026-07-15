@@ -170,7 +170,7 @@ try {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 
   // Fresh game every run.
-  await page.goto(`${BASE}?e2e`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}play.html?e2e`, { waitUntil: 'networkidle' });
   // eslint-disable-next-line no-undef -- runs in the browser page, not node
   await page.evaluate(() => localStorage.removeItem('courier-of-the-borderlands/save'));
   await page.reload({ waitUntil: 'networkidle' });

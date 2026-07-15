@@ -11,7 +11,7 @@ const DIFFICULTY_KEY = 'courier-of-the-borderlands/difficulty';
 test('the title screen picks a difficulty, locks it for the run, and persists it', async ({
   page,
 }) => {
-  await page.goto('./?e2e=1&title=1');
+  await page.goto('./play.html?e2e=1&title=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.locator('#game canvas').click();
 
