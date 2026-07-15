@@ -10,6 +10,9 @@ Play in your browser: https://ricschuster.github.io/Courier-of-the-Borderlands/
 
 Your progress is saved locally in the browser and resumes when you return.
 
+Game manual (how to play, controls, and systems):
+https://ricschuster.github.io/Courier-of-the-Borderlands/manual.html
+
 Balance telemetry dashboard (metrics from your own play):
 https://ricschuster.github.io/Courier-of-the-Borderlands/telemetry.html
 
