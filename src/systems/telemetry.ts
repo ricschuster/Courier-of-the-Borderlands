@@ -10,8 +10,14 @@
 // where storage is unavailable (private mode, quota, storage disabled), exactly
 // like save-system.ts.
 
-/** Record format version, so an older stored record can be recognized or dropped. */
-export const TELEMETRY_SCHEMA = 1;
+/**
+ * Record format version, so an older stored record can be recognized or dropped.
+ *
+ * 2 added `source` (#264). v1 records are dropped rather than defaulted: the
+ * only stored v1 history was a hand-seeded automated arc, and defaulting it to
+ * 'play' would mislabel precisely the records the field exists to separate.
+ */
+export const TELEMETRY_SCHEMA = 2;
 
 /** localStorage key the rolling record history lives under. */
 export const TELEMETRY_KEY = 'courier-of-the-borderlands/telemetry';
@@ -27,6 +33,14 @@ export const MAX_RECORDS = 200;
 export type RunMilestone = 'region' | 'arc';
 
 /**
+ * Who drove the run (#264). An automated driver routes near-optimally and
+ * repairs at every home visit, so its wear is a lower bound and its condition an
+ * upper bound on a real player's. Averaging the two together flatters the travel
+ * sink, so the dashboard reports them apart.
+ */
+export type RunSource = 'auto' | 'play';
+
+/**
  * One captured milestone. Flat and JSON-serializable. Every field is required so
  * the dashboard never has to reason about partial records; the parser fills a
  * sensible default for any field an older or corrupt record is missing.
@@ -36,6 +50,8 @@ export interface RunRecord {
   /** Epoch milliseconds the record was captured. */
   readonly at: number;
   readonly milestone: RunMilestone;
+  /** Whether an automated driver or a human produced this run. */
+  readonly source: RunSource;
   readonly regionId: string;
   readonly regionName: string;
   readonly difficulty: string;
@@ -65,6 +81,7 @@ export function createRunRecord(input: RunRecordInput, at: number): RunRecord {
     schema: TELEMETRY_SCHEMA,
     at: nonNeg(at),
     milestone: input.milestone === 'arc' ? 'arc' : 'region',
+    source: input.source === 'auto' ? 'auto' : 'play',
     regionId: input.regionId,
     regionName: input.regionName,
     difficulty: input.difficulty,
@@ -90,6 +107,21 @@ export function appendRecord(
 ): RunRecord[] {
   const next = [...records, record];
   return next.length > max ? next.slice(next.length - max) : next;
+}
+
+/** Dashboard record filter: one source, or everything mixed together. */
+export type SourceFilter = RunSource | 'all';
+
+/**
+ * Narrow records to one source. 'all' passes everything through, which mixes
+ * bot and human numbers, so it is a deliberate choice rather than the default.
+ * Pure, so it is unit tested.
+ */
+export function filterBySource(
+  records: readonly RunRecord[],
+  filter: SourceFilter,
+): RunRecord[] {
+  return filter === 'all' ? [...records] : records.filter((r) => r.source === filter);
 }
 
 /** Per-region rollup for the dashboard. Averages are over that region's records. */
@@ -154,6 +186,11 @@ export function summarizeRecords(records: readonly RunRecord[]): TelemetrySummar
  * Tolerant parse of the stored record list. Anything malformed is dropped or
  * defaulted rather than throwing, so a partially corrupt store still yields the
  * clean records it can (mirrors save-system's parsers).
+ *
+ * A record that explicitly declares a schema older than the current one is
+ * dropped, because it predates `source` and cannot be labelled honestly (#264).
+ * A record with no schema at all stays tolerated as current, matching how the
+ * parser treats every other missing field.
  */
 export function parseRecords(raw: unknown): RunRecord[] {
   if (!Array.isArray(raw)) {
@@ -165,10 +202,15 @@ export function parseRecords(raw: unknown): RunRecord[] {
       continue;
     }
     const e = entry as Record<string, unknown>;
+    const schema = isFiniteNumber(e.schema) ? Math.floor(e.schema) : TELEMETRY_SCHEMA;
+    if (schema < TELEMETRY_SCHEMA) {
+      continue;
+    }
     out.push({
-      schema: isFiniteNumber(e.schema) ? Math.floor(e.schema) : TELEMETRY_SCHEMA,
+      schema,
       at: isFiniteNumber(e.at) ? Math.max(0, e.at) : 0,
       milestone: e.milestone === 'arc' ? 'arc' : 'region',
+      source: e.source === 'auto' ? 'auto' : 'play',
       regionId: typeof e.regionId === 'string' ? e.regionId : 'unknown',
       regionName: typeof e.regionName === 'string' ? e.regionName : 'Unknown',
       difficulty: typeof e.difficulty === 'string' ? e.difficulty : 'standard',
