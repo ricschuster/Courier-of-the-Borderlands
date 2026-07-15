@@ -154,6 +154,7 @@ import {
 import { MISSIONS } from '../data/missions';
 import { MapHud, type WagonState } from './map-hud';
 import { MapMarkers } from './map-markers';
+import { Juice } from './juice';
 import {
   getRegion,
   arrivalTile,
@@ -234,6 +235,12 @@ interface E2EState {
    * panel renders to canvas and its text is unreadable from the DOM (#274).
    */
   readonly overlayScrollOffset: number | null;
+  /**
+   * Whether cosmetic feedback (shake, particle bursts) is playing. False when the
+   * player has asked their system to reduce motion. Purely cosmetic state, but
+   * unobservable from outside, and it is the accessibility contract (#227).
+   */
+  readonly juiceEnabled: boolean;
   /** Labels of the choices offered on the current dialogue node (empty when closed). */
   readonly dialogueChoices: readonly string[];
   /** Id of the road encounter currently playing, or null when none is open. */
@@ -339,6 +346,8 @@ export class MapScene extends Phaser.Scene {
   private repairKey!: Phaser.Input.Keyboard.Key;
   // All HUD and overlay GameObjects live in the MapHud presentation layer.
   private hud!: MapHud;
+  // Cosmetic feedback only (#227). Never gates or changes a rule.
+  private juice!: Juice;
   private fog!: Fog;
   private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
   private activeContract: Contract | undefined;
@@ -491,6 +500,9 @@ export class MapScene extends Phaser.Scene {
     this.prevY = spawnY;
 
     this.setupCamera();
+    // Before the markers: the signpost registers an overlap callback that can
+    // unlock the ford, and that path reports through juice.
+    this.juice = new Juice(this);
 
     this.markers = new MapMarkers(this, this.mapOriginY);
     // The signpost only exists in regions that host the ford-unlock mechanic.
@@ -840,6 +852,7 @@ export class MapScene extends Phaser.Scene {
       storyFlags: flagsToArray(this.storyFlags),
       dialogueOpen: this.hud.isDialogueVisible(),
       overlayScrollOffset: this.hud.scrollOffset(),
+      juiceEnabled: this.juice.isEnabled(),
       dialogueChoices: this.dialogue.choiceLabels(),
       activeEncounterId: this.dialogue.activeEncounterId(),
       regionCleared: this.regionCleared(),
@@ -1178,6 +1191,9 @@ export class MapScene extends Phaser.Scene {
     this.prevY = center.y;
     this.hud.showToast('A passing carter tows you home. Pay to repair before you set out again.');
     this.refreshWallet();
+    // The tow has already moved the wagon home; the shake reads as the breakdown
+    // that put it there, which is the moment worth feeling.
+    this.juice.stranded();
     this.save();
   }
 
@@ -1200,6 +1216,7 @@ export class MapScene extends Phaser.Scene {
       ? `Wagon repaired at ${placeName}.`
       : `Wagon patched to ${Math.round(result.condition)}/${max} at ${placeName} (all your coin).`;
     this.hud.showToast(note);
+    this.juice.repaired(this.courier.sprite.x, this.courier.sprite.y);
     this.refreshWallet();
     this.save();
   }
@@ -1505,6 +1522,7 @@ export class MapScene extends Phaser.Scene {
       `Delivered ${contract.cargo} to ${settlementName}. ` +
         `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
+    this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
     this.refreshObjective();
     this.refreshWallet();
     this.refreshSummary();
@@ -1717,6 +1735,7 @@ export class MapScene extends Phaser.Scene {
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     this.hud.showToast(`Fitted ${upgrade.name}. ${upgrade.description}`);
+    this.juice.upgradeFitted();
     // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
     // mire); open any tiles it now unlocks so the route is drivable at once.
     this.refreshGatedColliders();
@@ -2013,6 +2032,7 @@ export class MapScene extends Phaser.Scene {
     blocks?.forEach((block) => block.destroy());
     this.gatedBlocks.delete(id);
     this.refreshFordStatus();
+    this.juice.routeUnlocked(this.courier.sprite.x, this.courier.sprite.y);
     this.hud.showToast('Shortcut unlocked: the ford is open.');
     this.refreshAchievements(true);
     this.save();
