@@ -59,12 +59,16 @@ remember or hand-run a sequence of commands.
   deployment is unaffected; the deploy workflow still runs on merge to `main`
   independently of releases.
 - The release flow depends on a repo secret that lives outside the repo. If
-  `RELEASE_PLEASE_TOKEN` is missing or expired, releases do not break loudly:
-  they silently fall back to the old behaviour, where the release PR has no
-  checks and needs a manual close/reopen to merge. A PAT with an expiry date is
-  therefore a dated maintenance item; that is the price of not running a GitHub
-  App for a solo project. The current PAT expires **2026-12-31**; rotation is
-  tracked in #243.
+  `RELEASE_PLEASE_TOKEN` is missing, empty, or expired, the flow falls back to
+  the old behaviour rather than failing: the release PR has no checks and needs
+  a manual close/reopen to merge. The workflow logs a warning in that case, so
+  the cause is visible in the run rather than inferred from a stuck PR. A PAT
+  with an expiry date is a dated maintenance item; that is the price of not
+  running a GitHub App for a solo project. The current PAT expires
+  **2026-12-31**; rotation is tracked in #243.
+- Setting the secret needs a real terminal or the GitHub web UI. `gh secret set`
+  with no TTY reads EOF from stdin and stores an **empty** value while exiting 0
+  with no output, which then silently trips the fallback above.
 - Tags and Releases now exist as durable markers a rollback or a "what shipped
   when" question can point at.
 - Commit message discipline now has teeth: the changelog quality is exactly the
