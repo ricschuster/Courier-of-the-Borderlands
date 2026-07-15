@@ -71,9 +71,10 @@ export const DEFAULT_WAGON_TUNING: WagonTuning = {
 /**
  * Difficulty presets. 'standard' is the measured default; 'relaxed' and
  * 'demanding' scale the two primary knobs (wear and repair price) down and up.
- * The player picks one with the in-game selector (the "G" key), which stores the
- * chosen key and passes the matching profile into the scene. The off-standard
- * profiles are illustrative starting points, not yet balanced by playtest.
+ * The player picks one on the title screen when starting a fresh game (#150),
+ * which stores the chosen key and passes the matching profile into the scene.
+ * The off-standard profiles are illustrative starting points, not yet balanced
+ * by playtest.
  */
 export type Difficulty = 'relaxed' | 'standard' | 'demanding';
 
