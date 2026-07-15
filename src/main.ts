@@ -6,6 +6,7 @@ import { TitleScene } from './scenes/title-scene';
 import { MapScene } from './scenes/map-scene';
 import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from './config/game-config';
 import { clearSave } from './systems/save-system';
+import { recordError, type ErrorSource } from './systems/error-log';
 
 // Test-only frame pacing. Phaser's default TimeStep lets a starved frame carry
 // up to 200ms of physics (min fps 5), which on a loaded CI runner moves the
@@ -95,21 +96,39 @@ function showBootError(): void {
   document.body.append(overlay);
 }
 
+/**
+ * Log what actually broke, then show the player-facing overlay. The overlay says
+ * "The road washed out" and nothing more by design, so without this the detail
+ * only ever reached the console and was gone when the tab closed (#221). Reading
+ * it back is the telemetry.html dashboard's job.
+ */
+function reportError(source: ErrorSource, message: string, stack: string): void {
+  recordError({ source, message, stack });
+  showBootError();
+}
+
 if (typeof window !== 'undefined') {
   // Uncaught script errors arrive as ErrorEvents; a failed resource load dispatches
   // a plain Event we ignore, so a missing asset does not raise the fatal overlay.
   window.addEventListener('error', (event) => {
     if (event instanceof ErrorEvent) {
-      showBootError();
+      reportError('error', event.message, event.error instanceof Error ? (event.error.stack ?? '') : '');
     }
   });
-  window.addEventListener('unhandledrejection', () => {
-    showBootError();
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason: unknown = event.reason;
+    reportError(
+      'rejection',
+      reason instanceof Error ? reason.message : String(reason),
+      reason instanceof Error ? (reason.stack ?? '') : '',
+    );
   });
 }
 
 try {
   new Phaser.Game(config);
-} catch {
-  showBootError();
+} catch (err) {
+  // A throw here means no scene ever started, which is the worst case to have no
+  // detail for: the canvas is blank and there is nothing else to go on.
+  reportError('boot', err instanceof Error ? err.message : String(err), err instanceof Error ? (err.stack ?? '') : '');
 }
