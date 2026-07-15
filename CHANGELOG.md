@@ -10,6 +10,25 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.4.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.3.0...courier-of-the-borderlands-v0.4.0) (2026-07-15)
+
+
+### Features
+
+* add feedback juice on delivery, unlock, repair, and stranding ([#277](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/277)) ([cf53507](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cf535076e35ffbb4aac9dce5295e0a9cc48b2558)), closes [#227](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/227)
+* persist runtime error detail to the telemetry dashboard ([#276](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/276)) ([2b60a61](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2b60a61a97211088288bd42cbc040b4c25e1a59b)), closes [#221](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/221)
+
+
+### Bug Fixes
+
+* namespace localStorage per deploy so a preview cannot overwrite a real save ([#279](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/279)) ([fbb4376](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fbb4376e3db398ee1f7c9f6f02469ef6fa6e6fb7)), closes [#278](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/278)
+* scroll the journal, skills, and upgrade panels with PgUp/PgDn ([#275](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/275)) ([8860f6f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8860f6fa8bd73b07e0d091b9d7ba7871a49f4f1f)), closes [#274](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/274)
+
+
+### Documentation
+
+* record the 2026-07-15 playtest and close out both design threads ([#272](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/272)) ([8ea658a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8ea658a937b54767cb102af471d36ff47adf6575))
+
 ## [0.3.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.2.0...courier-of-the-borderlands-v0.3.0) (2026-07-15)
 
 
