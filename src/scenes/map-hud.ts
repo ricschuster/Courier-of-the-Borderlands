@@ -10,8 +10,7 @@ import {
   UI_BAR_FRAME_AMBER,
   UI_BAR_FRAME_RED,
 } from '../config/game-config';
-import { TERRAIN_TYPES } from '../data/terrain-types';
-import { buildLegend } from '../systems/legend';
+import { buildLegend, type LegendTerrain } from '../systems/legend';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
@@ -164,7 +163,12 @@ export class MapHud {
   // (no fade timer), so a story or delivery message can be read at any pace.
   private readonly toasts = new Map<number, Phaser.GameObjects.Text>();
 
-  constructor(scene: Phaser.Scene) {
+  /**
+   * @param legendTerrains the terrains this region's map uses, for the codex.
+   *   Passed in rather than read from the terrain data directly so the codex
+   *   describes the ground the player is actually standing on (#251).
+   */
+  constructor(scene: Phaser.Scene, legendTerrains: readonly LegendTerrain[]) {
     this.scene = scene;
 
     // Shared backing panel for the status rows. Drawn first so the row text
@@ -350,8 +354,10 @@ export class MapHud {
     // Minimap graphics (toggled with M), drawn in drawMinimap.
     this.minimapGfx = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH_HUD).setVisible(false);
 
-    // Terrain codex (toggled with L); static content from terrain data.
-    const legend = buildLegend(Object.values(TERRAIN_TYPES));
+    // Terrain codex (toggled with L). Content is fixed for the scene's lifetime,
+    // and a scene restart (travel, new game) rebuilds the HUD, so the codex
+    // follows the player into the next region without needing to be refreshed.
+    const legend = buildLegend(legendTerrains);
     const legendLines = ['TERRAIN CODEX   (L to close)'];
     for (const entry of legend) {
       legendLines.push(`  ${entry.name}: ${entry.speedLabel}${entry.passable ? '' : ' (impassable)'}`);

@@ -19,6 +19,24 @@ export interface LegendTerrain {
   readonly speedModifier: number;
 }
 
+/**
+ * Pick out the terrains a map actually uses, in the terrain record's own order.
+ *
+ * The codex is per region (#251). Listing every terrain in the game showed the
+ * three region-specific fords as three identical "Ford" rows, and leaked terrain
+ * from regions the player had never seen. Ordering follows the record rather
+ * than the order tiles happen to appear, so the codex reads the same everywhere.
+ */
+export function terrainsPresent<T extends LegendTerrain>(
+  tileIds: readonly string[],
+  terrains: Readonly<Record<string, T>>,
+): T[] {
+  const present = new Set(tileIds);
+  return Object.entries(terrains)
+    .filter(([id]) => present.has(id))
+    .map(([, terrain]) => terrain);
+}
+
 /** Derive a speed label from a terrain's modifier and passable flag. */
 function deriveSpeedLabel(terrain: LegendTerrain): string {
   if (!terrain.passable) return 'blocked';
