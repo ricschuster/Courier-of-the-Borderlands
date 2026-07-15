@@ -79,6 +79,7 @@ import {
   upgradeMenuText,
 } from '../systems/panel-text';
 import { buildMinimap } from '../systems/minimap';
+import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
 import {
   computeWorldState,
@@ -501,7 +502,7 @@ export class MapScene extends Phaser.Scene {
     this.addFog();
     this.restoreFog();
     this.setupInput();
-    this.hud = new MapHud(this);
+    this.hud = new MapHud(this, terrainsPresent(this.map.tiles, TERRAIN_TYPES));
     // Fresh conversation subsystem per create(), so a scene restart (travel, new
     // game) opens with no dialogue in progress. The host literal is the scene's
     // narrow, explicit coupling surface to the controller.

@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { buildLegend } from '../../src/systems/legend';
+import { buildLegend, terrainsPresent } from '../../src/systems/legend';
 import type { LegendTerrain } from '../../src/systems/legend';
+
+// Keyed fixture for terrainsPresent, shaped like TERRAIN_TYPES: two fords that
+// share a display name (the #251 symptom) plus a terrain from another region.
+const KEYED: Readonly<Record<string, LegendTerrain>> = {
+  plains: { name: 'Plains', color: 0x88bb55, passable: true, speedModifier: 1 },
+  road: { name: 'Road', color: 0xaaaaaa, passable: true, speedModifier: 1.2 },
+  'ford-greybridge': { name: 'Ford', color: 0x5588aa, passable: false, speedModifier: 0 },
+  'ford-saltreach': { name: 'Ford', color: 0x5588aa, passable: false, speedModifier: 0 },
+  'tidal-flat': { name: 'Tidal Flat', color: 0x77aabb, passable: false, speedModifier: 0 },
+};
 
 // Fixture covering every speedLabel branch plus impassable edge cases.
 const TERRAINS: readonly LegendTerrain[] = [
@@ -80,5 +90,44 @@ describe('buildLegend', () => {
 
   it('returns an empty array for empty input', () => {
     expect(buildLegend([])).toEqual([]);
+  });
+});
+
+describe('terrainsPresent', () => {
+  it('keeps only the terrains the map actually uses', () => {
+    const tiles = ['plains', 'road', 'plains'];
+    expect(terrainsPresent(tiles, KEYED).map((t) => t.name)).toEqual(['Plains', 'Road']);
+  });
+
+  it('lists a terrain once however many tiles use it', () => {
+    const tiles = ['plains', 'plains', 'plains', 'road'];
+    expect(terrainsPresent(tiles, KEYED)).toHaveLength(2);
+  });
+
+  it('shows only the ford belonging to this map, not every region\'s (#251)', () => {
+    // The bug: listing all terrains rendered "Ford" three times, once per
+    // region, with nothing to tell them apart.
+    const tiles = ['plains', 'ford-greybridge'];
+    const names = terrainsPresent(tiles, KEYED).map((t) => t.name);
+    expect(names.filter((n) => n === 'Ford')).toHaveLength(1);
+  });
+
+  it('does not leak terrain from regions the map does not touch (#251)', () => {
+    const tiles = ['plains', 'road'];
+    expect(terrainsPresent(tiles, KEYED).map((t) => t.name)).not.toContain('Tidal Flat');
+  });
+
+  it('orders by the terrain record, not by where tiles first appear', () => {
+    // Stable ordering keeps the codex reading the same from region to region.
+    const tiles = ['ford-greybridge', 'road', 'plains'];
+    expect(terrainsPresent(tiles, KEYED).map((t) => t.name)).toEqual(['Plains', 'Road', 'Ford']);
+  });
+
+  it('ignores tile ids with no matching terrain', () => {
+    expect(terrainsPresent(['plains', 'nonsense'], KEYED).map((t) => t.name)).toEqual(['Plains']);
+  });
+
+  it('returns nothing for an empty map', () => {
+    expect(terrainsPresent([], KEYED)).toEqual([]);
   });
 });
