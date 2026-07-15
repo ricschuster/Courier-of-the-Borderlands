@@ -193,6 +193,7 @@
           <li><a href="#story">Story and the world</a></li>
           <li><a href="#regions">The regions</a></li>
           <li><a href="#tips">Tips</a></li>
+          <li><a href="#faq">FAQ</a></li>
         </ol>
       </nav>
 
@@ -225,8 +226,8 @@
             </thead>
             <tbody>
               <tr><td><kbd>WASD</kbd> / <kbd>Arrows</kbd></td><td>Drive the courier</td></tr>
-              <tr><td><kbd>1</kbd>&ndash;<kbd>9</kbd></td><td>Accept a contract at the board, or spend a skill point in the skills panel</td></tr>
-              <tr><td><kbd>B</kbd></td><td>Buy the next wagon upgrade (at the home town)</td></tr>
+              <tr><td><kbd>1</kbd>&ndash;<kbd>9</kbd></td><td>Pick from whatever is open: accept a contract at the board, spend a skill point, or fit an upgrade</td></tr>
+              <tr><td><kbd>B</kbd></td><td>Open the wagon upgrade menu (at the home town)</td></tr>
               <tr><td><kbd>R</kbd></td><td>Repair the wagon at a settlement, or pay for a tow when stranded on the road</td></tr>
               <tr><td><kbd>E</kbd></td><td>Talk to someone (at a settlement with dialogue)</td></tr>
               <tr><td><kbd>T</kbd></td><td>Travel to a connected region (on a gateway tile, when not carrying cargo)</td></tr>
@@ -234,7 +235,7 @@
               <tr><td><kbd>J</kbd></td><td>Toggle the discoveries journal</td></tr>
               <tr><td><kbd>K</kbd></td><td>Toggle the skills panel</td></tr>
               <tr><td><kbd>L</kbd></td><td>Toggle the terrain codex</td></tr>
-              <tr><td><kbd>G</kbd></td><td>Cycle difficulty (Relaxed / Standard / Demanding)</td></tr>
+              <tr><td><kbd>1</kbd>&ndash;<kbd>3</kbd></td><td>Pick a difficulty on the title screen, when starting a fresh game</td></tr>
               <tr><td><kbd>Space</kbd></td><td>Dismiss an on-screen message</td></tr>
               <tr><td><kbd>N</kbd></td><td>Start a new game (clears the save)</td></tr>
             </tbody>
@@ -349,9 +350,10 @@
       <section id="difficulty">
         <h2>Difficulty</h2>
         <p>
-          Cycle the preset any time with <kbd>G</kbd>. It changes how fast the
-          wagon wears and how much repair costs, so it sets how much the travel
-          economy bites.
+          Pick a preset on the title screen when you start a fresh game. It is
+          then locked for that run, so the only way to change it is to start
+          another one with <kbd>N</kbd>. It changes how fast the wagon wears and
+          how much repair costs, so it sets how much the travel economy bites.
         </p>
         <div class="scroll">
           <table>
@@ -392,8 +394,10 @@
       <section id="upgrades">
         <h2>Wagon upgrades</h2>
         <p>
-          Bought at the home town with <kbd>B</kbd>, in order, as you can afford
-          them. Upgrades stack with skills.
+          Press <kbd>B</kbd> at the home town to open the upgrade menu, then a
+          number key to fit one you can afford. The order is yours to choose, so
+          you can save for a later one rather than take the cheapest. Upgrades
+          stack with skills.
         </p>
         <div class="scroll">
           <table>
@@ -467,11 +471,89 @@
           <li>On Demanding, treat coin as upkeep first and luxury second.</li>
         </ul>
       </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+
+        <h3>A river or a patch of mire is blocking me. Am I stuck?</h3>
+        <p>
+          No. Every gated crossing has a longer way round, so a locked route is
+          a shortcut you have not earned yet, never a dead end. Fords open when
+          you reach their signpost. Deep mire needs Marsh Treads or Off-road
+          rank 2, and tidal flats need Salt Runners or Off-road rank 3. Water
+          and mountains are the exception: they are scenery, and never open.
+        </p>
+
+        <h3>My wagon has slowed to a crawl. What happened?</h3>
+        <p>
+          Its condition ran out and you are stranded. Press <kbd>R</kbd> to pay
+          for a tow home. If you can still reach a settlement, <kbd>R</kbd>
+          there repairs for a smaller sum. Repairing before a long haul is
+          almost always cheaper than being rescued after one.
+        </p>
+
+        <h3>Can I change difficulty in the middle of a run?</h3>
+        <p>
+          No. It is chosen on the title screen and locked for that run, so
+          changing it means starting a new game with <kbd>N</kbd>, which clears
+          your save.
+        </p>
+
+        <h3>Does the game save?</h3>
+        <p>
+          Yes, automatically, in your browser. Close the tab and you resume
+          where you left off. Because the save lives in the browser, it does not
+          follow you to another device, and <kbd>N</kbd> deletes it for good.
+        </p>
+
+        <h3>I cannot buy an upgrade I can afford.</h3>
+        <p>
+          Upgrades are sold only at your home town. Drive there, press
+          <kbd>B</kbd> to open the menu, then press the upgrade's number. Which
+          one you fit is up to you, so it is often worth passing over a cheap
+          one and saving for the upgrade that opens a shortcut.
+        </p>
+
+        <h3>The board has nothing worth taking.</h3>
+        <p>
+          Boards open up as your standing with that settlement rises, and some
+          contracts appear only as a region's story moves. Deliver what is
+          there, and better work follows.
+        </p>
+
+        <h3>I am on a gateway tile and cannot travel.</h3>
+        <p>
+          You cannot carry cargo between regions, and there is no way to put a
+          load down once you have taken it. Deliver it, then press <kbd>T</kbd>.
+        </p>
+
+        <h3>If I leave a region, do I lose the map I revealed?</h3>
+        <p>
+          No. Fog is remembered separately for each region, so anything you have
+          burned off stays burned off when you come back.
+        </p>
+
+        <h3>Is there any combat?</h3>
+        <p>
+          No. Road encounters are brief and non-combat. The opposition is the
+          ground, the distance, and the state of your wagon.
+        </p>
+
+        <h3>What should I spend my first skill points on?</h3>
+        <p>
+          Off-road does two jobs at once: it makes you faster everywhere, and at
+          ranks 2 and 3 it opens the mire and tidal shortcuts without buying the
+          matching upgrade. Wayfinder pays off if you would rather explore than
+          hurry.
+        </p>
+      </section>
     </main>
 
     <footer>
       <div>
         <a href="./play.html">Play</a>
+        <a href="./credits.html">Credits</a>
+        <a href="./news.html">What's new</a>
         <a href="./telemetry.html">Telemetry</a>
         <a href="https://github.com/ricschuster/Courier-of-the-Borderlands">Source</a>
       </div>

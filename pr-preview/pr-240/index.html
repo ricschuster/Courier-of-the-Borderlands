@@ -164,6 +164,38 @@
           grid-template-columns: 1fr;
         }
       }
+      /* One shot per row, not a 2-up grid: the skills and codex shots are mostly
+         panel text, and at half width that text is unreadable and the figure
+         reads as a coloured rectangle. Each image also links to the full-size
+         PNG for anyone who wants to read it properly. */
+      .gallery {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 20px;
+      }
+      .gallery figure {
+        margin: 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .gallery img {
+        display: block;
+        width: 100%;
+        height: auto;
+        /* The game renders at 960x540 and the shots are pixel art upscaled from
+           it, so smoothing them on the way back down reads as blur. */
+        image-rendering: pixelated;
+        background: #000;
+      }
+      .gallery figcaption {
+        padding: 10px 14px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
       .regions {
         margin: 12px 0 0;
         padding-left: 20px;
@@ -279,6 +311,56 @@
       </section>
 
       <section>
+        <h2>A look at it</h2>
+        <p class="lead">
+          Grey-box art, for now. The systems come first; the frontier is still
+          being drawn.
+        </p>
+        <div class="gallery">
+          <figure>
+            <a href="./assets/screenshots/exploring.png">
+              <img
+                src="/Courier-of-the-Borderlands/pr-preview/pr-240/assets/exploring-B477d7lM.png"
+                alt="The courier wagon on an east-bank road between Eastwatch and Southmill, with revealed terrain around it and unexplored black fog beyond."
+                width="1225"
+                height="689"
+              />
+            </a>
+            <figcaption>
+              On the road between Eastwatch and Southmill. Everything black is
+              ground you have not driven yet.
+            </figcaption>
+          </figure>
+          <figure>
+            <a href="./assets/screenshots/skills.png">
+              <img
+                src="/Courier-of-the-Borderlands/pr-preview/pr-240/assets/skills-BhyagLvr.png"
+                alt="The courier skills panel, showing Wayfinder, Off-road, Negotiator, and Cipher with a point invested in Off-road."
+                width="1225"
+                height="689"
+              />
+            </a>
+            <figcaption>
+              Skills earned by delivering, exploring, and covering ground.
+            </figcaption>
+          </figure>
+          <figure>
+            <a href="./assets/screenshots/codex.png">
+              <img
+                src="/Courier-of-the-Borderlands/pr-preview/pr-240/assets/codex-D1k_GNW3.png"
+                alt="The terrain codex panel, listing each terrain type and whether it is fast, slow, or impassable."
+                width="1225"
+                height="689"
+              />
+            </a>
+            <figcaption>
+              The terrain codex: what each kind of ground costs you.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
         <h2>The frontier</h2>
         <p class="lead">
           Three regions are open, linked by gateway crossings. Each has its own
@@ -309,8 +391,9 @@
       <div>
         <a href="./play.html">Play</a>
         <a href="./manual.html">Manual</a>
+        <a href="./credits.html">Credits</a>
+        <a href="./news.html">What's new</a>
         <a href="https://github.com/ricschuster/Courier-of-the-Borderlands">Source</a>
-        <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/releases">What's new</a>
       </div>
       <p class="note">
         Courier of the Borderlands is a work in progress, built in the open.
