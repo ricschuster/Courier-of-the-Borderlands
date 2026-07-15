@@ -79,5 +79,25 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/unit/**/*.test.ts'],
     globals: false,
+    coverage: {
+      provider: 'v8',
+      // Only the pure systems are gated. Scenes and UI are Phaser-bound and
+      // deliberately thin (CLAUDE.md: do not over-test rendering early), so
+      // including them would measure the wrong thing and push toward testing
+      // the renderer instead of the rules.
+      include: ['src/systems/**/*.ts'],
+      reporter: ['text', 'html'],
+      // A ratchet, not an aspiration: set just under the real numbers at the
+      // time of writing (95.9 stmts / 91.97 branches / 99.3 funcs / 95.94
+      // lines across all 39 systems), so the gate catches a regression without
+      // failing on rounding. Raise these when coverage rises; do not lower them
+      // to make a red build green.
+      thresholds: {
+        statements: 95,
+        branches: 90,
+        functions: 95,
+        lines: 95,
+      },
+    },
   },
 });
