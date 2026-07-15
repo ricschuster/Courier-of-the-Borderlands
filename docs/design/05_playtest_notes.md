@@ -370,6 +370,18 @@ become undiscoverable. All four items were addressed across four PRs.
 
 - Ford concrete payoff; M5.4 remainder reward-feel numbers (06).
 
+> **Both resolved since; this line was stale and is kept only as the Session 4
+> record.** The owner settled the **ford payoff** in the same 2026-07-09 session
+> (see `2026-07-09_Handoff_v04.md`: "Settled this session (do not re-raise): ford
+> payoff, postmaster return greeting, reward feel"). The ford is good as is and
+> wants no concrete reward change. The **M5.4 reward-feel numbers** shipped at
+> +20 percent and `06_world_state_remainder.md` is now RESOLVED.
+>
+> Recorded here on 2026-07-15 because this doc is where a reader looks for
+> current state, and it contradicted the handoff for six days. The design calls
+> the owner has settled are: ford payoff, postmaster return greeting, reward
+> feel, and the Fenmarch gateway location. Do not re-raise them.
+
 ---
 
 ## Session 7 (played 2026-07-15, #211)
