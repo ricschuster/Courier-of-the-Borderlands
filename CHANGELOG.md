@@ -10,6 +10,38 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.3.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.2.0...courier-of-the-borderlands-v0.3.0) (2026-07-15)
+
+
+### Features
+
+* add a landing page as the site front door ([#245](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/245)) ([0df1479](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0df1479ff96960e25188935edf4f3b68d2df3aa1)), closes [#237](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237)
+* add a What's new page generated from the changelog ([#254](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/254)) ([8587f53](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8587f53961bb443cb1343318dff22e2e08675190))
+* add screenshots to the landing page and README ([#250](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/250)) ([cc3c6ca](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cc3c6ca4d575db8717ab71e0bed82c0d075ed00c)), closes [#249](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/249)
+* label telemetry records with their run source ([#266](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/266)) ([ec35f6a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ec35f6a345530f8983b383f5dc98968ac55add86)), closes [#264](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/264)
+* link the manual from the game page ([#252](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/252)) ([8654bc7](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8654bc70e8d29add3f31f9ccdda9a75c82bf21e3))
+
+
+### Bug Fixes
+
+* correct the documented difficulty control ([#256](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/256)) ([e3b8d3f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e3b8d3fe913df483637507899246d2ac7a315131)), closes [#255](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/255)
+* document the upgrade menu instead of the old buy-cheapest key ([#258](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/258)) ([639e303](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/639e30308008c613d908487fbac2b6ef84ff17ba)), closes [#257](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/257)
+* repair the invalid release-please workflow ([#247](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/247)) ([a005c33](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a005c3386946c0e0f38bc348792f39d27956d8be)), closes [#238](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/238)
+* show only the current region's terrain in the codex ([#262](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/262)) ([4bfc9f6](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4bfc9f660eba829c8c1366895e54d8919df6e099)), closes [#251](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/251)
+
+
+### Documentation
+
+* add 2026-07-14 handoff v19 ([#241](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/241)) ([b4cade0](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b4cade039f6a632fc402edb2577dd10848d1a9ab))
+* add 2026-07-15 handoff v20 ([#260](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/260)) ([80e9a8c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/80e9a8c3fd09c59580d846fe0fda1ee17b0aa382))
+* add 2026-07-15 handoff v21 ([#265](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/265)) ([9b8413b](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9b8413b8b5d5c32db0c630ce83d6b7c7411250cc))
+* add 2026-07-15 handoff v22 ([#271](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/271)) ([c003395](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c003395783424282a05f598a1baf8ca2f6035e4a))
+* add a player-facing credits page ([#253](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/253)) ([c254036](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c254036f370c04ae063906d2dbc7a9fee263808d))
+* add a player-facing game manual page ([#237](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237)) ([#239](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/239)) ([d6e0e50](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d6e0e50269d9d0f50e94d85931c86891121b8efe))
+* add an FAQ to the manual ([#259](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/259)) ([693ea6f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/693ea6fb2c7edcde35cbebccc79dd579cffcfc02)), closes [#237](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237)
+* record the RELEASE_PLEASE_TOKEN expiry date ([#244](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/244)) ([a3980b2](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a3980b242e4c35c24d62e25113ec1315653a8142)), closes [#243](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/243)
+* update handoff v20 with the resolved release token ([#263](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/263)) ([4c20117](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4c2011781c45cabaf3240c8af8410d719d65542a))
+
 ## [0.2.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.1.0...courier-of-the-borderlands-v0.2.0) (2026-07-15)
 
 
