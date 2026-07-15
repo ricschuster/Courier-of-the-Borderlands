@@ -1,5 +1,11 @@
 # Asset Credits
 
+This file is the canonical record. `credits.html` is the player-facing page
+built from it and is hand-maintained, so when you add an asset here, add it
+there too. The two are kept separate on purpose: this file carries the detail a
+maintainer needs (local file paths, sheet layouts), while the page carries only
+what a player would care about.
+
 ## Terrain tiles
 
 - **Asset name:** Roguelike/RPG pack (terrain tiles used to skin the map)
