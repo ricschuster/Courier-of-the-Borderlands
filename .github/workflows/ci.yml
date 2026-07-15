@@ -49,8 +49,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
+      # Runs the same unit suite as `npm test` and additionally enforces the
+      # coverage thresholds on src/systems (see vite.config.ts). One run rather
+      # than two: the coverage pass is a superset, so a separate `npm test` step
+      # would only execute the same 842 tests again.
+      - name: Test and coverage gate
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build

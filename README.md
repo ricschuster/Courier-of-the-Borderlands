@@ -116,6 +116,18 @@ Run the unit tests (Vitest):
 npm test
 ```
 
+Run the unit tests with a coverage report:
+
+```bash
+npm run test:coverage
+```
+
+This measures `src/systems/` (the pure game logic) and fails if coverage drops
+below the thresholds in `vite.config.ts`. Scenes and UI are excluded on purpose:
+they are Phaser-bound, and gating them would push toward testing the renderer
+instead of the rules. CI runs this in place of `npm test`, since it is the same
+suite plus the gate. The HTML report lands in `coverage/` (gitignored).
+
 Run the browser tests (Playwright, builds and drives the game in Chromium):
 
 ```bash
