@@ -14,7 +14,7 @@ test('boots and renders the Greybridge map without runtime errors', async ({ pag
     errors.push(`pageerror: ${err.message}`);
   });
 
-  await page.goto('./');
+  await page.goto('./play.html');
 
   // Phaser mounts its canvas into the #game element.
   const canvas = page.locator('#game canvas');
@@ -92,7 +92,7 @@ test('boots the saltreach region from a save without runtime errors', async ({ p
     );
   });
 
-  await page.goto('./');
+  await page.goto('./play.html');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(1500);
 
@@ -135,7 +135,7 @@ test('boots the fenmarch region from a save without runtime errors', async ({ pa
     );
   });
 
-  await page.goto('./');
+  await page.goto('./play.html');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(1500);
 

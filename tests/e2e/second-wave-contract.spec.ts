@@ -39,7 +39,7 @@ test('reconnecting a place opens its second-wave contract on the board', async (
     );
   });
 
-  await page.goto('./?e2e=1');
+  await page.goto('./play.html?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
 

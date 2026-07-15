@@ -10,11 +10,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
-      // Multi-page: the game (index.html) plus the standalone telemetry
-      // dashboard (telemetry.html, #220). The dashboard reads the same-origin
-      // localStorage the game writes, so it works on the dev server and Pages.
+      // Multi-page. index.html is the landing page, not the game (#237): the
+      // site's front door is the pitch, and the game lives at play.html one
+      // click away. telemetry.html (#220) reads the same-origin localStorage the
+      // game writes, so it works on the dev server and Pages alike.
       input: {
-        main: 'index.html',
+        landing: 'index.html',
+        main: 'play.html',
         telemetry: 'telemetry.html',
         manual: 'manual.html',
       },

@@ -55,7 +55,7 @@ test('an arc-gated contract appears after the reveal without re-locking the regi
     );
   }, BASE_GREYBRIDGE_CONTRACTS);
 
-  await page.goto('./?e2e=1');
+  await page.goto('./play.html?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
 
@@ -91,7 +91,7 @@ test('the arc-gated contract is hidden before the reveal', async ({ page }) => {
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
 
   // Fresh game: no reveal flag, so the gated contract must not be offered.
-  await page.goto('./?e2e=1');
+  await page.goto('./play.html?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
 

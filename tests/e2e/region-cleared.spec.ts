@@ -51,7 +51,7 @@ test('shows the cleared panel on a spoke whose arc-gated contract is revealed bu
     );
   }, SALTREACH_STANDING);
 
-  await page.goto('./?e2e=1');
+  await page.goto('./play.html?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   await page.waitForFunction(() => globalThis.__courier !== undefined, undefined, { timeout: 15_000 });
 

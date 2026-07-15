@@ -34,7 +34,7 @@ test('unlocks the Fenmarch ford by driving to the signpost', async ({ page }) =>
     );
   });
 
-  await page.goto('./?e2e=1');
+  await page.goto('./play.html?e2e=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
   // Focus the canvas so key events reach the game.
   await page.locator('#game canvas').click();
