@@ -31,9 +31,21 @@ jobs:
       # with no checks and nobody remembers why. Say so in the log instead.
       # (`gh secret set` with no TTY stores an empty value and exits 0, so
       # "the secret exists" is not evidence that it has a value.)
+      #
+      # The check reads the token through `env` and tests it in the shell. The
+      # `secrets` context is not available to a step-level `if:` (only github,
+      # env, needs, and a few others are), so `if: secrets.X == ''` is not a
+      # valid workflow file at all. Actions surfaces that as a failed run with no
+      # job, and nothing in CI validates workflow files, so it lands green.
       - name: Warn when the release token is missing
-        if: ${{ secrets.RELEASE_PLEASE_TOKEN == '' }}
-        run: echo "::warning::RELEASE_PLEASE_TOKEN is unset or empty, so release-please is falling back to GITHUB_TOKEN. The release PR will get no CI and cannot merge. See issue 238."
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::warning::RELEASE_PLEASE_TOKEN is unset or empty, so release-please is falling back to GITHUB_TOKEN. The release PR will get no CI and cannot merge. See issue 238."
+          else
+            echo "RELEASE_PLEASE_TOKEN is set; release PRs should receive CI."
+          fi
 
       # Runs as RELEASE_PLEASE_TOKEN when that secret exists, falling back to the
       # default GITHUB_TOKEN when it does not. The fallback matters: GitHub does
