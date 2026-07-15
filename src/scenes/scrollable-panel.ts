@@ -13,7 +13,7 @@ import {
 //
 // This panel fixes both: an opaque backing box sized to the screen, text wrapped
 // to the box width so nothing runs off-side, and a geometry mask clipping the
-// text to the box so it can scroll with the mouse wheel.
+// text to the box so it can scroll with the mouse wheel or PgUp/PgDn.
 
 const PANEL_WIDTH = 680;
 const PANEL_TOP = 8;
@@ -24,6 +24,9 @@ const PANEL_BOTTOM_MARGIN = 40;
 const PANEL_PAD = 20;
 // Pixels scrolled per wheel notch; a notch reports ~100 in deltaY.
 const WHEEL_STEP = 0.6;
+// Fraction of the visible text height moved by one PgUp/PgDn press. Just under a
+// full page so a couple of lines carry over and the reader keeps their place.
+const PAGE_FRACTION = 0.8;
 // Height of the reserved footer strip that holds the scroll affordance, so the
 // cue never sits on top of the last line of content.
 const HINT_HEIGHT = 20;
@@ -116,6 +119,11 @@ export class ScrollablePanel {
     return this.bg.visible;
   }
 
+  /** Current scroll offset in pixels from the top. Read by the e2e hook (#274). */
+  get scrollOffset(): number {
+    return this.offset;
+  }
+
   /** Set content and reset scroll to the top, so reopening always starts at the header. */
   setText(text: string): void {
     this.text.setText(text);
@@ -136,14 +144,32 @@ export class ScrollablePanel {
 
   /** Scroll by a wheel delta (positive scrolls the content up to reveal lower text). */
   scrollBy(deltaY: number): void {
-    this.offset += deltaY * WHEEL_STEP;
+    this.scrollByPixels(deltaY * WHEEL_STEP);
+  }
+
+  /**
+   * Scroll by a page (direction 1 scrolls down, -1 up). The keyboard route into
+   * the same offset the wheel drives, so the panel has one scroll model rather
+   * than a second one measured in synthetic wheel deltas (#274).
+   */
+  scrollByPage(direction: number): void {
+    this.scrollByPixels(direction * this.innerHeight() * PAGE_FRACTION);
+  }
+
+  /** Move the scroll offset by a pixel amount and re-clamp. */
+  private scrollByPixels(pixels: number): void {
+    this.offset += pixels;
     this.applyOffset();
+  }
+
+  /** Height of the text actually visible inside the clip box, less padding. */
+  private innerHeight(): number {
+    return this.textClipHeight - PANEL_PAD * 2;
   }
 
   /** Clamp the offset to the content and position the text within the viewport. */
   private applyOffset(): void {
-    const innerHeight = this.textClipHeight - PANEL_PAD * 2;
-    const max = Math.max(0, this.text.height - innerHeight);
+    const max = Math.max(0, this.text.height - this.innerHeight());
     this.offset = Phaser.Math.Clamp(this.offset, 0, max);
     this.text.setY(this.viewportTop + PANEL_PAD - this.offset);
     this.updateScrollHint(max);
@@ -157,13 +183,16 @@ export class ScrollablePanel {
     }
     const more = this.offset < max - 1;
     const back = this.offset > 1;
+    // The cue names the keys as well as the wheel: the panel is keyboard-scrollable
+    // (#274), and naming only the wheel told a keyboard player there was more to
+    // read without telling them how to reach it.
     let label: string;
     if (more && back) {
-      label = 'scroll to read more  ^ v';
+      label = 'scroll or PgUp/PgDn to read more  ^ v';
     } else if (more) {
-      label = 'scroll down to read more  v';
+      label = 'scroll down or PgDn to read more  v';
     } else {
-      label = '^ scroll up';
+      label = '^ scroll up or PgUp';
     }
     this.scrollHint.setText(label).setVisible(true);
   }

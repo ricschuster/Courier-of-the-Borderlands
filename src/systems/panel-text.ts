@@ -138,7 +138,7 @@ export interface SkillPanelTextInput {
 /** The courier skills panel: level, points to spend, and each skill's rank. */
 export function skillPanelText(input: SkillPanelTextInput): string {
   const lines = [
-    'COURIER SKILLS   (K to close, mouse wheel to scroll)',
+    'COURIER SKILLS   (K to close, PgUp/PgDn or wheel to scroll)',
     `Level ${input.level}   XP ${input.xpIntoLevel} / ${input.xpForNextLevel}`,
     `Skill points to spend: ${input.points}`,
     '',
@@ -165,7 +165,7 @@ export interface UpgradeMenuTextInput {
 /** The wagon upgrade menu: coins, then one entry per upgrade with cost, state, and effect. */
 export function upgradeMenuText(input: UpgradeMenuTextInput): string {
   const lines = [
-    'WAGON UPGRADES   (B to close, mouse wheel to scroll)',
+    'WAGON UPGRADES   (B to close, PgUp/PgDn or wheel to scroll)',
     `Coins: ${input.coins}`,
     '',
     'Press the number to fit an upgrade:',

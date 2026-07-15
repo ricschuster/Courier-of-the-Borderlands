@@ -135,6 +135,22 @@ describe('skillPanelText', () => {
     });
     expect(text).toContain('[2] Wayfinder  rank 2/2  (max)');
   });
+
+  // The panel is keyboard-scrollable (#274). The header used to name only the
+  // mouse wheel, which told a keyboard-only player there was more to read and no
+  // way to reach it.
+  it('names a keyboard scroll route, not just the wheel', () => {
+    const text = skillPanelText({
+      level: 1,
+      xpIntoLevel: 0,
+      xpForNextLevel: 50,
+      points: 0,
+      skills: SKILLS,
+      ranks: {},
+    });
+    expect(text).toContain('PgUp/PgDn');
+    expect(text).not.toContain('mouse wheel to scroll');
+  });
 });
 
 describe('capstoneText', () => {
@@ -171,6 +187,13 @@ describe('upgradeMenuText', () => {
   it('marks a fitted upgrade', () => {
     const text = upgradeMenuText({ coins: 100, upgrades: UPGRADES, purchased: new Set(['wheels']) });
     expect(text).toContain('Reinforced Wheels  -  50c   (fitted)');
+  });
+
+  // See the matching skillPanelText case (#274).
+  it('names a keyboard scroll route, not just the wheel', () => {
+    const text = upgradeMenuText({ coins: 100, upgrades: UPGRADES, purchased: new Set() });
+    expect(text).toContain('PgUp/PgDn');
+    expect(text).not.toContain('mouse wheel to scroll');
   });
 
   it('marks affordable and unaffordable upgrades', () => {

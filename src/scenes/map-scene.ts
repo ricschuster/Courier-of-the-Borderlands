@@ -228,6 +228,12 @@ interface E2EState {
   readonly storyFlags: readonly string[];
   /** Whether a conversation is currently open. */
   readonly dialogueOpen: boolean;
+  /**
+   * Scroll offset of the open journal/skills/upgrade overlay, or null when none
+   * is open. The only observable proof a scroll input moved the panel, since the
+   * panel renders to canvas and its text is unreadable from the DOM (#274).
+   */
+  readonly overlayScrollOffset: number | null;
   /** Labels of the choices offered on the current dialogue node (empty when closed). */
   readonly dialogueChoices: readonly string[];
   /** Id of the road encounter currently playing, or null when none is open. */
@@ -391,6 +397,8 @@ export class MapScene extends Phaser.Scene {
   private talkKey!: Phaser.Input.Keyboard.Key;
   private escapeKey!: Phaser.Input.Keyboard.Key;
   private dismissKey!: Phaser.Input.Keyboard.Key;
+  private pageUpKey!: Phaser.Input.Keyboard.Key;
+  private pageDownKey!: Phaser.Input.Keyboard.Key;
   // Conversation subsystem: settlement talk, road encounters, and the modal
   // dialogue state machine. Constructed fresh each create(), so a scene restart
   // starts with no conversation open.
@@ -831,6 +839,7 @@ export class MapScene extends Phaser.Scene {
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
       dialogueOpen: this.hud.isDialogueVisible(),
+      overlayScrollOffset: this.hud.scrollOffset(),
       dialogueChoices: this.dialogue.choiceLabels(),
       activeEncounterId: this.dialogue.activeEncounterId(),
       regionCleared: this.regionCleared(),
@@ -1015,6 +1024,8 @@ export class MapScene extends Phaser.Scene {
       this.refreshEncounterMarkers();
     }
     this.handleToggles();
+    // After the toggles, so a panel opened this frame is the one that pages.
+    this.handleScrollInput();
     this.refreshBoard();
     // Detect the blockade breaking, which happens through a dialogue choice
     // rather than a delivery, so it is checked each frame once dialogue closes.
@@ -1782,6 +1793,20 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Page the open journal, skills, or upgrade overlay with PgUp/PgDn, the keyboard
+   * equivalent of the mouse wheel (#274). The arrow keys cannot serve here because
+   * movement consumes them.
+   */
+  private handleScrollInput(): void {
+    if (Phaser.Input.Keyboard.JustDown(this.pageDownKey)) {
+      this.hud.handleScrollPage(1);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.pageUpKey)) {
+      this.hud.handleScrollPage(-1);
+    }
+  }
+
   /** Clear any on-screen toasts when the player presses the dismiss key (Space). */
   private handleDismissInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.dismissKey) && this.hud.hasToasts()) {
@@ -2034,6 +2059,8 @@ export class MapScene extends Phaser.Scene {
     this.talkKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escapeKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.dismissKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.pageUpKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.PAGE_UP);
+    this.pageDownKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.PAGE_DOWN);
 
     // Allocate all number keys, not just one per contract: the same keys select
     // contracts, spend skill points, pick dialogue choices, and fit upgrades, and
