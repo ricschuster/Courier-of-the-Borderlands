@@ -13,6 +13,7 @@ import {
   type RegionRollup,
   type SourceFilter,
 } from '../systems/telemetry';
+import { loadErrors, clearErrors, type ErrorRecord } from '../systems/error-log';
 
 /**
  * Which runs the page is reporting on. Defaults to real play: an automated
@@ -121,6 +122,37 @@ function recentTable(records: readonly RunRecord[]): HTMLElement {
   );
 }
 
+/**
+ * Runtime error log (#221). Newest first, each entry expandable to its stack.
+ * A table would not do: a stack is multi-line and the point is being able to read
+ * it. Rendered whether or not any runs exist, since an error that stopped the
+ * game is exactly the case where no milestone was ever captured.
+ */
+function errorSection(errors: readonly ErrorRecord[]): HTMLElement {
+  const wrap = el('div');
+  wrap.append(el('h2', 'Runtime errors'));
+
+  if (errors.length === 0) {
+    wrap.append(el('p', 'No errors recorded on this origin. Good.', 'empty'));
+    return wrap;
+  }
+
+  for (const e of [...errors].reverse()) {
+    const details = el('details', undefined, 'err');
+    const summary = el('summary');
+    summary.append(el('span', e.source, 'pill err-source'));
+    summary.append(el('span', e.message || '(no message)', 'msg'));
+    if (e.count > 1) {
+      summary.append(el('span', `x${e.count}`, 'pill'));
+    }
+    summary.append(el('span', fmtDate(e.at), 'when'));
+    details.append(summary);
+    details.append(el('pre', e.stack === '' ? '(no stack captured)' : e.stack));
+    wrap.append(details);
+  }
+  return wrap;
+}
+
 /** Source picker. Each button re-renders the page against that filter. */
 function filterBar(all: readonly RunRecord[]): HTMLElement {
   const bar = el('div', undefined, 'filters');
@@ -160,6 +192,7 @@ function render(): void {
   app.replaceChildren();
 
   const all = loadRecords();
+  const errors = loadErrors();
 
   app.append(el('h1', 'Courier Telemetry'));
   app.append(
@@ -172,6 +205,9 @@ function render(): void {
 
   if (all.length === 0) {
     app.append(el('p', 'No runs recorded yet. Clear a region or finish the arc to capture one.', 'empty'));
+    // Still show errors: a crash is the likeliest reason no run was ever recorded.
+    app.append(errorSection(errors));
+    app.append(actionBar([], errors));
     return;
   }
 
@@ -216,18 +252,38 @@ function render(): void {
     app.append(recentTable(records));
   }
 
+  app.append(errorSection(errors));
+  app.append(actionBar(records, errors));
+}
+
+/** Export and clear controls. Clearing runs and clearing errors are separate. */
+function actionBar(records: readonly RunRecord[], errors: readonly ErrorRecord[]): HTMLElement {
   const actions = el('div', undefined, 'actions');
-  const dl = el('button', 'Download JSON');
-  dl.addEventListener('click', () => download(records));
-  const clear = el('button', 'Clear history');
-  clear.addEventListener('click', () => {
-    if (confirm('Delete all recorded telemetry on this origin?')) {
-      clearRecords();
-      render();
-    }
-  });
-  actions.append(dl, clear);
-  app.append(actions);
+
+  if (records.length > 0) {
+    const dl = el('button', 'Download JSON');
+    dl.addEventListener('click', () => download(records));
+    const clear = el('button', 'Clear history');
+    clear.addEventListener('click', () => {
+      if (confirm('Delete all recorded telemetry on this origin?')) {
+        clearRecords();
+        render();
+      }
+    });
+    actions.append(dl, clear);
+  }
+
+  if (errors.length > 0) {
+    const clearErr = el('button', 'Clear errors');
+    clearErr.addEventListener('click', () => {
+      if (confirm('Delete the recorded runtime errors on this origin?')) {
+        clearErrors();
+        render();
+      }
+    });
+    actions.append(clearErr);
+  }
+  return actions;
 }
 
 render();

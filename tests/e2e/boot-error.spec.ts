@@ -29,3 +29,53 @@ test('an uncaught error shows a recovery overlay with reset controls', async ({ 
   });
   await expect(page.locator('#boot-error')).toHaveCount(1);
 });
+
+// #221: the overlay above is deliberately generic ("The road washed out"), so
+// without this the detail reached only the console and died with the tab. The
+// dashboard reads the log back; this proves the write happens on a real error
+// through the real handler, not just that the pure module works.
+test('an uncaught error records its detail to the error log', async ({ page }) => {
+  await page.goto('./play.html');
+  await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
+
+  const readLog = () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('courier-of-the-borderlands/errors');
+      return raw === null ? null : (JSON.parse(raw) as { source: string; message: string; count: number }[]);
+    });
+
+  // Nothing logged during a clean boot.
+  expect(await readLog()).toBeNull();
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new ErrorEvent('error', { message: 'synthetic failure', error: new Error('synthetic failure') }));
+  });
+
+  const logged = await readLog();
+  expect(logged).toHaveLength(1);
+  expect(logged![0]!.source).toBe('error');
+  expect(logged![0]!.message).toContain('synthetic failure');
+
+  // A repeat collapses into a count rather than flooding the ring, which is what
+  // a throw inside the update loop would otherwise do every frame.
+  await page.evaluate(() => {
+    window.dispatchEvent(new ErrorEvent('error', { message: 'synthetic failure', error: new Error('synthetic failure') }));
+  });
+  const repeated = await readLog();
+  expect(repeated).toHaveLength(1);
+  expect(repeated![0]!.count).toBe(2);
+
+  // An unhandled rejection is logged under its own source.
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new PromiseRejectionEvent('unhandledrejection', {
+        promise: Promise.reject(new Error('rejected badly')).catch(() => undefined) as Promise<never>,
+        reason: new Error('rejected badly'),
+      }),
+    );
+  });
+  const withRejection = await readLog();
+  expect(withRejection).toHaveLength(2);
+  expect(withRejection![1]!.source).toBe('rejection');
+  expect(withRejection![1]!.message).toContain('rejected badly');
+});
