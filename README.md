@@ -4,6 +4,8 @@
 
 A 2D fantasy courier exploration game for the web. Deliver goods, letters, rumours, and secrets across a dangerous borderland, reveal the map, and build reputation with the people who depend on you.
 
+![The courier wagon on an east-bank road between Eastwatch and Southmill, with revealed terrain around it and unexplored black fog beyond.](assets/screenshots/exploring.png)
+
 ## Play
 
 Site and pitch: https://ricschuster.github.io/Courier-of-the-Borderlands/
@@ -153,6 +155,21 @@ This builds, starts its own preview server, boots the game, optionally presses a
 key (for example `j` to open the journal), writes `tmp-screenshots/<name>.png`,
 and tears the server down again. Add `--no-build` to reuse the current `dist/`.
 Output is gitignored.
+
+Regenerate the committed marketing shots in `assets/screenshots/` (used by this
+README and the landing page):
+
+```bash
+SHOTS=1 npx playwright test screenshots --project=chromium
+```
+
+Unlike `npm run shot`, this plays a real Greybridge route first, because the
+shots need a partly revealed map rather than the all-fog boot screen. It is
+opt-in (skipped without `SHOTS`) and never runs in CI: the PNGs are committed
+art, not assertions, so regenerating them on every run would only churn the
+diff. Re-run it when the HUD, palette, or Greybridge layout drifts far enough
+that the committed shots misrepresent the game, and commit the PNGs with the
+change.
 
 ## Project structure
 
