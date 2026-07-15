@@ -1,8 +1,16 @@
 # Roads Gate the Wagon: fixing the player-progression flatline
 
-Status: proposal, owner-directed. Extends the M5.4 world-reacts work
+Status: DELIVERED (2026-07-15), owner-directed. Extends the M5.4 world-reacts work
 (`docs/design/06_world_state_remainder.md`) and the progression pillars in
 `CLAUDE.md`. Sliced so each step ships small and playtest-gated.
+
+Every slice has shipped, and the 2026-07-15 full-arc playtest (#211) confirmed
+the direction worked: the owner's read was that player-side progression now has
+teeth mid-to-late, finishing the capstone on **576 coins**. Compare the problem
+statement below, which this document was opened against: that run finished on
+**2563 idle coins** with zero upgrades fitted and unspent skill points. Two
+independent human runs now land in the same place (576c here, ~601c on
+2026-07-12, #109), so this is the economy holding rather than drifting.
 
 ## The problem
 
@@ -94,9 +102,13 @@ same reveal-reward mechanic, but the reward is story rather than a route.
    per-rank speed bonus and, at rank 2, grants `mire-crossing`. The mire now opens
    for coins (Marsh Treads) or skill points (Off-road 2), the same route either
    way, so skills join the traversal decision instead of being idle buffs.
-3. **Economy tightening.** Retune upgrade costs / reward flow so the first access
-   upgrade is a genuine save-up decision. Numbers are playtest-gated; ship the
-   levers as data, set them from a play signal.
+3. **Economy tightening.** SHIPPED, and the numbers are now VALIDATED rather than
+   pending (#213, closed 2026-07-15). The levers shipped as data and the plan was
+   to set them from a play signal. The signal arrived and said the current values
+   are right: "decent balance", 576 coins at the capstone. The standing rule
+   holds for any future change here: do not set a number blind, and reopen one
+   only with a concrete wrong value from play, one clear lever per round with
+   exact values.
 4. **Arc driver spends.** SHIPPED. The full-arc e2e driver and `autoplay.mjs`
    now buy the cheapest affordable upgrade (B) and spend skill points at home
    (Off-road first, which opens the mire), so the buy/rank input flows are

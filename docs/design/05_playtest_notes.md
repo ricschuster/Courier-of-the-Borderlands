@@ -369,3 +369,47 @@ become undiscoverable. All four items were addressed across four PRs.
 ### Still open (unchanged)
 
 - Ford concrete payoff; M5.4 remainder reward-feel numbers (06).
+
+---
+
+## Session 7 (played 2026-07-15, #211)
+
+Gap note: Sessions 5 (2026-07-09) and 6 (#109, 2026-07-12) were not logged here
+at the time; their narrative lives in the handoffs of those dates. Not
+backfilled, per the "track from here forward" rule in `CLAUDE.md`. The one number
+worth carrying forward from Session 6 is the ~601 coin capstone, used as the
+baseline below.
+
+Played on 0.3.0, Standard, localhost. This was the fresh full-arc read that three
+issues were parked on. It was run to answer two residual questions, and both came
+back yes.
+
+### Does player-side progression have teeth mid-to-late? Yes
+
+- "Decent balance." Finished the capstone on **576 coins**.
+- This closes the question `07_roads_gate_the_wagon.md` was opened against. The
+  autonomous run that started that direction finished on ~2563 idle coins with 0
+  upgrades fitted and unspent skill points. Coins now have somewhere to go.
+- 576c against Session 6's ~601c is the second independent human run to land in
+  the same place at the same difficulty. Read as the economy holding across runs,
+  not drifting.
+
+### Does the world feel reactive across a whole run? Yes
+
+- Closes the north star of `06_world_state_remainder.md`: does reconnecting a
+  place feel worth it?
+
+### Actions taken
+
+- **#211 closed.** The playtest ran and produced its signal.
+- **#213 (economy tightening) closed as validated.** Its own hard rule was to
+  reopen a number only with a concrete wrong value from play. There was none, and
+  the capstone figure confirms the current values. Owner call.
+- **#212 (mission step gated on an arc contract) closed as met.** It was parked
+  on this playtest to confirm depth and pick a step/contract, but "the world
+  already feels reactive" removes the premise. Owner call.
+
+No bugs, confusions, or balance complaints were reported, so nothing was triaged
+into fix-now work. This is the first playtest in the log to generate no fixes,
+which is itself the signal: both design directions the project has been running
+on since 2026-07-09 are now finished.

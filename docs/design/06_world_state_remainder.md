@@ -1,10 +1,10 @@
 # World-State Consequence: the M5.4 Remainder
 
-Status: proposal, playtest-gated. Extends
+Status: RESOLVED (2026-07-15). Extends
 `docs/decisions/0004-rpg-and-narrative-layer.md` and the M5.4 section of
-`docs/design/02_milestones.md`. Nothing here is built yet; this spec exists so
-the build is fast and small once Session 2 (`docs/design/05_playtest_notes.md`)
-confirms the shape and supplies the numbers.
+`docs/design/02_milestones.md`. Every item below is now dropped, shipped, or
+closed as met; see "Build order once unblocked". Kept for the record and for the
+reasoning, not as open work.
 
 ## Why this is deferred, not dropped
 
@@ -121,9 +121,17 @@ chose "the world reacts" as the direction to invest in. Item 2 shipped with:
 
 1. ~~Withdrawn contracts (Item 1)~~: dropped 2026-07-09 (see Item 1 above).
 2. Reward shift (Item 2): shipped Session 5 (#86).
-3. Only after both feel right: consider a mission step gated on an arc contract
-   (the "missions read and write world-state" bullet), since that reshapes the
-   felt critical path and wants the spine confirmed in play first.
+3. ~~A mission step gated on an arc contract~~ (the "missions read and write
+   world-state" bullet): closed as met, 2026-07-15 (#212). This step was
+   conditional on the spine being confirmed in play first, and the 2026-07-15
+   full-arc playtest (#211) confirmed it in the direction that removes the
+   premise: the owner's read was that the world already feels reactive across a
+   whole run. That is the outcome this direction existed to produce, so the
+   remaining depth is scope without a problem behind it. Reopen only if a later
+   playtest reports the story advancing on bare talk/deliver.
+
+This document is closed. The north star it was written against ("does
+reconnecting a place feel worth it?") now has a yes from human play.
 
 ## Non-goals
 
