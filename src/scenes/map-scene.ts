@@ -2212,6 +2212,9 @@ export class MapScene extends Phaser.Scene {
     }
     recordRun({
       milestone,
+      // Every automated driver boots with `?e2e` and no human does, so this
+      // separates bot runs from real play at no extra plumbing cost (#264).
+      source: this.isE2E() ? 'auto' : 'play',
       regionId: this.region.id,
       regionName: this.region.name,
       difficulty: this.difficulty,

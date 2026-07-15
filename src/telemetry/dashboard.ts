@@ -6,11 +6,20 @@
 import {
   loadRecords,
   summarizeRecords,
+  filterBySource,
   clearRecords,
   TELEMETRY_KEY,
   type RunRecord,
   type RegionRollup,
+  type SourceFilter,
 } from '../systems/telemetry';
+
+/**
+ * Which runs the page is reporting on. Defaults to real play: an automated
+ * driver's wear is a lower bound and its condition an upper bound, so mixing it
+ * into the averages flatters the travel sink (#264).
+ */
+let sourceFilter: SourceFilter = 'play';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -86,6 +95,7 @@ function recentTable(records: readonly RunRecord[]): HTMLElement {
     .map((r) => [
       fmtDate(r.at),
       r.milestone,
+      r.source === 'auto' ? 'automated' : 'play',
       r.regionName,
       r.difficulty,
       r.coins,
@@ -95,17 +105,49 @@ function recentTable(records: readonly RunRecord[]): HTMLElement {
       r.strandEvents,
     ]);
   return table(
-    ['When', 'Milestone', 'Region', 'Difficulty', 'Coins', 'Deliv', 'Wear', 'Cond', 'Strands'],
+    [
+      'When',
+      'Milestone',
+      'Source',
+      'Region',
+      'Difficulty',
+      'Coins',
+      'Deliv',
+      'Wear',
+      'Cond',
+      'Strands',
+    ],
     rows,
   );
 }
 
+/** Source picker. Each button re-renders the page against that filter. */
+function filterBar(all: readonly RunRecord[]): HTMLElement {
+  const bar = el('div', undefined, 'filters');
+  const options: readonly (readonly [SourceFilter, string])[] = [
+    ['play', 'Real play'],
+    ['auto', 'Automated'],
+    ['all', 'Both'],
+  ];
+  for (const [value, label] of options) {
+    const n = filterBySource(all, value).length;
+    const b = el('button', `${label} (${n})`, value === sourceFilter ? 'active' : undefined);
+    b.addEventListener('click', () => {
+      sourceFilter = value;
+      render();
+    });
+    bar.append(b);
+  }
+  return bar;
+}
+
+/** Export the records currently shown, so a filtered view exports what it reports. */
 function download(records: readonly RunRecord[]): void {
   const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = el('a');
   a.href = url;
-  a.download = 'courier-telemetry.json';
+  a.download = `courier-telemetry-${sourceFilter}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -117,8 +159,7 @@ function render(): void {
   }
   app.replaceChildren();
 
-  const records = loadRecords();
-  const summary = summarizeRecords(records);
+  const all = loadRecords();
 
   app.append(el('h1', 'Courier Telemetry'));
   app.append(
@@ -129,24 +170,51 @@ function render(): void {
     ),
   );
 
-  if (records.length === 0) {
+  if (all.length === 0) {
     app.append(el('p', 'No runs recorded yet. Clear a region or finish the arc to capture one.', 'empty'));
     return;
   }
 
-  const cards = el('div', undefined, 'cards');
-  cards.append(
-    statCard(summary.totalRecords, 'records'),
-    statCard(summary.arcCompletions, 'arc completions'),
-    statCard(summary.regions.length, 'regions seen'),
-  );
-  app.append(cards);
+  app.append(filterBar(all));
 
-  app.append(el('h2', 'Per region (averages)'));
-  app.append(regionTable(summary.regions));
+  const records = filterBySource(all, sourceFilter);
+  const summary = summarizeRecords(records);
 
-  app.append(el('h2', 'Recent milestones'));
-  app.append(recentTable(records));
+  if (sourceFilter === 'all') {
+    app.append(
+      el(
+        'p',
+        'Showing bot and human runs together. An automated driver routes near-optimally and repairs at every home visit, so its wear reads low and its condition high.',
+        'sub',
+      ),
+    );
+  }
+
+  if (records.length === 0) {
+    app.append(
+      el(
+        'p',
+        sourceFilter === 'play'
+          ? 'No real-play runs recorded yet. Only automated runs are stored on this origin.'
+          : 'No automated runs recorded yet.',
+        'empty',
+      ),
+    );
+  } else {
+    const cards = el('div', undefined, 'cards');
+    cards.append(
+      statCard(summary.totalRecords, 'records'),
+      statCard(summary.arcCompletions, 'arc completions'),
+      statCard(summary.regions.length, 'regions seen'),
+    );
+    app.append(cards);
+
+    app.append(el('h2', 'Per region (averages)'));
+    app.append(regionTable(summary.regions));
+
+    app.append(el('h2', 'Recent milestones'));
+    app.append(recentTable(records));
+  }
 
   const actions = el('div', undefined, 'actions');
   const dl = el('button', 'Download JSON');

@@ -3,6 +3,7 @@ import {
   createRunRecord,
   appendRecord,
   summarizeRecords,
+  filterBySource,
   parseRecords,
   recordRun,
   loadRecords,
@@ -13,6 +14,7 @@ import {
 
 const base: RunRecordInput = {
   milestone: 'region',
+  source: 'play',
   regionId: 'greybridge',
   regionName: 'Greybridge Region',
   difficulty: 'standard',
@@ -48,6 +50,16 @@ describe('createRunRecord', () => {
   it('normalizes an unknown milestone to region', () => {
     const r = createRunRecord({ ...base, milestone: 'nonsense' as 'region' }, 1);
     expect(r.milestone).toBe('region');
+  });
+
+  it('records the run source', () => {
+    expect(createRunRecord({ ...base, source: 'auto' }, 1).source).toBe('auto');
+    expect(createRunRecord({ ...base, source: 'play' }, 1).source).toBe('play');
+  });
+
+  it('normalizes an unknown source to play', () => {
+    const r = createRunRecord({ ...base, source: 'nonsense' as 'play' }, 1);
+    expect(r.source).toBe('play');
   });
 
   it('preserves a negative reputation (it can legitimately be below zero)', () => {
@@ -134,6 +146,30 @@ describe('summarizeRecords', () => {
   });
 });
 
+describe('filterBySource', () => {
+  const play = createRunRecord({ ...base, source: 'play', coins: 10 }, 1);
+  const auto = createRunRecord({ ...base, source: 'auto', coins: 20 }, 2);
+
+  it('narrows to one source', () => {
+    expect(filterBySource([play, auto], 'play')).toEqual([play]);
+    expect(filterBySource([play, auto], 'auto')).toEqual([auto]);
+  });
+
+  it('passes everything through for all', () => {
+    expect(filterBySource([play, auto], 'all')).toEqual([play, auto]);
+  });
+
+  it('keeps bot runs out of real-play averages', () => {
+    // The point of the field: 20 coins from the bot must not move the play mean.
+    const s = summarizeRecords(filterBySource([play, auto], 'play'));
+    expect(s.regions[0]!.avgCoins).toBe(10);
+  });
+
+  it('returns an empty list when no record matches', () => {
+    expect(filterBySource([play], 'auto')).toEqual([]);
+  });
+});
+
 describe('parseRecords', () => {
   it('returns [] for non-array input', () => {
     expect(parseRecords(null)).toEqual([]);
@@ -156,6 +192,25 @@ describe('parseRecords', () => {
     expect(r.difficulty).toBe('standard');
     expect(r.coins).toBe(0);
     expect(r.milestone).toBe('region');
+    expect(r.source).toBe('play');
+  });
+
+  it('reads a stored source and defaults an unknown one to play', () => {
+    const parsed = parseRecords([
+      { schema: TELEMETRY_SCHEMA, source: 'auto' },
+      { schema: TELEMETRY_SCHEMA, source: 'bogus' },
+    ]);
+    expect(parsed.map((r) => r.source)).toEqual(['auto', 'play']);
+  });
+
+  it('drops records from an older schema rather than mislabelling their source', () => {
+    // A v1 record predates `source`; defaulting it to 'play' would label the
+    // hand-seeded bot arc as human play, the exact confusion #264 fixes.
+    const parsed = parseRecords([
+      { schema: 1, regionId: 'old' },
+      { schema: TELEMETRY_SCHEMA, regionId: 'new' },
+    ]);
+    expect(parsed.map((r) => r.regionId)).toEqual(['new']);
   });
 
   it('drops negative numeric fields to 0', () => {

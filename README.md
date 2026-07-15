@@ -241,6 +241,13 @@ with buttons to export the raw JSON or clear the store. The capture logic lives
 in `src/systems/telemetry.ts` (pure, unit tested); the dashboard is
 `src/telemetry/dashboard.ts`.
 
+Each record is labelled with its source: `play` for a human run, `auto` for an
+automated one (anything booted with `?e2e`, such as the e2e specs). The
+dashboard defaults to real play and can show either source or both, because an
+automated driver routes near-optimally and repairs at every home visit, so its
+wear is a lower bound and its condition an upper bound on a real player's.
+Averaging the two together flatters the travel sink.
+
 ### Releases
 
 Versioning follows [Semantic Versioning](https://semver.org), driven by the
