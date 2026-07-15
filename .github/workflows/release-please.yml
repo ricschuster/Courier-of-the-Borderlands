@@ -25,6 +25,16 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # The fallback below is deliberately silent so a missing secret cannot break
+      # releases, but silence is exactly what made #238 hard to see: an empty or
+      # unset token looks identical to a working one until a release PR turns up
+      # with no checks and nobody remembers why. Say so in the log instead.
+      # (`gh secret set` with no TTY stores an empty value and exits 0, so
+      # "the secret exists" is not evidence that it has a value.)
+      - name: Warn when the release token is missing
+        if: ${{ secrets.RELEASE_PLEASE_TOKEN == '' }}
+        run: echo "::warning::RELEASE_PLEASE_TOKEN is unset or empty, so release-please is falling back to GITHUB_TOKEN. The release PR will get no CI and cannot merge. See issue 238."
+
       # Runs as RELEASE_PLEASE_TOKEN when that secret exists, falling back to the
       # default GITHUB_TOKEN when it does not. The fallback matters: GitHub does
       # not raise `pull_request` events for actions taken by GITHUB_TOKEN (it
