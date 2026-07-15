@@ -365,7 +365,8 @@ export class MapScene extends Phaser.Scene {
   private difficulty: Difficulty = 'standard';
   /**
    * Difficulty profile for the travel sink. Selected from the difficulty preset
-   * on boot and whenever the player cycles it (the "G" key).
+   * on boot. The preset is picked on the title screen and locked for the run
+   * (#150), so this does not change again until a new game.
    */
   private wagonTuning: WagonTuning = WAGON_TUNING.standard;
   private currentPath: PathResult | null = null;

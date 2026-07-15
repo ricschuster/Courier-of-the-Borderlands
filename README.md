@@ -102,8 +102,11 @@ the landing page; the game itself is at `/play.html`.
 - K: toggle the skills panel
 - L: toggle the terrain codex
 - Space: dismiss an on-screen message
-- N: start a new game (clears the save)
-- G: cycle difficulty (relaxed / standard / demanding); the choice is saved and changes wagon wear and repair costs
+- N: start a new game (clears the save), which is also how you pick a new difficulty
+
+Difficulty (relaxed / standard / demanding) is chosen on the title screen when
+you start a fresh game and is locked for that run. It changes wagon wear and
+repair costs.
 
 ## Testing
 
