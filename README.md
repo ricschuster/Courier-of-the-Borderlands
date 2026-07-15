@@ -27,6 +27,7 @@ Features so far:
 - Seven vehicle upgrades (speed, wider fog reveal, rough-terrain relief, and treads and runners that let you cross deep mire and tidal flats), bought at the home town
 - Unlockable ford shortcuts in each region, plus capability-gated crossings (deep mire and tidal flats) opened by the right upgrade or skill
 - Courier skills spent as you level up, plus settlement dialogue, story threads, missions, and road encounters
+- Wagon condition that wears with travel and needs repair (or a paid rescue when stranded), tuned by three difficulty presets
 - Route guidance (distance to destination and a route drawn on the minimap)
 - Minimap, discoveries journal, terrain codex, achievements, and a courier title
 - Ambient weather that nudges speed and visibility each run
@@ -57,8 +58,8 @@ This project borrows the feeling of these games, not their scope.
 
 Prerequisites:
 
-- Node.js 20 or newer
-- npm 10 or newer
+- Node.js 22 or newer (the exact version is pinned in `.nvmrc`)
+- npm 11 or newer
 - Git
 
 Clone and install:
@@ -68,6 +69,9 @@ git clone <your-repo-url>
 cd courier-of-the-borderlands
 npm install
 ```
+
+To also install the Chromium build the browser tests use, run `npm run setup`
+instead of `npm install`.
 
 Run the game locally:
 
@@ -82,6 +86,7 @@ Then open the URL printed by Vite (typically http://localhost:5173).
 - Arrow keys or WASD: drive the courier
 - Number keys: accept a contract at the board, or spend a skill point in the skills panel
 - B: buy the next upgrade (at the home town)
+- R: repair the wagon at a settlement, or pay for a tow when stranded on the road
 - E: talk to an NPC (at a settlement with dialogue)
 - T: travel to the connected region (on a gateway tile, when not carrying cargo)
 - M: toggle the minimap
@@ -258,9 +263,11 @@ Placeholder art is acceptable. A broken core loop is not.
 - M1 Playable prototype: core delivery loop end to end with placeholder art. Done.
 - M2 MVP: one full region, three contracts, unlockable route, upgrades, story text, deployed to GitHub Pages. Done.
 - M3 Second region: a Region abstraction and registry, the Saltreach region, travel between regions, per-region fog. Done.
-- M4 Depth and hardening: a third region (Fenmarch), multi-region travel, per-region fords, and cargo types with pay modifiers. In progress.
-- M5 RPG and narrative layer: courier skills (done), plus settlement dialogue, story threads, missions, and road encounters. Underway.
-- Later: more regions, audio and juice, and an art pass.
+- M4 Depth and hardening: a third region (Fenmarch), multi-region travel, per-region fords, and cargo types with pay modifiers. Done.
+- M5 RPG and narrative layer: courier skills, settlement dialogue, story threads, missions, road encounters, and a wagon-condition travel sink. Done.
+- M6 Art and polish: Phase 2 art skin (Kenney CC0 tiles behind a data layer) and a UI pass. Done.
+- M7 Tooling and delivery: gameplay telemetry, release versioning, and per-PR preview deploys. Done.
+- Later: more regions and content, audio and juice, and player-facing documentation.
 
 ## Contributing
 
