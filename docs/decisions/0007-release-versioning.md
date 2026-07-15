@@ -42,12 +42,28 @@ remember or hand-run a sequence of commands.
    history. This mirrors the issue-workflow rule of tracking from here forward
    instead of bulk-migrating old history.
 
+5. **A non-default token for the release PR.** The workflow runs release-please
+   with `secrets.RELEASE_PLEASE_TOKEN`, falling back to the default
+   `GITHUB_TOKEN` when that secret is absent. GitHub deliberately does not raise
+   `pull_request` events for actions taken by `GITHUB_TOKEN`, so a release PR it
+   opens receives no CI run at all, and `main`'s required `check` and `e2e`
+   status checks then block the merge forever. A fine-grained PAT (or a GitHub
+   App installation token) with `contents: write` and `pull-requests: write`
+   makes the PR author a real identity, so CI runs normally. See #238; this bit
+   the 0.2.0 release, which needed a manual close/reopen to trigger CI.
+
 ## Consequences
 
 - Adds one GitHub Action and two config files (`release-please-config.json`,
   `.release-please-manifest.json`). No npm/runtime dependency, so the Pages
   deployment is unaffected; the deploy workflow still runs on merge to `main`
   independently of releases.
+- The release flow depends on a repo secret that lives outside the repo. If
+  `RELEASE_PLEASE_TOKEN` is missing or expired, releases do not break loudly:
+  they silently fall back to the old behaviour, where the release PR has no
+  checks and needs a manual close/reopen to merge. A PAT with an expiry date is
+  therefore a dated maintenance item; that is the price of not running a GitHub
+  App for a solo project.
 - Tags and Releases now exist as durable markers a rollback or a "what shipped
   when" question can point at.
 - Commit message discipline now has teeth: the changelog quality is exactly the
