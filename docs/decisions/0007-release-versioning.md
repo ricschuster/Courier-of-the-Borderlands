@@ -63,7 +63,8 @@ remember or hand-run a sequence of commands.
   they silently fall back to the old behaviour, where the release PR has no
   checks and needs a manual close/reopen to merge. A PAT with an expiry date is
   therefore a dated maintenance item; that is the price of not running a GitHub
-  App for a solo project.
+  App for a solo project. The current PAT expires **2026-12-31**; rotation is
+  tracked in #243.
 - Tags and Releases now exist as durable markers a rollback or a "what shipped
   when" question can point at.
 - Commit message discipline now has teeth: the changelog quality is exactly the
