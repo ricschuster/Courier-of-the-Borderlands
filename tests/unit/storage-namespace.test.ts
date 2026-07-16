@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   storageNamespace,
   applyNamespace,
@@ -72,5 +72,35 @@ describe('applyNamespace', () => {
     expect(preview).not.toBe(prod);
     // And the production one is still the bare key a live player's save sits under.
     expect(prod).toBe('save');
+  });
+});
+
+// The pieces above are pure and tested with explicit bases, but nothing pinned
+// what the shipped modules actually compose through namespacedKey() under the
+// production base. Vitest runs with BASE_URL '/' (the preview branch: every
+// key comes out '@/'-suffixed), so writing this test exposed that no test had
+// ever executed the production composition at all: recurring trap 1's shape,
+// where the broken and correct paths look identical in the default case. The
+// env is stubbed to the production base and the modules re-imported so their
+// key constants recompute; the literals below are the exact keys live players'
+// data sits under. If an assertion here fails, the change orphans every
+// existing save (ADR 0008): fix the code, never the expected strings (#294).
+describe('production storage keys', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('are the exact literals shipped saves sit under', async () => {
+    vi.stubEnv('BASE_URL', PRODUCTION_BASE);
+    vi.resetModules();
+    const save = await import('../../src/systems/save-system');
+    const telemetry = await import('../../src/systems/telemetry');
+    const errorLog = await import('../../src/systems/error-log');
+    expect(save.SAVE_KEY).toBe('courier-of-the-borderlands/save');
+    expect(save.INTRO_SEEN_KEY).toBe('courier-of-the-borderlands/intro-seen');
+    expect(save.DIFFICULTY_KEY).toBe('courier-of-the-borderlands/difficulty');
+    expect(telemetry.TELEMETRY_KEY).toBe('courier-of-the-borderlands/telemetry');
+    expect(errorLog.ERROR_LOG_KEY).toBe('courier-of-the-borderlands/errors');
   });
 });
