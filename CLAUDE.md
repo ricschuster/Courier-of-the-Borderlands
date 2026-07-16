@@ -371,6 +371,10 @@ confirmation prompts.
 - To wait for CI on a pull request, use `gh pr checks <number> --watch` (one
   command that blocks until checks finish), not a hand-rolled polling loop.
 - Prefer many small allowlisted commands over one bundled script.
+- Pass long text through a file, never a heredoc (a heredoc is a compound and
+  always prompts). Write the text with the Write tool first, then
+  `git commit -F <file>` for a commit message and `gh pr create --body-file <file>`
+  for a PR body.
 - `gh pr edit` fails on this repo with a Projects-classic GraphQL error. To edit
   a PR body, use `gh api -X PATCH repos/:owner/:repo/pulls/N -F body=@file`
   instead. (`gh issue edit` works fine.)
