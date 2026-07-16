@@ -435,7 +435,9 @@ export class MapScene extends Phaser.Scene {
   // The region-cleared summary panel blocks the centre of the screen, so the
   // player dismisses it with Esc; it then stays hidden for the session instead
   // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
-  private summaryDismissed = false;
+  // Keyed by region id: the summary is per-region content, so dismissing one
+  // region's panel must not suppress another's. Reset on a new game (#291).
+  private summaryDismissedRegions = new Set<string>();
   // The end-of-arc capstone shows once, the session the courier breaks the
   // blockade. capstoneDismissed hides it after Esc within that session;
   // blockadeBrokenAtLoad records whether the flag was already set when the scene
@@ -616,6 +618,13 @@ export class MapScene extends Phaser.Scene {
     // conversation state needs resetting here.
 
     if (snapshot === null) {
+      // A fresh run (new game or first boot), not a region-travel restart: the
+      // session-scoped panel and telemetry dedup state belongs to the previous
+      // playthrough, so a re-cleared region or re-broken blockade shows its
+      // panel and records its milestone again (#291).
+      this.summaryDismissedRegions = new Set();
+      this.capstoneDismissed = false;
+      this.telemetryRecorded = new Set();
       return;
     }
 
@@ -1793,11 +1802,11 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     if (
-      !this.summaryDismissed &&
+      !this.summaryDismissedRegions.has(this.region.id) &&
       this.regionCleared() &&
       Phaser.Input.Keyboard.JustDown(this.escapeKey)
     ) {
-      this.summaryDismissed = true;
+      this.summaryDismissedRegions.add(this.region.id);
       this.hud.setSummary(null);
     }
   }
@@ -2229,7 +2238,7 @@ export class MapScene extends Phaser.Scene {
     // not cross the panel, and retire the region-cleared summary it supersedes.
     if (!this.hud.isCapstoneVisible()) {
       this.hud.dismissToasts();
-      this.summaryDismissed = true;
+      this.summaryDismissedRegions.add(this.region.id);
       this.hud.setSummary(null);
       // Rising edge of the finale: capture the arc-completion telemetry milestone.
       this.captureTelemetry('arc');
@@ -2277,7 +2286,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private refreshSummary(): void {
-    if (this.summaryDismissed) {
+    if (this.summaryDismissedRegions.has(this.region.id)) {
       this.hud.setSummary(null);
       return;
     }
