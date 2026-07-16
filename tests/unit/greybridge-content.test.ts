@@ -121,4 +121,18 @@ describe('Greybridge contracts', () => {
       }
     }
   });
+
+  // The same shape breakdown region-fenmarch.test.ts and region-saltreach.test.ts
+  // assert for their contracts, so a future edit cannot silently drop the arc
+  // gate or a reconnection gate from a Greybridge contract (#294).
+  it('has six standing contracts, one arc contract, and two reconnection-gated relays', () => {
+    const standing = CONTRACTS_GREYBRIDGE.filter((c) => c.requires === undefined);
+    const arc = CONTRACTS_GREYBRIDGE.filter((c) => c.arc === true);
+    const secondWave = CONTRACTS_GREYBRIDGE.filter(
+      (c) => c.requires !== undefined && c.arc !== true,
+    );
+    expect(standing).toHaveLength(6);
+    expect(arc).toHaveLength(1);
+    expect(secondWave).toHaveLength(2);
+  });
 });
