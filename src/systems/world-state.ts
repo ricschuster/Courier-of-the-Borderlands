@@ -48,11 +48,6 @@ export function computeWorldState(input: WorldStateInput): Record<string, Settle
   return out;
 }
 
-/** Count settlements the courier has reconnected (home does not count). */
-export function reconnectedCount(state: Record<string, SettlementStatus>): number {
-  return Object.values(state).filter((s) => s === 'reconnected').length;
-}
-
 /**
  * Derived story-flag id meaning "this settlement is reconnected". The scene folds
  * one of these into the flags handed to the contract gate for every reconnected
@@ -81,7 +76,9 @@ export function reconnectionRewardMultiplier(
   return destinationStatus === 'reconnected' ? 1 + RECONNECTED_REWARD_BONUS : 1;
 }
 
-/** Count settlements still silent, awaiting their delivery. */
-export function silentCount(state: Record<string, SettlementStatus>): number {
-  return Object.values(state).filter((s) => s === 'silent').length;
-}
+// Note: per-status count helpers used to live here but had no production
+// caller. The journal's "Reconnected: X / Y" line is NOT the same computation:
+// it counts from the masked, discovery-aware view (journal.ts), while helpers
+// here would count every settlement, including undiscovered ones and
+// no-contract neutral places. Removed in #295; see git history if a HUD
+// feature wants them back.

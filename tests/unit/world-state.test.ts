@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeWorldState,
   settlementStatus,
-  reconnectedCount,
-  silentCount,
   reconnectionRewardMultiplier,
   RECONNECTED_REWARD_BONUS,
   type WorldStateInput,
@@ -75,15 +73,6 @@ describe('computeWorldState', () => {
     const state = computeWorldState(makeInput());
     expect(state.north).toBe('silent');
     expect(state.east).toBe('silent');
-  });
-});
-
-describe('counts', () => {
-  it('counts reconnected and silent settlements', () => {
-    const state = computeWorldState(makeInput({ completedContractIds: ['c-north'] }));
-    // reconnected: north (delivered) + outpost (no inbound); silent: east
-    expect(reconnectedCount(state)).toBe(2);
-    expect(silentCount(state)).toBe(1);
   });
 });
 
