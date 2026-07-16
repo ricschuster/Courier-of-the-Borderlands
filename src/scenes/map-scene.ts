@@ -885,17 +885,23 @@ export class MapScene extends Phaser.Scene {
     const max = this.wagonMax();
     const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
     const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
+    // R quotes a full restore, not a small top-up: name it "full repair" and show
+    // the per-point rate so the cost is legible before pressing, since a single R
+    // can otherwise spend most of the purse without warning (#320).
+    const rate = this.wagonTuning.costPerPercent;
     if (isStranded(this.wagonCondition)) {
       return here === undefined
         ? `R: pay ${this.wagonTuning.rescueCost}c rescue (or limp to a town)`
-        : `R: repair ${cost}c`;
+        : `R: full repair ${cost}c (${rate}c/pt)`;
     }
     if (this.wagonCondition >= max) {
       return null;
     }
     // Damaged: always show what a full repair would cost, so the player can plan
     // before reaching a town; press R to do it once on a settlement.
-    return here === undefined ? `repair ${cost}c at a town` : `R: repair ${cost}c`;
+    return here === undefined
+      ? `full repair ${cost}c at a town (${rate}c/pt)`
+      : `R: full repair ${cost}c (${rate}c/pt)`;
   }
 
   /**
