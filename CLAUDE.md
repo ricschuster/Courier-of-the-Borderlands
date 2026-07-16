@@ -22,25 +22,17 @@ Short pitch:
 
 > A 2D fantasy courier game about delivering goods, letters, rumours, and secrets across a dangerous borderland, where every route reveals more of the map and changes the player's reputation with the people who depend on them.
 
-## Current MVP target
+## Project status
 
-Build a grey-box playable prototype of one delivery across a fogged map.
+The MVP shipped and the game is live (0.4.0, deployed to GitHub Pages). The first
+region is the Greybridge Region; Fenmarch and Saltreach followed. The full delivery
+loop, fog-of-war, terrain movement, contracts, economy, reputation, upgrades, route
+unlocks, and story text are all built.
 
-The first MVP region is called the Greybridge Region.
-
-MVP must include:
-
-1. One starting town
-2. Three delivery destinations
-3. Fog-of-war reveal
-4. Simple top-down courier vehicle movement
-5. Multiple terrain types with movement effects
-6. One difficult or blocked route
-7. One unlockable shortcut or improved road
-8. Three delivery contracts
-9. Reputation and currency rewards
-10. One basic vehicle upgrade
-11. Short NPC or delivery text to establish story tone
+For what has been delivered milestone by milestone, and what the original MVP scope
+was, see `docs/design/02_milestones.md` (M0/M1/M2 marked DONE). Open GitHub issues
+are the live roadmap from here; this file is direction and working rules, not a
+task list.
 
 ## Design pillars
 
@@ -59,32 +51,15 @@ MVP must include:
 5. Small systems, clear feedback  
    Mechanics should be simple, visible, and testable before they become deep.
 
-## What this game is
+## Scope
 
-This game is:
+A 2D top-down fantasy courier game for the web: map exploration, light
+progression, story-flavoured route planning, built as a data-driven systems and
+learning project.
 
-- A 2D top-down fantasy courier game
-- A web game
-- A map exploration game
-- A light progression game
-- A story-flavoured route planning game
-- A data-driven systems project
-- A learning project
-
-## What this game is not
-
-This game is not:
-
-- A full Civilization-style 4X game
-- A racing game
-- A full open-world RPG
-- A combat-first game
-- A simulation-heavy economy game
-- A multiplayer game
-- A 3D game
-- A polished art project at the start
-
-Do not expand scope without an explicit design note or architecture decision record.
+It is deliberately not a 4X, a racing game, an open-world or combat-first RPG, a
+heavy economy sim, multiplayer, or 3D. Do not expand scope without an explicit
+design note or architecture decision record.
 
 ## Recommended stack
 
@@ -94,11 +69,11 @@ Use the following stack unless the project owner explicitly changes direction:
 - Phaser 3
 - Vite
 - Vitest
-- Playwright for later browser smoke tests
+- Playwright for browser smoke tests (arc and region specs; now central, not "later")
 - GitHub
 - GitHub Pages for deployment
 - Markdown documentation
-- JSON game data
+- Typed TypeScript data modules for game content (see Data rules)
 
 ## Coding principles
 
@@ -136,46 +111,26 @@ Rules:
 4. Keep pure game logic outside Phaser scenes where practical.
 5. Put testable systems in `src/systems/`.
 6. Put Phaser-specific rendering and input logic in `src/scenes/`.
-7. Keep canonical game data in JSON or typed data modules.
+7. Keep canonical game data in typed data modules under `src/data/`.
 8. Validate assumptions at module boundaries.
 
-## Suggested repo structure
+## Repo structure
 
-Use this structure unless there is a strong reason to change it:
+The shape that has held up; keep to it unless there is a strong reason not to.
 
-```text
-game-project/
-├── CLAUDE.md
-├── README.md
-├── docs/
-│   ├── design/
-│   │   ├── 00_project_brief.md
-│   │   ├── 01_core_loop.md
-│   │   └── 02_milestones.md
-│   ├── decisions/
-│   └── handoffs/
-├── src/
-│   ├── main.ts
-│   ├── scenes/
-│   ├── systems/
-│   ├── entities/
-│   ├── data/
-│   ├── ui/
-│   └── utils/
-├── assets/
-│   ├── sprites/
-│   ├── audio/
-│   └── credits.md
-├── tests/
-│   ├── unit/
-│   └── e2e/
-├── .github/
-│   └── workflows/
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── README.md
-```
+- `src/scenes/` Phaser scenes: rendering and input.
+- `src/systems/` pure, testable game logic (movement, fog, contracts, economy,
+  upgrades, storage-namespace, ...). Keep game rules here, out of scenes.
+- `src/data/` canonical content as typed TS modules (terrain, settlements,
+  contracts, regions, upgrades, dialogue). No JSON (see Data rules).
+- `tests/unit/` Vitest for pure logic; `tests/e2e/` Playwright specs.
+- `docs/design/`, `docs/decisions/` (ADRs), `docs/handoffs/`.
+- `assets/`, `.github/workflows/`, `scripts/`.
+
+The repo root also carries the player-facing site (`play.html`, `manual.html`,
+`news.html`, `telemetry.html`), release tooling (`release-please-config.json`,
+`CHANGELOG.md`), and `CONTRIBUTING.md` / `SECURITY.md`. Explore the tree rather
+than trusting a static diagram; this list drifts.
 
 ## File naming
 
@@ -198,8 +153,8 @@ For session handoffs:
 
 For game data:
 
-- Use lowercase kebab-case JSON files.
-- Example: `terrain-types.json`, `contracts-greybridge.json`, `settlements-greybridge.json`
+- Use lowercase kebab-case TypeScript modules in `src/data/`.
+- Example: `terrain-types.ts`, `contracts-greybridge.ts`, `settlements-greybridge.ts`
 
 ## Style rules
 
@@ -212,56 +167,17 @@ For game data:
 
 ## Data rules
 
-Game content should be data-driven where practical.
+Game content is data-driven. Canonical content lives in typed TypeScript modules
+under `src/data/` (for example `terrain-types.ts`, `contracts-greybridge.ts`,
+`region-fenmarch.ts`). This already covers terrain types, settlements, contracts,
+routes, vehicle upgrades, reputation tiers, story snippets, and region metadata.
 
-Canonical data should eventually include:
-
-- Terrain types
-- Settlement definitions
-- Contract definitions
-- Route definitions
-- Vehicle upgrades
-- Reputation thresholds
-- Story snippets
-- Region metadata
-
-Use JSON for canonical content when feasible. If TypeScript modules are easier during prototyping, keep the structure easy to migrate to JSON later.
-
-## Initial game systems
-
-Prioritize these systems first:
-
-1. Map system
-2. Terrain system
-3. Player movement system
-4. Fog-of-war system
-5. Contract system
-6. Delivery completion system
-7. Reward system
-8. Reputation system
-9. Unlock system
-10. Basic dialogue or message system
-
-## Build order
-
-Build in this order unless blocked:
-
-1. Scaffold the Vite, TypeScript, and Phaser project.
-2. Add a basic Phaser scene that renders successfully.
-3. Add a simple tile map.
-4. Add a controllable courier vehicle.
-5. Add terrain speed modifiers.
-6. Add fog-of-war reveal.
-7. Add one pickup location and one destination.
-8. Add delivery completion feedback.
-9. Add three contracts using structured data.
-10. Add reputation and currency rewards.
-11. Add one unlockable route or shortcut.
-12. Add one vehicle upgrade.
-13. Add one short NPC or delivery text sequence.
-14. Add tests for pure systems.
-15. Add a GitHub Actions workflow for lint and tests.
-16. Add GitHub Pages deployment.
+There is no JSON game data, and adding some is a non-goal. The early docs
+recommended JSON "eventually," but the project settled on typed modules because
+they get compiler checking for free and need no schema tooling. Do not report
+JSON data as current state or plan against it; a tool or feature that assumes a
+JSON content layer (see the closed #225 and #229) is building on something that
+does not exist. Migrating to JSON would need an ADR in `docs/decisions/` first.
 
 ## Testing expectations
 
@@ -379,7 +295,7 @@ or permanent and MUST NOT be the home for durable project context. The repositor
 is the single source of truth, because it travels through git to every machine:
 
 1. Trackable, open-then-closed work (features, bugs, tech debt, parked threads) ->
-   GitHub issues (see Issue workflow). Open = todo, closed = shipped.
+   GitHub issues (see Issue workflow).
 2. Owner direction and working preferences -> this file (CLAUDE.md).
 3. Design threads and decisions -> `docs/design/` and `docs/decisions/` (ADRs).
 4. Session narrative -> `docs/handoffs/`.
@@ -388,15 +304,12 @@ Do not rely on personal memory to carry a fact from one session to the next; if
 something is worth remembering, write it to one of the four homes above. Personal
 memory is at most a scratch cache of what is already durable in the repo.
 
-The store is deliberately empty as of 2026-07-15, and the aim is to keep it that
-way. It had grown to twenty entries; a cleanup found that every one duplicated
-the repo, four were pointing sessions at work that had already shipped, and only
-two facts existed nowhere else (both promoted here and to the README). The
-failure mode is not the writing, it is that nothing ever deletes: a rich cache
-goes stale and then actively misleads. The mechanisms that already carry context
-to every machine are this file (loaded every session), `.claude/skills/`, and
-`docs/` plus issues. Prefer them. If a memory would be the only record of
-something, that is the signal to write it here instead.
+The personal memory store is deliberately empty as of 2026-07-15, and the aim is to
+keep it that way. A cleanup found every entry duplicated the repo and some pointed
+sessions at work that had already shipped: the failure mode is not the writing, it
+is that nothing ever deletes, so a stale cache actively misleads. If a fact would be
+recorded only in memory, that is the signal to write it to one of the four homes
+above instead. The store's own guard file records the same rule.
 
 ## Command style
 
@@ -502,23 +415,6 @@ Phase 2:
 Phase 3:
 
 - Consider custom or AI-generated assets only after the core loop works.
-
-## MVP definition of done
-
-The MVP is done when a player can:
-
-1. Open the game in a web browser.
-2. Start in the Greybridge Region.
-3. Accept a delivery contract.
-4. Drive to a destination.
-5. Reveal map areas through fog-of-war.
-6. Experience movement differences across terrain.
-7. Complete a delivery.
-8. Receive visible rewards.
-9. Unlock at least one new route, shortcut, contract, or upgrade.
-10. Understand the basic fantasy courier premise from in-game text.
-
-Placeholder art is acceptable. Broken core loop is not acceptable.
 
 ## Current default decisions
 
