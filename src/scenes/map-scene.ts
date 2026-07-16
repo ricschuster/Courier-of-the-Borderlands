@@ -81,12 +81,7 @@ import {
 import { buildMinimap } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
-import {
-  computeWorldState,
-  reconnectionRewardMultiplier,
-  reconnectedFlag,
-  type SettlementStatus,
-} from '../systems/world-state';
+import { computeWorldState, reconnectedFlag, type SettlementStatus } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { ENCOUNTERS } from '../data/encounters';
 import { activeEncounters } from '../systems/encounter-system';
@@ -108,13 +103,12 @@ import {
   rankOf,
   skillSpeedBonus,
   skillRevealBonus,
-  skillRewardBonus,
   derivedSkillFlags,
   type SkillRanks,
 } from '../systems/skills';
 import { findPath, type PathResult } from '../systems/pathfinding';
-import { perkFor, applyRewardBonus } from '../systems/reputation-perks';
-import { getCargoCategory, cargoPayout } from '../systems/cargo-types';
+import { perkFor } from '../systems/reputation-perks';
+import { getCargoCategory } from '../systems/cargo-types';
 import {
   createTripLog,
   addDistance,
@@ -131,7 +125,6 @@ import {
 } from '../systems/achievements';
 import { weatherByIndex, pickWeather, weatherEffectLabel, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
-import { bonusFor, bonusAchieved } from '../systems/contract-bonus';
 import {
   setFlags,
   flagsToArray,
@@ -182,6 +175,7 @@ import {
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
 import { isE2E, speedFactor, wearDisabled, exposeE2EApi, type E2EHost } from './map-scene-e2e';
+import { computeDeliveryReward } from '../systems/delivery-reward';
 
 // Depth layers, from bottom to top. HUD depth lives in map-hud.ts and marker
 // depth in map-markers.ts.
@@ -1214,32 +1208,29 @@ export class MapScene extends Phaser.Scene {
   }
 
   private completeDelivery(contract: Contract, settlementId: string, settlementName: string): void {
-    // A delivery to an already-reconnected place pays a premium. World-state is
-    // read before this contract is marked completed, so the delivery that first
-    // reconnects a place pays the flat rate and only later work to it is boosted.
-    const reconnectMult = reconnectionRewardMultiplier(this.worldState()[contract.destinationId]);
-    // Cargo type scales the base reward before reputation is applied.
-    const cargoCategory = getCargoCategory(contract.cargoType);
-    const baseReward = Math.round(cargoPayout(contract.reward, contract.cargoType) * reconnectMult);
-    // Higher standing pays better; the reward scales with total reputation.
+    // The whole reward composition (cargo modifier, reconnection premium,
+    // standing bonus, Negotiator cut, bonus objective) is a pure rule in
+    // delivery-reward.ts (#301). World-state is read before this contract is
+    // marked completed, so the delivery that first reconnects a place pays the
+    // flat rate and only later work to it is boosted.
     const reputation = totalReputation(this.state.ledger);
-    const payout = applyRewardBonus(baseReward, reputation);
-    const perk = perkFor(reputation);
-    // The Negotiator skill adds a flat fraction on top of the standing bonus.
-    const skillReward = Math.round(payout * skillRewardBonus(this.skills));
-
-    // Optional bonus objective for this contract.
-    const bonus = bonusFor(contract.id);
-    const bonusEarned =
-      bonus !== undefined &&
-      bonusAchieved(bonus, {
+    const reward = computeDeliveryReward({
+      contractId: contract.id,
+      contractReward: contract.reward,
+      cargoType: contract.cargoType,
+      destinationStatus: this.worldState()[contract.destinationId],
+      totalReputation: reputation,
+      skills: this.skills,
+      bonusFacts: {
         usedFord: this.usedFordThisContract,
         tilesDriven: this.tilesSinceAccept,
-      });
-    const bonusCoins = bonusEarned && bonus !== undefined ? bonus.reward : 0;
+      },
+    });
+    const perk = perkFor(reputation);
+    const cargoCategory = getCargoCategory(contract.cargoType);
 
     this.completed.add(contract.id);
-    this.state.ledger = addCoins(this.state.ledger, payout + skillReward + bonusCoins);
+    this.state.ledger = addCoins(this.state.ledger, reward.total);
     this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
     this.trip = recordDelivery(this.trip);
     this.activeContract = undefined;
@@ -1247,15 +1238,15 @@ export class MapScene extends Phaser.Scene {
 
     // Compare against the cargo-adjusted base so the perk note reflects a
     // reputation boost, not the cargo pay modifier.
-    const perkNote = payout > baseReward ? ` (${perk.label})` : '';
-    const skillNote = skillReward > 0 ? ` +${skillReward} negotiated.` : '';
-    const bonusNote = bonusCoins > 0 ? ` Bonus met: +${bonusCoins} coins.` : '';
+    const perkNote = reward.payout > reward.baseReward ? ` (${perk.label})` : '';
+    const skillNote = reward.skillReward > 0 ? ` +${reward.skillReward} negotiated.` : '';
+    const bonusNote = reward.bonusCoins > 0 ? ` Bonus met: +${reward.bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
-    const reconnectNote = reconnectMult > 1 ? ' The reconnected road pays better.' : '';
+    const reconnectNote = reward.reconnectPremium ? ' The reconnected road pays better.' : '';
     this.logEvent(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${payout + skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}${reconnectNote}`,
+        `Reward: ${reward.payout + reward.skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
     this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
     this.refreshObjective();
