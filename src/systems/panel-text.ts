@@ -22,6 +22,42 @@ export interface BoardTextInput {
   readonly worldStatus: Record<string, SettlementStatus>;
 }
 
+/**
+ * The live conditions that decide whether the contract board is on screen and
+ * accepting input. Every flag is a reason the board yields to something else.
+ */
+export interface BoardInteractableInput {
+  /** True while a contract is already active (the board only offers new work). */
+  readonly hasActiveContract: boolean;
+  /** The courier is standing at the home settlement, where the board lives. */
+  readonly atHome: boolean;
+  /** The end-of-arc capstone owns the screen. */
+  readonly capstoneVisible: boolean;
+  /** The region-cleared run summary owns the screen. */
+  readonly summaryVisible: boolean;
+  /** Any blocking overlay (journal, skills, upgrade menu, codex) is open. */
+  readonly blockingOverlayOpen: boolean;
+}
+
+/**
+ * Whether the board is interactable: on screen at home with no panel over it.
+ * The single source of truth for both drawing the board and accepting a digit,
+ * so the two cannot drift apart and let a number key accept a contract hidden
+ * behind a panel (#292 for the journal/skills overlays, #316 for the run
+ * summary and arc capstone). Dialogue is intentionally not a condition here: the
+ * scene gates input separately (its update loop early-returns during dialogue),
+ * and only the draw path needs to also hide the board while dialogue is open.
+ */
+export function boardInteractable(input: BoardInteractableInput): boolean {
+  return (
+    !input.hasActiveContract &&
+    input.atHome &&
+    !input.capstoneVisible &&
+    !input.summaryVisible &&
+    !input.blockingOverlayOpen
+  );
+}
+
 /** The contract board: a header and one line per offerable contract. */
 export function boardText(input: BoardTextInput): string {
   const lines = [`${input.homeName.toUpperCase()} BOARD  (press number to accept)`];

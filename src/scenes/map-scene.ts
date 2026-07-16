@@ -74,6 +74,7 @@ import {
 } from '../systems/wagon-condition';
 import {
   boardText,
+  boardInteractable,
   summaryText,
   skillPanelText,
   capstoneText,
@@ -1357,16 +1358,26 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Whether the contract board is currently on screen and interactable. The
+   * single source of truth for both drawing the board (refreshBoard) and
+   * accepting a digit (handleBoardInput): the two drifted apart before, letting
+   * a number key accept a contract hidden behind an overlay (#292 for the
+   * journal/skills case, #316 for the summary/capstone case). Dialogue is not
+   * checked here because update() early-returns while it is open.
+   */
+  private boardInteractable(): boolean {
+    return boardInteractable({
+      hasActiveContract: this.activeContract !== undefined,
+      atHome: this.atSettlement(this.region.home),
+      capstoneVisible: this.shouldShowCapstone(),
+      summaryVisible: this.hud.isSummaryVisible(),
+      blockingOverlayOpen: this.hud.isBlockingOverlayOpen(),
+    });
+  }
+
   private handleBoardInput(): void {
-    // The skill panel and upgrade menu reuse the number keys (spend points / buy
-    // upgrades), and refreshBoard hides the board under ANY blocking overlay
-    // (journal and legend included), so take no board input while one is open:
-    // otherwise a digit accepts a contract the player cannot see (#292).
-    // Dialogue needs no guard here; update() returns early while it is open.
-    if (this.hud.isBlockingOverlayOpen()) {
-      return;
-    }
-    if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
+    if (!this.boardInteractable()) {
       return;
     }
     const list = this.boardContracts();
@@ -1393,14 +1404,10 @@ export class MapScene extends Phaser.Scene {
     // The board also yields to any blocking overlay (journal/skills/codex) or the
     // run summary, so only one overlay shows at a time (D1 reserved region, #149).
     // It likewise yields to an open dialogue (E at a settlement), so the
-    // postmaster conversation does not overlap the board (#181).
-    const show =
-      this.activeContract === undefined &&
-      this.atSettlement(this.region.home) &&
-      !this.shouldShowCapstone() &&
-      !this.hud.isSummaryVisible() &&
-      !this.hud.isDialogueVisible() &&
-      !this.hud.isBlockingOverlayOpen();
+    // postmaster conversation does not overlap the board (#181). boardInteractable
+    // carries every condition but dialogue, which only refreshBoard needs (input
+    // is already gated by update()'s early return while dialogue is open).
+    const show = this.boardInteractable() && !this.hud.isDialogueVisible();
     if (!show) {
       this.hud.setBoard(null);
       return;
