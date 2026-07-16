@@ -1642,8 +1642,11 @@ export class MapScene extends Phaser.Scene {
 
   private handleBoardInput(): void {
     // The skill panel and upgrade menu reuse the number keys (spend points / buy
-    // upgrades); do not also accept a contract with the same press.
-    if (this.hud.isSkillPanelVisible() || this.hud.isUpgradeMenuVisible()) {
+    // upgrades), and refreshBoard hides the board under ANY blocking overlay
+    // (journal and legend included), so take no board input while one is open:
+    // otherwise a digit accepts a contract the player cannot see (#292).
+    // Dialogue needs no guard here; update() returns early while it is open.
+    if (this.hud.isBlockingOverlayOpen()) {
       return;
     }
     if (this.activeContract !== undefined || !this.atSettlement(this.region.home)) {
