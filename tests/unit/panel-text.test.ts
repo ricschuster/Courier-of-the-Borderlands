@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   boardText,
+  boardInteractable,
   summaryText,
   skillPanelText,
   capstoneText,
@@ -74,6 +75,41 @@ describe('boardText', () => {
     });
     expect(text).toContain('100c');
     expect(text).not.toContain('reconnected');
+  });
+});
+
+describe('boardInteractable', () => {
+  // At home, no active contract, nothing over the board: the only interactable case.
+  const open = {
+    hasActiveContract: false,
+    atHome: true,
+    capstoneVisible: false,
+    summaryVisible: false,
+    blockingOverlayOpen: false,
+  };
+
+  it('is interactable at home with no contract and no panel open', () => {
+    expect(boardInteractable(open)).toBe(true);
+  });
+
+  it('yields while a contract is active', () => {
+    expect(boardInteractable({ ...open, hasActiveContract: true })).toBe(false);
+  });
+
+  it('yields away from home', () => {
+    expect(boardInteractable({ ...open, atHome: false })).toBe(false);
+  });
+
+  it('yields under the run summary (the #316 gap: input must match visibility)', () => {
+    expect(boardInteractable({ ...open, summaryVisible: true })).toBe(false);
+  });
+
+  it('yields under the arc capstone (the #316 gap: input must match visibility)', () => {
+    expect(boardInteractable({ ...open, capstoneVisible: true })).toBe(false);
+  });
+
+  it('yields under any blocking overlay (journal/skills/upgrades, #292)', () => {
+    expect(boardInteractable({ ...open, blockingOverlayOpen: true })).toBe(false);
   });
 });
 
