@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Courier of the Borderlands</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+      /* Column layout so the chrome bar sits under the canvas rather than over
+         it. Phaser is Scale.FIT + CENTER_BOTH, so the canvas keeps its 16:9
+         letterbox inside whatever height #game is left with, and on most windows
+         the bar eats dead letterbox space rather than game. Floating the links
+         over the canvas instead was the other option, but every canvas corner is
+         already spoken for: title top-left, toasts top-right, minimap
+         bottom-right, controls hint bottom-left. */
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      #game {
+        flex: 1;
+        /* Without this a flex child refuses to shrink below its content size and
+           the bar gets pushed off-screen. */
+        min-height: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .chrome {
+        display: flex;
+        gap: 18px;
+        justify-content: center;
+        align-items: center;
+        padding: 6px 12px;
+        border-top: 1px solid #3a3426;
+        background: #14140f;
+        /* Matches the landing page and manual so the site reads as one place. */
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-size: 0.8rem;
+      }
+      .chrome a {
+        color: #a99f86;
+        text-decoration: none;
+      }
+      .chrome a:hover,
+      .chrome a:focus-visible {
+        color: #c9a24a;
+        text-decoration: underline;
+      }
+    </style>
+    <script type="module" crossorigin src="/Courier-of-the-Borderlands/pr-preview/pr-310/assets/main-6HVqczjh.js"></script>
+    <link rel="modulepreload" crossorigin href="/Courier-of-the-Borderlands/pr-preview/pr-310/assets/rolldown-runtime-Bh1tDfsg.js">
+    <link rel="modulepreload" crossorigin href="/Courier-of-the-Borderlands/pr-preview/pr-310/assets/error-log-DxBYHbE2.js">
+    <link rel="modulepreload" crossorigin href="/Courier-of-the-Borderlands/pr-preview/pr-310/assets/phaser-Cw8WrzC9.js">
+  </head>
+  <body>
+    <div id="game"></div>
+    <!-- The manual opens in a new tab so a run in progress is left alone. It is
+         the only route to the manual for anyone linked straight to the game,
+         which is most people: the landing page is easy to skip past. -->
+    <nav class="chrome">
+      <a href="./index.html">Home</a>
+      <a href="./manual.html" target="_blank" rel="noopener">Manual</a>
+    </nav>
+  </body>
+</html>
