@@ -55,6 +55,7 @@ import {
 } from '../systems/upgrade-system';
 import {
   wearPerTile,
+  roughness,
   applyWear,
   limpMultiplier,
   isStranded,
@@ -191,6 +192,7 @@ const DEPTH_FOG = 5;
 // the save (surviving region travel) and clear on a New Game.
 const ONBOARD_SKILLS = 'onboarding:skills';
 const ONBOARD_UPGRADES = 'onboarding:upgrades';
+const ONBOARD_OFFROAD = 'onboarding:offroad';
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -738,6 +740,19 @@ export class MapScene extends Phaser.Scene {
     }
 
     this.trackDistance(wearRate);
+    // Teach the off-road wear lesson the first time the wagon is driven onto
+    // rough ground (roughness > 0; roads and bridges normalise to 0). The blind
+    // run never learned that leaving the road wears the wagon, and that fed the
+    // stranded dead end (#326). Keyed to driving input so it fires in the act of
+    // going off-road, not on a static load parked off a road.
+    const driving = input.up || input.down || input.left || input.right;
+    if (driving && terrainId !== undefined && roughness(rawWearModifier) > 0) {
+      this.teachOnce(
+        ONBOARD_OFFROAD,
+        'Off the road the ground is rough and wears the wagon; roads and bridges ' +
+          'do not. Watch the Wagon meter and repair (R) in a town before it strands you.',
+      );
+    }
     this.currentPath = this.destinationPath();
     this.revealAroundCourier();
     // Distance and discoveries just changed, so a level (and its skill point) can
