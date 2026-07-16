@@ -105,6 +105,10 @@ Explain each system the first time it becomes relevant, not in a manual:
 
 - First skill point earned: a one-time prompt explaining skills and the wagon
   link, pointing at K.
+- First time driving off the road onto rough ground: a one-time prompt that
+  rough terrain wears the wagon (roads and bridges do not), pointing at the
+  Wagon meter and repair (R). Added after the 2026-07-16 blind run reached a
+  stranded dead end never having learned off-road wear (#326).
 - First time at a settlement with upgrades: introduce the upgrade menu.
 - First standing-tier increase: a line naming the perk gained.
 - Weather: a short readout of its current effect (already have a weather line;
