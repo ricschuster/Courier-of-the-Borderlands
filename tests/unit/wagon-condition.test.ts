@@ -13,6 +13,7 @@ import {
   isStranded,
   conditionFraction,
   isLowCondition,
+  lowConditionWarning,
   LOW_CONDITION_FRACTION,
   rescue,
   maxConditionForLevel,
@@ -351,5 +352,40 @@ describe('difficulty selector helpers', () => {
     expect(difficultyLabel('relaxed')).toBe('Relaxed');
     expect(difficultyLabel('standard')).toBe('Standard');
     expect(difficultyLabel('demanding')).toBe('Demanding');
+  });
+});
+
+describe('lowConditionWarning', () => {
+  // Max 100 puts the low band at (0, 30] (LOW_CONDITION_FRACTION 0.3).
+  const MAX = 100;
+
+  it('warns on the first frame in the low band', () => {
+    expect(lowConditionWarning(30, MAX, false)).toBe('warn');
+  });
+
+  it('holds while low once the warning has fired, so it does not nag', () => {
+    expect(lowConditionWarning(20, MAX, true)).toBe('hold');
+  });
+
+  it('stays armed through stranding so 0 does not re-fire the toast', () => {
+    expect(lowConditionWarning(0, MAX, true)).toBe('hold');
+  });
+
+  it('re-arms after a repair lifts the wagon above the low band', () => {
+    expect(lowConditionWarning(80, MAX, true)).toBe('rearm');
+  });
+
+  it('does nothing while healthy and already armed', () => {
+    expect(lowConditionWarning(80, MAX, false)).toBe('hold');
+  });
+
+  it('walks a full spell: warn once, hold to stranding, re-arm on repair, warn again', () => {
+    // Drop into the low band: warn, then hold all the way down and through 0.
+    expect(lowConditionWarning(25, MAX, false)).toBe('warn');
+    expect(lowConditionWarning(10, MAX, true)).toBe('hold');
+    expect(lowConditionWarning(0, MAX, true)).toBe('hold');
+    // Repair back to full: re-arm, then the next low spell warns again.
+    expect(lowConditionWarning(MAX, MAX, true)).toBe('rearm');
+    expect(lowConditionWarning(30, MAX, false)).toBe('warn');
   });
 });

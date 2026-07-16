@@ -287,6 +287,35 @@ export function isLowCondition(condition: number, max: number): boolean {
   return !isStranded(condition) && conditionFraction(condition, max) <= LOW_CONDITION_FRACTION;
 }
 
+/**
+ * What the low-condition warning state machine should do this frame (#182,
+ * extracted to a pure rule in #301):
+ *
+ *   'warn'  first frame in the low band since the last re-arm: toast once and
+ *           remember it fired
+ *   'hold'  no change: either already warned while still low, or stranded
+ *           (stranded is its own louder state, and staying armed through it
+ *           keeps the toast from re-firing on the way down to 0)
+ *   'rearm' back above the low band (a repair): forget the warning so the
+ *           next low spell toasts again
+ */
+export type LowConditionWarning = 'warn' | 'hold' | 'rearm';
+
+/** Decide the warning transition for the current condition and armed state. */
+export function lowConditionWarning(
+  condition: number,
+  max: number,
+  alreadyWarned: boolean,
+): LowConditionWarning {
+  if (isLowCondition(condition, max)) {
+    return alreadyWarned ? 'hold' : 'warn';
+  }
+  if (isStranded(condition)) {
+    return 'hold';
+  }
+  return alreadyWarned ? 'rearm' : 'hold';
+}
+
 export interface RescueResult {
   readonly ok: boolean;
   readonly coins: number;

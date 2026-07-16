@@ -59,6 +59,7 @@ import {
   limpMultiplier,
   isStranded,
   isLowCondition,
+  lowConditionWarning,
   repair,
   repairCost,
   rescue,
@@ -852,14 +853,13 @@ export class MapScene extends Phaser.Scene {
    * it back above the threshold, so it does not nag every frame while low.
    */
   private warnLowConditionOnce(): void {
-    if (isLowCondition(this.wagonCondition, this.wagonMax())) {
-      if (!this.lowConditionWarned) {
-        this.lowConditionWarned = true;
-        this.hud.showToast('Wagon condition low. Repair at a town before it strands.');
-      }
-    } else if (!isStranded(this.wagonCondition)) {
-      // Back above the low band (a repair): re-arm for the next low spell. Stay
-      // armed through stranding so it does not re-fire on the way down to 0.
+    // The arm/warn/re-arm rule is pure in wagon-condition.ts (#301); the scene
+    // only applies the transition and shows the toast.
+    const action = lowConditionWarning(this.wagonCondition, this.wagonMax(), this.lowConditionWarned);
+    if (action === 'warn') {
+      this.lowConditionWarned = true;
+      this.hud.showToast('Wagon condition low. Repair at a town before it strands.');
+    } else if (action === 'rearm') {
       this.lowConditionWarned = false;
     }
   }
