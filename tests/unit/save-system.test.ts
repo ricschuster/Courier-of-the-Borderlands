@@ -26,6 +26,7 @@ const SNAPSHOT: GameSnapshot = {
   achievements: ['first-delivery', 'ford-finder'],
   skills: { 'off-road': 2, wayfinder: 1 },
   storyFlags: ['greybridge_reveal', 'met_postmaster'],
+  courierTile: { x: 7, y: 4 },
 };
 
 describe('save-system', () => {
@@ -46,6 +47,23 @@ describe('save-system', () => {
   it('clamps an out-of-range wagonCondition on load', () => {
     expect(deserialize({ ...serialize(SNAPSHOT), wagonCondition: 250 })?.wagonCondition).toBe(100);
     expect(deserialize({ ...serialize(SNAPSHOT), wagonCondition: -10 })?.wagonCondition).toBe(0);
+  });
+
+  it('reads a missing or malformed courierTile as null (loads at spawn, #315)', () => {
+    const legacy = { ...serialize(SNAPSHOT) } as unknown as Record<string, unknown>;
+    delete legacy.courierTile;
+    expect(deserialize(legacy)?.courierTile).toBeNull();
+    expect(deserialize({ ...serialize(SNAPSHOT), courierTile: 'home' })?.courierTile).toBeNull();
+    expect(deserialize({ ...serialize(SNAPSHOT), courierTile: { x: 3 } })?.courierTile).toBeNull();
+    expect(
+      deserialize({ ...serialize(SNAPSHOT), courierTile: { x: Infinity, y: 2 } })?.courierTile,
+    ).toBeNull();
+  });
+
+  it('floors a fractional courierTile to whole tile coordinates', () => {
+    expect(
+      deserialize({ ...serialize(SNAPSHOT), courierTile: { x: 7.9, y: 4.2 } })?.courierTile,
+    ).toEqual({ x: 7, y: 4 });
   });
 
   it('rejects a mismatched version', () => {

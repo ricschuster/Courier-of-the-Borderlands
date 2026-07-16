@@ -152,6 +152,7 @@ import { Juice } from './juice';
 import {
   getRegion,
   arrivalTile,
+  resumeTile,
   settlementAtTileIn,
   totalSettlementCount,
   REGIONS,
@@ -371,8 +372,16 @@ export class MapScene extends Phaser.Scene {
     );
 
     // Enter at the return gateway when arriving by travel, so the courier steps
-    // out at the marker back to where it came from, not the region's spawn.
-    const arrival = arrivalTile(this.region, data?.fromRegionId);
+    // out at the marker back to where it came from, not the region's spawn. A
+    // cold boot resumes at the saved courier tile instead, so a page reload is
+    // not a free instant tow home (#315).
+    const arrival =
+      data?.regionId !== undefined
+        ? arrivalTile(this.region, data.fromRegionId)
+        : resumeTile(this.region, snapshot?.courierTile ?? null, (tile) => {
+            const id = getTerrainIdAt(this.map, tile.x, tile.y);
+            return id !== undefined && isPassableWith(id, this.traversalKeys());
+          });
     const spawnX = arrival.x * TILE_SIZE + TILE_SIZE / 2;
     const spawnY = this.mapOriginY + arrival.y * TILE_SIZE + TILE_SIZE / 2;
     this.courier = new Courier(this, spawnX, spawnY);
@@ -588,6 +597,7 @@ export class MapScene extends Phaser.Scene {
       achievements: [...this.achievements],
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
+      courierTile: this.courierTile(),
     });
     // Autosave runs every couple of seconds; if storage is unavailable or full,
     // tell the player once rather than every tick, so they know a closed tab
