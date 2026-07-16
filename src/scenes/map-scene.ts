@@ -181,122 +181,7 @@ import {
   type ContractProgress,
 } from '../systems/contract-system';
 import { Courier } from '../entities/courier';
-
-// Read-only snapshot of live scene state, exposed to end-to-end tests so a
-// headless browser can drive the courier and assert on the delivery loop.
-interface E2EState {
-  readonly regionId: string;
-  readonly courier: { readonly x: number; readonly y: number; readonly tileX: number; readonly tileY: number };
-  readonly home: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number };
-  readonly coins: number;
-  readonly reputation: number;
-  readonly deliveries: number;
-  readonly delivered: number;
-  /** Wagon condition (0-100), the travel sink. Full until worn down. */
-  readonly wagonCondition: number;
-  /** Cumulative condition worn this session (tuning telemetry). */
-  readonly wagonWearTotal: number;
-  readonly fogRevealed: number;
-  readonly activeContractId: string | null;
-  readonly contractStatus: string | null;
-  readonly atHome: boolean;
-  readonly availableContractIds: readonly string[];
-  readonly destination:
-    | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
-    | null;
-  /**
-   * Tile of the active contract's pickup settlement while the cargo is still
-   * unclaimed (status 'accepted'). Null once carrying, or when there is no
-   * active contract. Lets a driver navigate the two-leg (pickup then deliver)
-   * contracts whose pickup is not the home town.
-   */
-  readonly pickup:
-    | { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number }
-    | null;
-  readonly fordUnlocked: boolean;
-  readonly unlocks: readonly string[];
-  readonly upgrades: readonly string[];
-  readonly signpost: { readonly tileX: number; readonly tileY: number; readonly x: number; readonly y: number } | null;
-  readonly gateways: readonly { readonly tileX: number; readonly tileY: number; readonly to: string }[];
-  /** Connection status per settlement id, derived from delivery history. */
-  readonly worldState: Record<string, SettlementStatus>;
-  /** Courier level derived from play stats, and unspent skill points. */
-  readonly level: number;
-  readonly skillPoints: number;
-  /** Chosen skill ranks, keyed by skill id. */
-  readonly skills: Record<string, number>;
-  /** Story flags set through dialogue, as a flat id list. */
-  readonly storyFlags: readonly string[];
-  /** Whether a conversation is currently open. */
-  readonly dialogueOpen: boolean;
-  /**
-   * Scroll offset of the open journal/skills/upgrade overlay, or null when none
-   * is open. The only observable proof a scroll input moved the panel, since the
-   * panel renders to canvas and its text is unreadable from the DOM (#274).
-   */
-  readonly overlayScrollOffset: number | null;
-  /**
-   * Whether cosmetic feedback (shake, particle bursts) is playing. False when the
-   * player has asked their system to reduce motion. Purely cosmetic state, but
-   * unobservable from outside, and it is the accessibility contract (#227).
-   */
-  readonly juiceEnabled: boolean;
-  /** Labels of the choices offered on the current dialogue node (empty when closed). */
-  readonly dialogueChoices: readonly string[];
-  /** Id of the road encounter currently playing, or null when none is open. */
-  readonly activeEncounterId: string | null;
-  /**
-   * Whether the region's standing (ungated) contracts are all delivered. This is
-   * what the derived home_reconnected flag is built on, so it must stay true even
-   * after an arc-gated contract opens new work.
-   */
-  readonly regionCleared: boolean;
-  /** Whether the skills panel is currently open. */
-  readonly skillPanelOpen: boolean;
-  /** Whether the wagon upgrade menu is currently open. */
-  readonly upgradeMenuOpen: boolean;
-  /** Whether the region-cleared summary panel is currently shown. */
-  readonly summaryVisible: boolean;
-  /** Whether the end-of-arc capstone panel is currently shown. */
-  readonly capstoneVisible: boolean;
-  /** Whether the home contract board is currently shown. */
-  readonly boardVisible: boolean;
-  /** Active mission id for the current region, or null when none is active. */
-  readonly activeMissionId: string | null;
-  /** The active mission's current step id, or null. */
-  readonly activeMissionStepId: string | null;
-}
-
-// The debug API attached to window when the game boots with `?e2e`. It is a
-// thin, read-plus-navigate surface: tests still drive movement with real key
-// presses, but read state and next-step waypoints through this so navigation
-// stays deterministic. Never attached in normal play.
-interface CourierE2EApi {
-  readonly version: number;
-  getState(): E2EState;
-  nextStepToward(tileX: number, tileY: number): { x: number; y: number } | null;
-  isPassableTile(tileX: number, tileY: number): boolean;
-  // Full shortest passable path to a goal tile, as tile coordinates (including
-  // the current tile). null if the goal is unreachable with the current
-  // unlocks. Lets tests assert which route pathfinding chooses.
-  pathTo(tileX: number, tileY: number): readonly { x: number; y: number }[] | null;
-  // Monotonic update-frame counter. Tests wait on this advancing instead of on
-  // wall-clock time, so key holds and settle waits span real game frames even
-  // when a loaded runner starves the frame loop. Cheap on purpose: polled per
-  // animation frame by waitForFunction.
-  getFrame(): number;
-  // Zero the wagon's velocity and snap it onto the given tile's centre. Only a
-  // short settle (within 3 tiles), never a teleport: returns false when the
-  // wagon is too far away, so a spec cannot use it to skip driving. Exists
-  // because a drive arrives with residual velocity that one sparse frame can
-  // carry a tile past the goal before update() re-reads the released keys,
-  // making every exact-tile interaction gate miss under CI load.
-  seat(tileX: number, tileY: number): boolean;
-}
-
-declare global {
-  var __courier: CourierE2EApi | undefined;
-}
+import { isE2E, speedFactor, wearDisabled, exposeE2EApi, type E2EHost } from './map-scene-e2e';
 
 // Depth layers, from bottom to top. HUD depth lives in map-hud.ts and marker
 // depth in map-markers.ts.
@@ -572,7 +457,7 @@ export class MapScene extends Phaser.Scene {
     this.save();
 
     // Attach the test hook only when explicitly requested via `?e2e`.
-    this.maybeExposeE2EApi();
+    exposeE2EApi(this.e2eHost());
 
     const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
     // First-ever boot: introduce the premise and the goal. A cold player has no
@@ -722,209 +607,6 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** True when the game booted with `?e2e` in the URL (test-only hook). */
-  private isE2E(): boolean {
-    return (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).has('e2e')
-    );
-  }
-
-  /**
-   * Test-only wagon speed multiplier. The full-arc e2e drives ~20 deliveries at
-   * real wheel speed, which is slow; `?turbo` doubles the speed so the CI arc
-   * check finishes in about half the wall-clock. Kept to 2x on purpose: with the
-   * e2e-gated frame-delta clamp in main.ts (min fps 20, so at most 50ms of
-   * physics per frame), 2x tops out under one tile per frame even on a starved
-   * runner, so goal-tile detection stays reliable. Never set in normal play.
-   * Gated behind `?e2e` so a stray URL param cannot speed up the real game.
-   */
-  private speedFactor(): number {
-    return this.isE2E() && new URLSearchParams(window.location.search).has('turbo') ? 2 : 1;
-  }
-
-  /**
-   * Test-only switch that disables wagon wear (ADR 0005). The full-arc e2e is a
-   * reachability / soft-lock guard, not a travel-sink test: the sink is unit
-   * tested and cannot soft-lock (a dry wagon still limps to a settlement and a
-   * tow-home rescue is always available). On a loaded CI runner, though, a long
-   * leg can drain the wagon to limp speed mid-drive, which the driver reads as a
-   * stall. Gate wear off via `?nowear` so the arc measures reachability without
-   * that harness-only fragility. Requires `?e2e` so a stray URL param cannot
-   * disable wear in the real game.
-   */
-  private wearDisabled(): boolean {
-    return this.isE2E() && new URLSearchParams(window.location.search).has('nowear');
-  }
-
-  /** Attach the read-plus-navigate test API to window, gated on `?e2e`. */
-  private maybeExposeE2EApi(): void {
-    if (!this.isE2E()) {
-      return;
-    }
-    globalThis.__courier = {
-      version: 13,
-      getState: () => this.e2eState(),
-      nextStepToward: (tileX, tileY) => this.e2eNextStep(tileX, tileY),
-      isPassableTile: (tileX, tileY) => this.e2eIsPassable(tileX, tileY),
-      pathTo: (tileX, tileY) => this.e2ePathTo(tileX, tileY),
-      getFrame: () => this.frameNo,
-      seat: (tileX, tileY) => this.e2eSeat(tileX, tileY),
-    };
-  }
-
-  /**
-   * Test-only settle (see CourierE2EApi.seat). Snaps the wagon onto a nearby
-   * tile centre with zero velocity. prevX/prevY are synced like the rescue tow,
-   * so the snap books no driven distance (no wear, no trip miles).
-   */
-  private e2eSeat(tileX: number, tileY: number): boolean {
-    const tile = this.courierTile();
-    // Refuse long snaps so a spec cannot skip driving, but allow up to 3 tiles:
-    // a drive can coast a couple of tiles past home before the keys are re-read,
-    // and worst-case coast at full kit can just exceed a 2-tile radius, which
-    // would hard-fail the re-seat instead of settling. 3 gives margin.
-    if (Math.abs(tile.x - tileX) > 3 || Math.abs(tile.y - tileY) > 3) {
-      return false;
-    }
-    const center = this.tileCenter(tileX, tileY);
-    this.courier.setVelocity(0, 0);
-    this.courier.sprite.setPosition(center.x, center.y);
-    this.prevX = center.x;
-    this.prevY = center.y;
-    return true;
-  }
-
-  /** Snapshot of live state for tests. Recomputed on every call. */
-  private e2eState(): E2EState {
-    const e2eObjective = activeObjective(MISSIONS, this.missionState(), this.region.id);
-    const tile = this.courierTile();
-    const home = this.region.settlements[this.region.home];
-    const homeTile = home?.tile ?? this.region.spawn;
-    const homeCenter = this.tileCenter(homeTile.x, homeTile.y);
-    const destSettlement =
-      this.activeContract === undefined
-        ? undefined
-        : this.region.settlements[this.activeContract.destinationId];
-    const destCenter =
-      destSettlement === undefined
-        ? null
-        : this.tileCenter(destSettlement.tile.x, destSettlement.tile.y);
-    // Pickup leg: only meaningful while the cargo is still unclaimed. Once the
-    // status is 'carrying' the pickup is done, so this reports null.
-    const pickupSettlement =
-      this.activeContract === undefined || this.progress?.status !== 'accepted'
-        ? undefined
-        : this.region.settlements[this.activeContract.pickupId];
-    const pickupCenter =
-      pickupSettlement === undefined
-        ? null
-        : this.tileCenter(pickupSettlement.tile.x, pickupSettlement.tile.y);
-    const signpostTile = this.region.signpost;
-    const signpostCenter =
-      signpostTile === undefined ? null : this.tileCenter(signpostTile.x, signpostTile.y);
-    return {
-      regionId: this.region.id,
-      courier: { x: this.courier.sprite.x, y: this.courier.sprite.y, tileX: tile.x, tileY: tile.y },
-      home: { tileX: homeTile.x, tileY: homeTile.y, x: homeCenter.x, y: homeCenter.y },
-      coins: this.state.ledger.coins,
-      reputation: totalReputation(this.state.ledger),
-      deliveries: this.trip.deliveries,
-      delivered: this.deliveredInRegion(),
-      wagonCondition: this.wagonCondition,
-      wagonWearTotal: this.wagonWearTotal,
-      fogRevealed: revealedIndices(this.fog).length,
-      activeContractId: this.activeContract?.id ?? null,
-      contractStatus: this.progress?.status ?? null,
-      atHome: this.atSettlement(this.region.home),
-      availableContractIds: this.boardContracts().map((c) => c.id),
-      destination:
-        destSettlement === undefined || destCenter === null
-          ? null
-          : { tileX: destSettlement.tile.x, tileY: destSettlement.tile.y, x: destCenter.x, y: destCenter.y },
-      pickup:
-        pickupSettlement === undefined || pickupCenter === null
-          ? null
-          : { tileX: pickupSettlement.tile.x, tileY: pickupSettlement.tile.y, x: pickupCenter.x, y: pickupCenter.y },
-      fordUnlocked: this.regionFordUnlocked(),
-      unlocks: [...this.state.unlocks],
-      upgrades: [...this.state.upgrades],
-      signpost:
-        signpostTile === undefined || signpostCenter === null
-          ? null
-          : { tileX: signpostTile.x, tileY: signpostTile.y, x: signpostCenter.x, y: signpostCenter.y },
-      gateways: this.region.gateways.map((g) => ({ tileX: g.tile.x, tileY: g.tile.y, to: g.to })),
-      worldState: this.worldState(),
-      level: this.courierLevel(),
-      skillPoints: availablePoints(this.courierLevel(), this.skills),
-      skills: { ...this.skills },
-      storyFlags: flagsToArray(this.storyFlags),
-      dialogueOpen: this.hud.isDialogueVisible(),
-      overlayScrollOffset: this.hud.scrollOffset(),
-      juiceEnabled: this.juice.isEnabled(),
-      dialogueChoices: this.dialogue.choiceLabels(),
-      activeEncounterId: this.dialogue.activeEncounterId(),
-      regionCleared: this.regionCleared(),
-      skillPanelOpen: this.hud.isSkillPanelVisible(),
-      upgradeMenuOpen: this.hud.isUpgradeMenuVisible(),
-      summaryVisible: this.hud.isSummaryVisible(),
-      capstoneVisible: this.hud.isCapstoneVisible(),
-      boardVisible: this.hud.isBoardVisible(),
-      activeMissionId: e2eObjective?.mission.id ?? null,
-      activeMissionStepId: e2eObjective?.step.id ?? null,
-    };
-  }
-
-  /** World centre of the next tile on the shortest passable path to a goal. */
-  private e2eNextStep(tileX: number, tileY: number): { x: number; y: number } | null {
-    // Compute the capability set once per pathfind, not per tile visited.
-    const keys = this.traversalKeys();
-    const path = findPath({
-      width: this.map.width,
-      height: this.map.height,
-      isPassable: (x, y) => {
-        const id = getTerrainIdAt(this.map, x, y);
-        return id !== undefined && isPassableWith(id, keys);
-      },
-      start: this.courierTile(),
-      goal: { x: tileX, y: tileY },
-    });
-    if (!path.reachable) {
-      return null;
-    }
-    // path[0] is the current tile; [1] is the next step to drive toward.
-    const next = path.path[1] ?? path.path[0];
-    if (next === undefined) {
-      return null;
-    }
-    return this.tileCenter(next.x, next.y);
-  }
-
-  /** Full shortest passable path to a goal tile, or null if unreachable. */
-  private e2ePathTo(tileX: number, tileY: number): { x: number; y: number }[] | null {
-    const keys = this.traversalKeys();
-    const path = findPath({
-      width: this.map.width,
-      height: this.map.height,
-      isPassable: (x, y) => {
-        const id = getTerrainIdAt(this.map, x, y);
-        return id !== undefined && isPassableWith(id, keys);
-      },
-      start: this.courierTile(),
-      goal: { x: tileX, y: tileY },
-    });
-    if (!path.reachable) {
-      return null;
-    }
-    return path.path.map((tile) => ({ x: tile.x, y: tile.y }));
-  }
-
-  /** Whether a tile is currently drivable, given the active unlock set. */
-  private e2eIsPassable(tileX: number, tileY: number): boolean {
-    const id = getTerrainIdAt(this.map, tileX, tileY);
-    return id !== undefined && isPassableWith(id, this.traversalKeys());
-  }
-
   /**
    * The capability tokens that currently open gated terrain: unlocks plus
    * anything the wagon build or skills grant (a route may need Marsh Treads or
@@ -933,6 +615,50 @@ export class MapScene extends Phaser.Scene {
    */
   private traversalKeys(): ReadonlySet<string> {
     return traversalKeys(this.state.unlocks, this.state.upgrades, this.skills);
+  }
+
+  /**
+   * The narrow read surface the e2e bridge (map-scene-e2e.ts) works through,
+   * mirroring the DialogueHost split. Every accessor reads live scene state;
+   * placeCourier syncs prevX/prevY like the rescue tow, so a test settle books
+   * no driven distance (no wear, no trip miles).
+   */
+  private e2eHost(): E2EHost {
+    return {
+      getRegion: () => this.region,
+      getMap: () => this.map,
+      courierPosition: () => ({ x: this.courier.sprite.x, y: this.courier.sprite.y }),
+      courierTile: () => this.courierTile(),
+      tileCenter: (tileX, tileY) => this.tileCenter(tileX, tileY),
+      placeCourier: (x, y) => {
+        this.courier.setVelocity(0, 0);
+        this.courier.sprite.setPosition(x, y);
+        this.prevX = x;
+        this.prevY = y;
+      },
+      getGameState: () => this.state,
+      getTrip: () => this.trip,
+      deliveredInRegion: () => this.deliveredInRegion(),
+      getWagonCondition: () => this.wagonCondition,
+      getWagonWearTotal: () => this.wagonWearTotal,
+      getFog: () => this.fog,
+      getActiveContract: () => this.activeContract,
+      getProgress: () => this.progress,
+      atHome: () => this.atSettlement(this.region.home),
+      boardContracts: () => this.boardContracts(),
+      regionFordUnlocked: () => this.regionFordUnlocked(),
+      worldState: () => this.worldState(),
+      courierLevel: () => this.courierLevel(),
+      getSkills: () => this.skills,
+      getStoryFlags: () => this.storyFlags,
+      getHud: () => this.hud,
+      getJuice: () => this.juice,
+      getDialogue: () => this.dialogue,
+      regionCleared: () => this.regionCleared(),
+      missionState: () => this.missionState(),
+      traversalKeys: () => this.traversalKeys(),
+      frame: () => this.frameNo,
+    };
   }
 
   update(): void {
@@ -968,7 +694,7 @@ export class MapScene extends Phaser.Scene {
       terrainModifier *
       upgradeModifier *
       this.weather.speedMultiplier *
-      this.speedFactor() *
+      speedFactor() *
       limpMultiplier(this.wagonCondition, this.wagonTuning);
     const velocity = computeVelocity(input, speed);
 
@@ -1088,7 +814,7 @@ export class MapScene extends Phaser.Scene {
       // Skip only the condition-mutation when wear is disabled for the e2e arc;
       // trip distance and tilesSinceAccept still track so every other system
       // (via-ford bonus, objective progress) behaves exactly as in real play.
-      if (!this.wearDisabled()) {
+      if (!wearDisabled()) {
         const wasStranded = isStranded(this.wagonCondition);
         const worn = applyWear(this.wagonCondition, wearRate * tiles);
         this.wagonWearTotal += this.wagonCondition - worn;
@@ -2273,7 +1999,7 @@ export class MapScene extends Phaser.Scene {
       milestone,
       // Every automated driver boots with `?e2e` and no human does, so this
       // separates bot runs from real play at no extra plumbing cost (#264).
-      source: this.isE2E() ? 'auto' : 'play',
+      source: isE2E() ? 'auto' : 'play',
       regionId: this.region.id,
       regionName: this.region.name,
       difficulty: this.difficulty,
