@@ -672,6 +672,24 @@ export class MapHud {
     this.layoutToasts();
   }
 
+  /**
+   * Close every blocking overlay (journal, skills, codex, upgrade menu). Returns
+   * whether any was open, so the scene can consume the Esc key only when it
+   * actually closed something and let it fall through to the capstone/summary
+   * otherwise. Esc closing every panel is the consistency the dialogue's "Esc to
+   * step away" already promises (#319).
+   */
+  closeBlockingOverlays(): boolean {
+    const wasOpen = this.isBlockingOverlayOpen();
+    this.journalPanel.setVisible(false);
+    this.skillPanel.setVisible(false);
+    this.legendPanel.setVisible(false);
+    this.upgradePanel.setVisible(false);
+    // Overlay visibility changed, so let toasts reappear now the panel is gone.
+    this.layoutToasts();
+    return wasOpen;
+  }
+
   /** Toggle the minimap; returns the new visibility so the scene can redraw on open. */
   toggleMinimap(): boolean {
     this.minimapVisible = !this.minimapVisible;

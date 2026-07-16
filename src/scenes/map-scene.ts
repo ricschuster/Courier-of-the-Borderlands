@@ -766,6 +766,7 @@ export class MapScene extends Phaser.Scene {
     this.handleRepairInput();
     this.handleResetInput();
     this.handleDismissInput();
+    this.handleOverlayEscape();
     this.handleCapstoneInput();
     this.handleSummaryInput();
     this.handleTravelInput();
@@ -1516,6 +1517,19 @@ export class MapScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.skillKey) && this.hud.toggleSkills()) {
       this.hud.closeOverlaysExcept('skills');
       this.refreshSkillPanel();
+    }
+  }
+
+  /**
+   * Close an open blocking overlay (journal, skills, codex, upgrade menu) with
+   * Esc, so every panel closes the way the dialogue's "Esc to step away" already
+   * teaches, not just with its own toggle key (#319). Runs before the capstone
+   * and summary handlers and consumes the key only when a panel was open, so a
+   * later Esc still falls through to those end-of-region panels.
+   */
+  private handleOverlayEscape(): void {
+    if (this.hud.isBlockingOverlayOpen() && Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
+      this.hud.closeBlockingOverlays();
     }
   }
 
