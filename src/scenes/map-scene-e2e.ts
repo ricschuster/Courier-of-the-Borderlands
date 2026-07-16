@@ -106,6 +106,11 @@ export interface E2EState {
   readonly capstoneVisible: boolean;
   /** Whether the home contract board is currently shown. */
   readonly boardVisible: boolean;
+  /**
+   * The board contract a first digit-press has armed and that a second press of
+   * the same slot will accept, or null when nothing is armed (#321).
+   */
+  readonly armedContractId: string | null;
   /** Active mission id for the current region, or null when none is active. */
   readonly activeMissionId: string | null;
   /** The active mission's current step id, or null. */
@@ -165,6 +170,7 @@ export interface E2EHost {
   getProgress(): ContractProgress | undefined;
   atHome(): boolean;
   boardContracts(): readonly Contract[];
+  armedContractId(): string | null;
   regionFordUnlocked(): boolean;
   worldState(): Record<string, SettlementStatus>;
   courierLevel(): number;
@@ -330,6 +336,7 @@ function buildState(host: E2EHost): E2EState {
     summaryVisible: hud.isSummaryVisible(),
     capstoneVisible: hud.isCapstoneVisible(),
     boardVisible: hud.isBoardVisible(),
+    armedContractId: host.armedContractId(),
     activeMissionId: e2eObjective?.mission.id ?? null,
     activeMissionStepId: e2eObjective?.step.id ?? null,
   };

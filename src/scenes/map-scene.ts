@@ -236,6 +236,12 @@ export class MapScene extends Phaser.Scene {
   private progress: ContractProgress | undefined;
   private completed = new Set<string>();
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
+  // The board contract a first digit-press has armed, awaiting a confirming
+  // second press of the same slot (#321). The board renumbers between visits, so
+  // a remembered digit would otherwise accept a different contract instantly and
+  // commit the whole next journey; arming names the contract first so a mispress
+  // is caught. Cleared whenever the board is not interactable.
+  private armedContractId: string | null = null;
   private newGameKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
@@ -496,6 +502,7 @@ export class MapScene extends Phaser.Scene {
     this.fogDimsByRegion = {};
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
+    this.armedContractId = null;
     // A new game starts with the small level-1 tank; capacity grows with level.
     this.wagonCondition = maxConditionForLevel(1, this.wagonTuning);
     // wagonWearTotal is intentionally not reset here: it is session telemetry
@@ -652,6 +659,7 @@ export class MapScene extends Phaser.Scene {
       getProgress: () => this.progress,
       atHome: () => this.atSettlement(this.region.home),
       boardContracts: () => this.boardContracts(),
+      armedContractId: () => this.armedContractId,
       regionFordUnlocked: () => this.regionFordUnlocked(),
       worldState: () => this.worldState(),
       courierLevel: () => this.courierLevel(),
@@ -1395,6 +1403,9 @@ export class MapScene extends Phaser.Scene {
 
   private handleBoardInput(): void {
     if (!this.boardInteractable()) {
+      // Off the board, so drop any armed contract: a digit pressed on the next
+      // visit should arm afresh, not accept a contract from a stale board.
+      this.armedContractId = null;
       return;
     }
     const list = this.boardContracts();
@@ -1406,11 +1417,24 @@ export class MapScene extends Phaser.Scene {
         continue;
       }
       if (Phaser.Input.Keyboard.JustDown(key)) {
-        if (canAccept(contract, reputation)) {
+        if (!canAccept(contract, reputation)) {
+          this.armedContractId = null;
+          this.hud.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
+          return;
+        }
+        if (this.armedContractId === contract.id) {
+          // Confirmed: the same slot pressed twice in a row.
+          this.armedContractId = null;
           this.acceptContract(contract);
         } else {
-          this.hud.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
+          // First press: arm this contract and name it, so a mispressed
+          // remembered digit is caught before it commits the journey (#321).
+          this.armedContractId = contract.id;
+          this.hud.showToast(
+            `Accept [${i + 1}] ${contract.title}? It commits your next journey. Press ${i + 1} again to confirm.`,
+          );
         }
+        return;
       }
     }
   }
