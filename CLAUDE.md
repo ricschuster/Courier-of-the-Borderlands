@@ -296,6 +296,38 @@ gateway/signpost tiles, run the full browser suite with
 `npx playwright test --project=chromium` before pushing, not just the arc.
 Otherwise CI is the first place the coordinate drift shows up.
 
+## Recurring traps
+
+Things that have cost this project real time more than once. Each has a fuller
+record in the repo; these lines exist so a session meets them before it needs
+them, not after.
+
+1. **A green suite can prove nothing.** Two shapes recur: a function with no
+   caller (no unit test sees it), and a path whose broken and correct behaviour
+   are identical in the default case (the production storage base). Before
+   trusting a test, neutralize the fix, watch it fail, then restore. Visual work
+   needs a screenshot of real play; tests cannot see it. Detail in handoff
+   2026-07-15 v24.
+2. **A brainstormed issue batch is not vetted work.** The 2026-07-14 batch
+   (#221-#230) was written against this file and the docs rather than the code,
+   so it reported aspirations (JSON data that does not exist) as current state.
+   Four of ten were already built or did not apply. Check any brainstorm output
+   against the code before treating it as work.
+3. **Any new client-side storage must route its key through `namespacedKey`**
+   (`src/systems/storage-namespace.ts`). Path is not an isolation boundary in the
+   browser. Production is the one base that namespaces to nothing, and its keys
+   must not change: renaming them orphans every existing save. See ADR 0008.
+4. **If the full-arc guard flakes, classify before chasing.** It is one of three
+   faces: a one-shot press missing `tapKey`, a harness-timing artifact (PR #137),
+   or a genuine soft-lock. It never reproduces locally, so one green run proves
+   nothing; take several samples. Detail in handoffs 2026-07-11 v06 and
+   2026-07-12 v08.
+5. **A tool with no CI job and no README entry rots silently.** `autoplay.mjs`
+   drifted three ways (#284) while every test stayed green, and its log
+   reproduced the false progression-flatline signal that opened the roads-gate
+   thread. If you add a script, give it an npm entry and a README line, or expect
+   it to be wrong the next time someone trusts it.
+
 ## Git and commit expectations
 
 Use Git from day one.
@@ -355,6 +387,16 @@ is the single source of truth, because it travels through git to every machine:
 Do not rely on personal memory to carry a fact from one session to the next; if
 something is worth remembering, write it to one of the four homes above. Personal
 memory is at most a scratch cache of what is already durable in the repo.
+
+The store is deliberately empty as of 2026-07-15, and the aim is to keep it that
+way. It had grown to twenty entries; a cleanup found that every one duplicated
+the repo, four were pointing sessions at work that had already shipped, and only
+two facts existed nowhere else (both promoted here and to the README). The
+failure mode is not the writing, it is that nothing ever deletes: a rich cache
+goes stale and then actively misleads. The mechanisms that already carry context
+to every machine are this file (loaded every session), `.claude/skills/`, and
+`docs/` plus issues. Prefer them. If a memory would be the only record of
+something, that is the signal to write it here instead.
 
 ## Command style
 
