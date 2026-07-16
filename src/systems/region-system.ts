@@ -152,6 +152,25 @@ export function arrivalTile(region: Region, fromRegionId?: string): TileCoord {
   return region.spawn;
 }
 
+/**
+ * Where a loaded save resumes the courier (#315). The saved tile wins when it
+ * is still passable, so a reload puts the wagon back where it stood instead of
+ * granting a free tow home. No saved tile (an older save), or a tile the map
+ * or unlock state has since invalidated, falls back to the region spawn.
+ * Passability is asked of the caller because it depends on the live tile map
+ * and the player's unlocks; out-of-bounds tiles must read as impassable.
+ */
+export function resumeTile(
+  region: Region,
+  saved: TileCoord | null,
+  isPassableAt: (tile: TileCoord) => boolean,
+): TileCoord {
+  if (saved !== null && isPassableAt(saved)) {
+    return saved;
+  }
+  return region.spawn;
+}
+
 /** Settlement whose tile matches the coordinate within a region, if any. */
 export function settlementAtTileIn(region: Region, x: number, y: number): Settlement | undefined {
   return Object.values(region.settlements).find((s) => s.tile.x === x && s.tile.y === y);

@@ -3,6 +3,7 @@ import {
   REGIONS,
   getRegion,
   arrivalTile,
+  resumeTile,
   settlementAtTileIn,
   totalSettlementCount,
   GREYBRIDGE_REGION,
@@ -87,6 +88,28 @@ describe('region-system', () => {
       // Fenmarch has no direct gateway from Saltreach in the hub layout, so an
       // origin it does not link back to falls through to spawn.
       expect(arrivalTile(FENMARCH_REGION, 'saltreach')).toEqual(FENMARCH_REGION.spawn);
+    });
+  });
+
+  describe('resumeTile', () => {
+    const passable = () => true;
+    const impassable = () => false;
+
+    it('resumes at the saved tile when it is still passable (#315)', () => {
+      const saved = { x: 7, y: 4 };
+      expect(resumeTile(GREYBRIDGE_REGION, saved, passable)).toEqual(saved);
+    });
+
+    it('falls back to spawn without a saved tile (a pre-#315 save)', () => {
+      expect(resumeTile(GREYBRIDGE_REGION, null, passable)).toEqual(GREYBRIDGE_REGION.spawn);
+    });
+
+    it('falls back to spawn when the saved tile is no longer passable', () => {
+      // The map or unlock state changed under the save (a resized region, a
+      // re-gated ford): the tile reads impassable, so resume at spawn.
+      expect(resumeTile(GREYBRIDGE_REGION, { x: 7, y: 4 }, impassable)).toEqual(
+        GREYBRIDGE_REGION.spawn,
+      );
     });
   });
 

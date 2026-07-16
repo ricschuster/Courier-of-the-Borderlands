@@ -36,6 +36,7 @@ const SNAPSHOT: GameSnapshot = {
   achievements: ['first-delivery'],
   skills: { 'off-road': 2 },
   storyFlags: ['greybridge_reveal'],
+  courierTile: { x: 5, y: 8 },
 };
 
 describe('save-system storage helpers (jsdom)', () => {

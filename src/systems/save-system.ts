@@ -64,6 +64,13 @@ export interface GameSnapshot {
    * dialogue existed; such saves load with no flags set.
    */
   readonly storyFlags: readonly string[];
+  /**
+   * Courier tile at the last autosave, so a reload resumes in place instead of
+   * teleporting home for free (#315: reload was a zero-cost tow that undercut
+   * the limp/rescue economy). Null in saves made before it existed; such saves
+   * load at the region spawn as they always did.
+   */
+  readonly courierTile: Readonly<{ x: number; y: number }> | null;
 }
 
 export interface SaveData extends GameSnapshot {
@@ -117,6 +124,22 @@ function toSkillRanks(value: unknown): Record<string, number> {
     }
   }
   return out;
+}
+
+/**
+ * Parse the persisted courier tile. Anything but a pair of finite numbers reads
+ * as null, which loads at the region spawn (the pre-#315 behaviour). Bounds and
+ * passability are the loader's job, since they depend on the live map.
+ */
+function toCourierTile(value: unknown): { x: number; y: number } | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+  const { x, y } = value as Record<string, unknown>;
+  if (!isFiniteNumber(x) || !isFiniteNumber(y)) {
+    return null;
+  }
+  return { x: Math.floor(x), y: Math.floor(y) };
 }
 
 /**
@@ -253,6 +276,7 @@ export function deserialize(raw: unknown): GameSnapshot | null {
     achievements: toStringArray(data.achievements),
     skills: toSkillRanks(data.skills),
     storyFlags: toStringArray(data.storyFlags),
+    courierTile: toCourierTile(data.courierTile),
   };
 }
 
