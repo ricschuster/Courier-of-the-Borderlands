@@ -94,11 +94,11 @@ Use the following stack unless the project owner explicitly changes direction:
 - Phaser 3
 - Vite
 - Vitest
-- Playwright for later browser smoke tests
+- Playwright for browser smoke tests (arc and region specs; now central, not "later")
 - GitHub
 - GitHub Pages for deployment
 - Markdown documentation
-- JSON game data
+- Typed TypeScript data modules for game content (see Data rules)
 
 ## Coding principles
 
@@ -198,8 +198,8 @@ For session handoffs:
 
 For game data:
 
-- Use lowercase kebab-case JSON files.
-- Example: `terrain-types.json`, `contracts-greybridge.json`, `settlements-greybridge.json`
+- Use lowercase kebab-case TypeScript modules in `src/data/`.
+- Example: `terrain-types.ts`, `contracts-greybridge.ts`, `settlements-greybridge.ts`
 
 ## Style rules
 
@@ -212,20 +212,17 @@ For game data:
 
 ## Data rules
 
-Game content should be data-driven where practical.
+Game content is data-driven. Canonical content lives in typed TypeScript modules
+under `src/data/` (for example `terrain-types.ts`, `contracts-greybridge.ts`,
+`region-fenmarch.ts`). This already covers terrain types, settlements, contracts,
+routes, vehicle upgrades, reputation tiers, story snippets, and region metadata.
 
-Canonical data should eventually include:
-
-- Terrain types
-- Settlement definitions
-- Contract definitions
-- Route definitions
-- Vehicle upgrades
-- Reputation thresholds
-- Story snippets
-- Region metadata
-
-Use JSON for canonical content when feasible. If TypeScript modules are easier during prototyping, keep the structure easy to migrate to JSON later.
+There is no JSON game data, and adding some is a non-goal. The early docs
+recommended JSON "eventually," but the project settled on typed modules because
+they get compiler checking for free and need no schema tooling. Do not report
+JSON data as current state or plan against it; a tool or feature that assumes a
+JSON content layer (see the closed #225 and #229) is building on something that
+does not exist. Migrating to JSON would need an ADR in `docs/decisions/` first.
 
 ## Initial game systems
 
