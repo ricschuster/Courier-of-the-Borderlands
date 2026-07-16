@@ -42,30 +42,42 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
 
     this.add
-      .text(cx, 196, 'Choose your difficulty  (press a number)', {
+      .text(cx, 196, 'Choose your difficulty  (press a number or click)', {
         fontFamily: 'monospace',
         fontSize: '16px',
         color: '#f2efe4',
       })
       .setOrigin(0.5, 0);
 
-    // One row per preset, numbered in selector order (easiest to hardest).
+    // One row per preset, numbered in selector order (easiest to hardest). Each
+    // row is also a click target (#327): a web player should not have to reach
+    // for the keyboard. A transparent zone over the label and blurb takes the
+    // pointer, and the label brightens on hover so the row reads as selectable.
+    const rowLeft = cx - 300;
+    const rowWidth = 600;
     DIFFICULTIES.forEach((difficulty, i) => {
       const y = 244 + i * 60;
-      this.add
-        .text(cx - 300, y, `[${i + 1}] ${difficultyLabel(difficulty)}`, {
+      const label = this.add
+        .text(rowLeft, y, `[${i + 1}] ${difficultyLabel(difficulty)}`, {
           fontFamily: 'monospace',
           fontSize: '18px',
           color: '#f2d98f',
         })
         .setOrigin(0, 0);
       this.add
-        .text(cx - 300, y + 26, DIFFICULTY_BLURB[difficulty], {
+        .text(rowLeft, y + 26, DIFFICULTY_BLURB[difficulty], {
           fontFamily: 'monospace',
           fontSize: '13px',
           color: '#cfcac0',
         })
         .setOrigin(0, 0);
+      this.add
+        .zone(rowLeft, y - 6, rowWidth, 52)
+        .setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerover', () => label.setColor('#ffffff'))
+        .on('pointerout', () => label.setColor('#f2d98f'))
+        .on('pointerdown', () => this.choose(difficulty));
     });
 
     this.add

@@ -13,7 +13,9 @@ test('the title screen picks a difficulty, locks it for the run, and persists it
 }) => {
   await page.goto('./play.html?e2e=1&title=1');
   await expect(page.locator('#game canvas')).toBeVisible({ timeout: 15_000 });
-  await page.locator('#game canvas').click();
+  // Focus the canvas for keyboard input by clicking its top-left corner, clear of
+  // the difficulty rows (now click targets, #327), so this does not pick a preset.
+  await page.locator('#game canvas').click({ position: { x: 8, y: 8 } });
 
   const stored = () => page.evaluate((k) => localStorage.getItem(k), DIFFICULTY_KEY);
   const attached = () => page.evaluate(() => globalThis.__courier !== undefined);
