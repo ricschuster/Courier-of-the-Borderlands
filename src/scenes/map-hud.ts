@@ -547,10 +547,6 @@ export class MapHud {
     return this.summaryPanel.visible;
   }
 
-  isJournalVisible(): boolean {
-    return this.journalPanel.visible;
-  }
-
   isSkillPanelVisible(): boolean {
     return this.skillPanel.visible;
   }
