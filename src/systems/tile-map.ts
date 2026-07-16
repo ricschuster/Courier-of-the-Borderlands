@@ -34,12 +34,24 @@ export function createTileMap(
     if (row.length !== width) {
       throw new Error(`row ${y} has length ${row.length}, expected ${width}`);
     }
+    // The length check above counts UTF-16 code units, but the loop below walks
+    // code points. A symbol outside the BMP (an emoji, say) would pass the check
+    // yet push fewer tiles, silently shifting every later index. Count what was
+    // actually pushed so that mismatch fails loudly too (#293).
+    let symbolCount = 0;
     for (const symbol of row) {
       const id = legend[symbol];
       if (id === undefined) {
         throw new Error(`no terrain mapped for symbol '${symbol}'`);
       }
       tiles.push(id);
+      symbolCount += 1;
+    }
+    if (symbolCount !== width) {
+      throw new Error(
+        `row ${y} has ${symbolCount} symbols but ${width} code units; ` +
+          `legend symbols must be single UTF-16 code units`,
+      );
     }
   });
 
