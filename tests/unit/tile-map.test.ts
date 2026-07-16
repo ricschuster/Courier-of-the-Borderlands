@@ -24,6 +24,16 @@ describe('createTileMap', () => {
   it('throws on a symbol missing from the legend', () => {
     expect(() => createTileMap(['..x'], LEGEND)).toThrow(/symbol 'x'/);
   });
+
+  it('throws on a multi-code-unit symbol instead of shifting tile indices', () => {
+    // A surrogate-pair symbol passes the code-unit length check but iterates as
+    // one code point, so without the guard the row silently produces fewer
+    // tiles than width and every later index shifts (#293).
+    const waveLegend = { '\u{1F30A}': 'water' };
+    expect(() => createTileMap(['\u{1F30A}\u{1F30A}'], waveLegend)).toThrow(
+      /single UTF-16 code units/,
+    );
+  });
 });
 
 describe('getTerrainIdAt', () => {
