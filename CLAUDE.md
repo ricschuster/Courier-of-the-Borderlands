@@ -205,12 +205,13 @@ Before presenting work as complete:
 
 Note on e2e coverage for map or region changes: `npm run test:arc` runs only
 the `arc` project (`full-arc`), so it does NOT cover the region-specific specs
-that hardcode coordinates (for example `fenmarch-unlock.spec.ts`,
-`tidal-route.spec.ts`, and the ford/tidal signpost conventions). When you touch
-map layouts, region dimensions, settlement or crossing coordinates, spawn, or
-gateway/signpost tiles, run the full browser suite with
-`npx playwright test --project=chromium` before pushing, not just the arc.
-Otherwise CI is the first place the coordinate drift shows up.
+that hardcode coordinates: `fenmarch-unlock.spec.ts`, `tidal-route.spec.ts`,
+`encounter.spec.ts`, `mire-route.spec.ts`, and `screenshots.spec.ts` (opt-in
+via `SHOTS=1`), plus the ford/tidal signpost conventions that
+`ford-route.spec.ts` and `tidal-route.spec.ts` derive their tiles from. When you touch map layouts, region dimensions, settlement or
+crossing coordinates, spawn, or gateway/signpost tiles, run the full browser
+suite with `npx playwright test --project=chromium` before pushing, not just
+the arc. Otherwise CI is the first place the coordinate drift shows up.
 
 ## Recurring traps
 

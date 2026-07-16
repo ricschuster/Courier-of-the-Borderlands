@@ -59,7 +59,7 @@ This project borrows the feeling of these games, not their scope.
 - GitHub Actions for CI
 - GitHub Pages for deployment
 - Markdown for documentation
-- JSON for canonical game data
+- Typed TypeScript data modules for canonical game data (no JSON data layer; see CLAUDE.md, Data rules)
 
 ## Quick start
 
@@ -101,6 +101,7 @@ the landing page; the game itself is at `/play.html`.
 - J: toggle the discoveries journal
 - K: toggle the skills panel
 - L: toggle the terrain codex
+- PgUp / PgDn: scroll an open journal, skills, or upgrade panel (the mouse wheel works too)
 - Space: dismiss an on-screen message
 - N: start a new game (clears the save), which is also how you pick a new difficulty
 
@@ -223,7 +224,9 @@ courier-of-the-borderlands/
 │   ├── scenes/                  # Phaser scenes
 │   ├── systems/                 # Pure, testable game logic
 │   ├── entities/                # Game entities
-│   ├── data/                    # Canonical game data (JSON or typed modules)
+│   ├── data/                    # Canonical game data (typed TS modules)
+│   ├── config/                  # Game configuration
+│   ├── telemetry/               # Telemetry dashboard page logic
 │   ├── ui/                      # UI components
 │   └── utils/                   # Shared helpers
 ├── assets/
@@ -254,7 +257,7 @@ Start with the project brief, then read the core loop and milestones.
 
 - Use lowercase kebab-case for code file names, for example `terrain-system.ts`.
 - Keep pure game logic in `src/systems/` so it can be unit tested independently of Phaser.
-- Keep canonical game data in JSON when practical, or in typed modules that are easy to migrate to JSON later.
+- Keep canonical game data in typed TypeScript modules under `src/data/`. There is no JSON data layer, and adding one would need an ADR first (see CLAUDE.md, Data rules).
 - Do not use em dashes anywhere in code, comments, docs, commit messages, or UI text.
 - Use Conventional Commits, for example `feat: add fog-of-war reveal`.
 - Do not expand scope beyond the MVP without a short note in `docs/decisions/`.
