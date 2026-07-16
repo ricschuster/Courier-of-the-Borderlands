@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "test:arc": "nice -n 19 playwright test full-arc --workers=1",
     "shot": "node scripts/shot.mjs",
+    "autoplay": "node scripts/autoplay.mjs",
     "setup": "npm ci && npx playwright install --with-deps chromium",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

@@ -3,16 +3,24 @@
 // reading state and pathfinding via window.__courier. Logs every action and
 // screenshots milestones. Modeled on scripts/shot.mjs for server bootstrap.
 //
-//   node autoplay.mjs [--no-build]
+//   npm run autoplay [-- --no-build]
+//
+// This is a diagnostic tool, not a gate. The three arc drivers divide up as:
+//
+//   full-arc.spec.ts            pass/fail gate, wear off, runs post-merge in CI
+//   travel-sink-measure.spec.ts economics, wear on, repairs, opt-in MEASURE_DIFF
+//   autoplay.mjs (this)         watch it play: screenshots + a readable log
+//
+// It runs with wear off, so treat the coins in its log as flow, not economics.
 
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
-const PORT = 4175;
-const ROOT = '/home/richard/Work/Courier-of-the-Borderlands/';
+const PORT = 4175; // one off shot.mjs (4174) so the two can run side by side
 const BASE = `http://localhost:${PORT}/Courier-of-the-Borderlands/`;
-const OUT = '/tmp/claude-1000/-home-richard-Work-Courier-of-the-Borderlands/b219ea16-22a3-4c05-a1a2-e1d56243f433/scratchpad/play';
+const ROOT = new URL('..', import.meta.url).pathname;
+const OUT = `${ROOT}tmp-autoplay`;
 const skipBuild = process.argv.includes('--no-build');
 
 const REACH = 12;
@@ -112,9 +120,38 @@ async function closeSkillPanel(page) {
   }
 }
 
-// Spend coins and skill points the way a completionist plays: buy the cheapest
-// affordable upgrade and rank skills (Off-road first, which opens the mire), so
-// the buy/rank flows are exercised and gated content is reachable. Number keys
+// Ensure the upgrade menu is closed so number keys reach the contract board.
+// handleBoardInput() ignores number keys while the menu is open, so a menu left
+// open silently swallows every contract accept.
+async function closeUpgradeMenu(page) {
+  for (let i = 0; i < 3; i++) {
+    const s = await state(page);
+    if (!s || !s.upgradeMenuOpen) return;
+    await page.keyboard.press('B');
+    await page.waitForTimeout(120);
+  }
+}
+
+// Buy every upgrade we can afford, cheapest first. Since #161 "B" opens a menu
+// rather than buying outright: number keys 1..N buy UPGRADES_GREYBRIDGE[i] while
+// it is open, and an unaffordable or owned entry just toasts. So walk all seven
+// entries and let the game reject the ones we cannot take. The menu must be
+// closed again before the caller presses a number at the board.
+async function buyUpgradesAtHome(page) {
+  await page.keyboard.press('B');
+  await page.waitForTimeout(150);
+  const opened = await state(page);
+  if (!opened || !opened.upgradeMenuOpen) return;
+  for (const key of ['1', '2', '3', '4', '5', '6', '7']) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(110);
+  }
+  await closeUpgradeMenu(page);
+}
+
+// Spend coins and skill points the way a completionist plays: fit every upgrade
+// we can afford and rank skills (Off-road first, which opens the mire), so the
+// buy/rank flows are exercised and gated content is reachable. Number keys
 // select skills in panel order: 1 Wayfinder, 2 Off-road, 3 Negotiator, 4 Cipher.
 // Returns true if anything was bought or ranked so the caller re-reads. Bounded:
 // finite coins/points, and maxed skills / an unaffordable shop ignore presses.
@@ -123,8 +160,7 @@ async function spendAtHome(page) {
   const before = await state(page);
   if (!before) return false;
 
-  await page.keyboard.press('B'); // buy cheapest affordable upgrade (no-op if none)
-  await page.waitForTimeout(150);
+  await buyUpgradesAtHome(page);
 
   if (before.skillPoints > 0) {
     await page.keyboard.press('k');
@@ -169,8 +205,12 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 
-  // Fresh game every run.
-  await page.goto(`${BASE}play.html?e2e`, { waitUntil: 'networkidle' });
+  // Fresh game every run. `nowear` for the same reason full-arc.spec.ts uses it:
+  // this driver never repairs, so with the travel sink on it wears to 0, limps at
+  // 0.15x, and strands partway through Greybridge instead of showing the arc. The
+  // cost is that the coins in the log below are not real economics (no repair
+  // bills). travel-sink-measure.spec.ts is the tool that models wear and repairs.
+  await page.goto(`${BASE}play.html?e2e&nowear`, { waitUntil: 'networkidle' });
   // eslint-disable-next-line no-undef -- runs in the browser page, not node
   await page.evaluate(() => localStorage.removeItem('courier-of-the-borderlands/save'));
   await page.reload({ waitUntil: 'networkidle' });
@@ -328,6 +368,7 @@ try {
   else record('no runtime errors');
 
   writeFileSync(`${OUT}/log.txt`, log.join('\n'));
+  console.log(`wrote ${OUT}/log.txt and ${summariesSeen.size ? 'milestone ' : ''}screenshots to ${OUT}`);
 } finally {
   if (browser) await browser.close();
   if (server.pid) { try { process.kill(-server.pid); } catch { /* already gone */ } }

@@ -186,6 +186,25 @@ diff. Re-run it when the HUD, palette, or Greybridge layout drifts far enough
 that the committed shots misrepresent the game, and commit the PNGs with the
 change.
 
+Watch a bot play the whole three-region arc:
+
+```bash
+npm run autoplay                 # add -- --no-build to reuse the current dist/
+```
+
+A greedy completionist driver boots the built game, accepts every contract,
+spends coins and skill points at home, and travels until the capstone. It writes
+milestone screenshots and a step-by-step state log to `tmp-autoplay/`
+(gitignored). Use it to see what a full run actually does, for example after a
+map or progression change.
+
+It is a diagnostic, not a gate. `tests/e2e/full-arc.spec.ts` is the pass/fail
+arc check that CI runs post-merge (`npm run test:arc` locally). Treat autoplay's
+economics as a lower bound on a real player's: it takes near-optimal routes and
+repairs at every home visit, so its wear reads low and its coin surplus high.
+`tests/e2e/travel-sink-measure.spec.ts` explains that caveat in full. A human
+playtest is the signal for tuning; this is the tool for seeing behaviour.
+
 ## Project structure
 
 ```text
