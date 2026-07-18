@@ -82,7 +82,7 @@ import {
   capstoneText,
   upgradeMenuText,
 } from '../systems/panel-text';
-import { buildMinimap } from '../systems/minimap';
+import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
 import { computeWorldState, reconnectedFlag, type SettlementStatus } from '../systems/world-state';
@@ -1946,6 +1946,10 @@ export class MapScene extends Phaser.Scene {
         y: s.tile.y,
         status: status[s.id] ?? 'silent',
       })),
+      // Wayfinder surveys terrain beyond the walked fog on the minimap only, a
+      // route-planning payoff for the reveal build (#324). Recomputed from the
+      // current position each redraw, so it is transient and never saved.
+      surveyRadius: wayfinderSurveyRadius(rankOf(this.skills, 'wayfinder')),
     });
     this.hud.drawMinimap(model, this.currentPath);
   }

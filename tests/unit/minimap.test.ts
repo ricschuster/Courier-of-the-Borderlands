@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildMinimap } from '../../src/systems/minimap';
+import {
+  buildMinimap,
+  wayfinderSurveyRadius,
+  SURVEY_TILES_PER_WAYFINDER_RANK,
+} from '../../src/systems/minimap';
 import type { MinimapInput } from '../../src/systems/minimap';
 
 // Helpers ------------------------------------------------------------------
@@ -146,5 +150,78 @@ describe('buildMinimap', () => {
     // (0,0) is fogged, no courier, no settlement.
     const cell = model.cells[idx(input, 0, 0)];
     expect(cell!.marker).toBeNull();
+  });
+
+  describe('Wayfinder survey ring (#324)', () => {
+    it('shows unwalked terrain within the survey radius of the courier', () => {
+      // Courier at (0,0), radius 2. (0,2) is fogged but 2 tiles away, so it is
+      // surveyed: terrain shows, but it is not counted as revealed.
+      const input = makeInput({ courier: { x: 0, y: 0 }, surveyRadius: 2 });
+      const model = buildMinimap(input);
+
+      const cell = model.cells[idx(input, 0, 2)];
+      expect(cell!.revealed).toBe(false);
+      expect(cell!.surveyed).toBe(true);
+      expect(cell!.color).toBe(FIXED_COLOR);
+    });
+
+    it('leaves fogged terrain beyond the survey radius unsurveyed', () => {
+      // (3,2) is ~3.6 tiles from (0,0), outside radius 2.
+      const input = makeInput({ courier: { x: 0, y: 0 }, surveyRadius: 2 });
+      const model = buildMinimap(input);
+
+      const cell = model.cells[idx(input, 3, 2)];
+      expect(cell!.surveyed).toBe(false);
+      expect(cell!.color).toBeNull();
+    });
+
+    it('never marks a walked (revealed) tile as merely surveyed', () => {
+      // (1,0) is revealed and within radius; it stays revealed, not surveyed.
+      const input = makeInput({ courier: { x: 0, y: 0 }, surveyRadius: 2 });
+      const model = buildMinimap(input);
+
+      const cell = model.cells[idx(input, 1, 0)];
+      expect(cell!.revealed).toBe(true);
+      expect(cell!.surveyed).toBe(false);
+    });
+
+    it('does not reveal a settlement identity on a surveyed-only tile', () => {
+      // Settlement on a fogged tile inside the survey ring: terrain shows, but
+      // no settlement marker (the survey is terrain shape, not place identity).
+      const input = makeInput({
+        courier: { x: 0, y: 0 },
+        surveyRadius: 2,
+        settlements: [{ x: 0, y: 2 }],
+      });
+      const model = buildMinimap(input);
+
+      const cell = model.cells[idx(input, 0, 2)];
+      expect(cell!.surveyed).toBe(true);
+      expect(cell!.marker).toBeNull();
+    });
+
+    it('disables the survey with radius 0 (no Wayfinder)', () => {
+      const input = makeInput({ courier: { x: 0, y: 0 }, surveyRadius: 0 });
+      const model = buildMinimap(input);
+
+      const cell = model.cells[idx(input, 0, 2)];
+      expect(cell!.surveyed).toBe(false);
+      expect(cell!.color).toBeNull();
+    });
+  });
+});
+
+describe('wayfinderSurveyRadius', () => {
+  it('is 0 without Wayfinder so only a Wayfinder surveys', () => {
+    expect(wayfinderSurveyRadius(0)).toBe(0);
+  });
+
+  it('grows a fixed number of tiles per rank', () => {
+    expect(wayfinderSurveyRadius(1)).toBe(SURVEY_TILES_PER_WAYFINDER_RANK);
+    expect(wayfinderSurveyRadius(3)).toBe(3 * SURVEY_TILES_PER_WAYFINDER_RANK);
+  });
+
+  it('treats a negative rank as no survey', () => {
+    expect(wayfinderSurveyRadius(-2)).toBe(0);
   });
 });
