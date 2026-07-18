@@ -610,6 +610,8 @@ export class MapScene extends Phaser.Scene {
       storyFlags: flagsToArray(this.storyFlags),
       courierTile: this.courierTile(),
     });
+    // Keep the persistent autosave indicator in step with the real write result.
+    this.hud.setSaveState(result === 'ok');
     // Autosave runs every couple of seconds; if storage is unavailable or full,
     // tell the player once rather than every tick, so they know a closed tab
     // will lose the run. Slot 1 so it stacks under, not over, the status toast.

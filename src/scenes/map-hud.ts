@@ -90,9 +90,10 @@ const WAGON_NUMBER_COLOR: Readonly<Record<WagonState, string>> = {
 
 // Minimap layout. Cells are MINIMAP_CELL pixels per tile, but shrink so the
 // whole minimap fits inside a MINIMAP_MAX_PX box on large maps that would
-// otherwise overflow the corner.
-const MINIMAP_CELL = 6;
-const MINIMAP_MAX_PX = 192;
+// otherwise overflow the corner. Enlarged from 6/192 (#327): at 6px a tile the
+// minimap read as noise and was useless for its one job, route planning.
+const MINIMAP_CELL = 9;
+const MINIMAP_MAX_PX = 288;
 
 // Toasts stack downward from TOAST_TOP, just below the top-left status panel, so
 // a tall multi-line toast grows into the map rather than up over the status.
@@ -150,6 +151,10 @@ export class MapHud {
   // Salient unspent-skill-points cue (#174): a bright chip in the free top-right
   // corner, shown only when points are banked, so skills stop being forgotten.
   private readonly skillCue: Phaser.GameObjects.Text;
+  // Persistent autosave indicator (#327): the game autosaves every couple of
+  // seconds, but nothing told the player so, which compounded the silent
+  // position loss (#315). Dim by default; flips to a warning if a save fails.
+  private readonly saveIndicator: Phaser.GameObjects.Text;
   private readonly journalPanel: ScrollablePanel;
   private readonly skillPanel: ScrollablePanel;
   private readonly upgradePanel: ScrollablePanel;
@@ -158,6 +163,8 @@ export class MapHud {
   private readonly legendPanel: FramedPanel;
   private readonly dialoguePanel: FramedPanel;
   private readonly minimapGfx: Phaser.GameObjects.Graphics;
+  // Label above the minimap so it reads as a map, not noise (#327).
+  private readonly minimapTitle: Phaser.GameObjects.Text;
   private minimapVisible = false;
   // Active toasts keyed by slot. They persist until the player dismisses them
   // (no fade timer), so a story or delivery message can be read at any pace.
@@ -309,6 +316,20 @@ export class MapHud {
       .setDepth(DEPTH_HUD)
       .setVisible(false);
 
+    // Autosave indicator: top-right, below the skill cue's zone, right-aligned.
+    // Dim and unobtrusive; it exists to reassure the player their run persists,
+    // and turns to a warning colour if a write fails (alongside the toast).
+    this.saveIndicator = scene.add
+      .text(GAME_WIDTH - 12, 40, 'Autosave on', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#8aa17d',
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setAlpha(0.75);
+
     // Journal panel (toggled with J): a scrollable, screen-filling reference box.
     this.journalPanel = new ScrollablePanel(scene, { depth: DEPTH_HUD, fontSize: '11px' });
     // Skills panel (toggled with K): same scrollable box.
@@ -353,6 +374,16 @@ export class MapHud {
 
     // Minimap graphics (toggled with M), drawn in drawMinimap.
     this.minimapGfx = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH_HUD).setVisible(false);
+    // Minimap header, positioned over the map box each draw. Hidden with it.
+    this.minimapTitle = scene.add
+      .text(0, 0, 'REGION MAP  (M to close)', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#d6cfa8',
+      })
+      .setScrollFactor(0)
+      .setDepth(DEPTH_HUD)
+      .setVisible(false);
 
     // Terrain codex (toggled with L). Content is fixed for the scene's lifetime,
     // and a scene restart (travel, new game) rebuilds the HUD, so the codex
@@ -555,6 +586,20 @@ export class MapHud {
     return this.minimapVisible;
   }
 
+  /**
+   * Reflect the latest autosave result in the persistent indicator (#327): a
+   * dim "Autosave on" when writes succeed, a warm warning "Autosave off" when
+   * storage is unavailable or full (the toast carries the detail). Idempotent,
+   * so the per-tick autosave can call it every write without churn.
+   */
+  setSaveState(ok: boolean): void {
+    if (ok) {
+      this.saveIndicator.setText('Autosave on').setColor('#8aa17d').setAlpha(0.75);
+    } else {
+      this.saveIndicator.setText('Autosave off').setColor('#e0a24a').setAlpha(1);
+    }
+  }
+
   isUpgradeMenuVisible(): boolean {
     return this.upgradePanel.visible;
   }
@@ -694,6 +739,7 @@ export class MapHud {
   toggleMinimap(): boolean {
     this.minimapVisible = !this.minimapVisible;
     this.minimapGfx.setVisible(this.minimapVisible);
+    this.minimapTitle.setVisible(this.minimapVisible);
     return this.minimapVisible;
   }
 
@@ -712,6 +758,9 @@ export class MapHud {
     );
     const originX = GAME_WIDTH - model.width * cell - 12;
     const originY = GAME_HEIGHT - model.height * cell - 12;
+
+    // Header sits just above the map box, left-aligned to its left edge.
+    this.minimapTitle.setPosition(originX - 4, originY - 20);
 
     const g = this.minimapGfx;
     g.clear();
