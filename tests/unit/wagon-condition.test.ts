@@ -9,6 +9,7 @@ import {
   sanitizeCondition,
   repairCost,
   repair,
+  repairHelpText,
   limpMultiplier,
   isStranded,
   conditionFraction,
@@ -296,6 +297,34 @@ describe('rescue', () => {
     const r = rescue(RESCUE_COST - 1);
     expect(r.ok).toBe(false);
     expect(r.coins).toBe(RESCUE_COST - 1);
+  });
+});
+
+describe('repairHelpText', () => {
+  const base = { max: 43, tuning: T };
+
+  it('stranded at a town points at earning through a delivery, not the price alone', () => {
+    const msg = repairHelpText({ ...base, atSettlement: true, condition: 0 });
+    expect(msg).toContain('Too broke to repair');
+    expect(msg).toContain('still crawls');
+    expect(msg).toContain('deliver to earn coin');
+    // Names the full cost so the courier still sees what a repair would take.
+    expect(msg).toContain(`${repairCost(0, 43, T)}c full`);
+  });
+
+  it('merely worn at a town does not promise a crawl (the wagon still runs full speed)', () => {
+    const msg = repairHelpText({ ...base, atSettlement: true, condition: 20 });
+    expect(msg).toContain('Too broke to repair');
+    expect(msg).not.toContain('crawls');
+    expect(msg).toContain('repair here');
+  });
+
+  it('stranded in the open names the limp ladder, not "limp to a settlement" while in one', () => {
+    const msg = repairHelpText({ ...base, atSettlement: false, condition: 0 });
+    expect(msg).toContain('rescue is out of reach');
+    expect(msg).toContain('still crawls');
+    expect(msg).toContain('limp to a town');
+    expect(msg).toContain(`${T.rescueCost}c`);
   });
 });
 

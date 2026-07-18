@@ -332,3 +332,44 @@ export function rescue(coins: number, tuning: WagonTuning = DEFAULT_WAGON_TUNING
   }
   return { ok: true, coins: coins - tuning.rescueCost };
 }
+
+export interface RepairHelpInput {
+  /** True when the courier is standing on a settlement tile (repair is offered). */
+  readonly atSettlement: boolean;
+  readonly condition: number;
+  readonly max: number;
+  readonly tuning: WagonTuning;
+}
+
+/**
+ * Guidance for a courier whose repair or rescue press cannot pay for itself
+ * (#317). The old copy misdirected a broke, stranded player: it quoted an
+ * unaffordable price at a town, or told them to "limp to a settlement" while
+ * they stood in one. This names the real exit instead. The limp is the intended
+ * ladder (isStranded keeps the wagon crawling at limpSpeed), so a courier with
+ * no coin is pointed at earning through a delivery, not at a wall.
+ *
+ * Two situations reach here:
+ * - at a settlement, too broke for even one repair point (coins < costPerPercent)
+ * - stranded in the open, unable to afford the tow (coins < rescueCost)
+ */
+export function repairHelpText(input: RepairHelpInput): string {
+  const { atSettlement, condition, max, tuning } = input;
+  const stranded = isStranded(condition);
+  if (atSettlement) {
+    const cost = repairCost(condition, max, tuning);
+    const lead = `Too broke to repair (${cost}c full, ${tuning.costPerPercent}c/pt).`;
+    // Stranded here the wagon still crawls, so earning is reachable; merely worn
+    // it moves at full speed, so there is no crawl to reassure about.
+    const tail = stranded
+      ? ' The wagon still crawls: take a contract and deliver to earn coin.'
+      : ' Earn coin on a delivery, then repair here.';
+    return lead + tail;
+  }
+  // Off a settlement this only fires while stranded (the caller guards it), so
+  // the crawl is always available as the way out.
+  return (
+    `Stranded, and the ${tuning.rescueCost}c rescue is out of reach. ` +
+    'The wagon still crawls: limp to a town and deliver to earn coin.'
+  );
+}
