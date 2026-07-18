@@ -730,6 +730,12 @@ export class MapHud {
       const fill = c.revealed ? (c.color ?? 0x5a8f4a) : 0x1c1c1c;
       g.fillStyle(fill, 1);
       g.fillRect(px, py, cell - 1, cell - 1);
+      // Surveyed-but-unwalked tiles (a Wayfinder survey) show their terrain as a
+      // dim tint over the fog base, so they read as "known, not yet visited".
+      if (!c.revealed && c.surveyed && c.color !== null) {
+        g.fillStyle(c.color, 0.4);
+        g.fillRect(px, py, cell - 1, cell - 1);
+      }
       if (c.marker === 'settlement') {
         g.fillStyle(STATUS_COLOR[c.settlementStatus ?? 'silent'], 1);
         g.fillRect(px + 1, py + 1, cell - 3, cell - 3);
