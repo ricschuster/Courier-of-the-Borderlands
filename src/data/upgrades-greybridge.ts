@@ -22,18 +22,18 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
   {
     id: 'sprung-axle',
     name: 'Sprung Axle',
-    description: 'Leaf-sprung suspension soaks up broken ground. Cuts the drag of slow terrain like forest and scrub by half.',
+    description: 'Leaf-sprung suspension soaks up broken ground, easing the drag of slow terrain like forest and scrub.',
     cost: 60,
     speedBonus: 0,
-    roughnessRelief: 0.5,
+    roughnessRelief: 0.4,
   },
   {
     id: 'marsh-treads',
     name: 'Marsh Treads',
-    description: 'Wide webbed treads that bite into mire and reed. Cuts rough-ground drag by another half; fitted with the Sprung Axle, the worst mud barely slows you.',
+    description: 'Wide webbed treads that bite into mire and reed, easing rough-ground drag further; fitted with the Sprung Axle, the worst mud barely slows you.',
     cost: 90,
     speedBonus: 0,
-    roughnessRelief: 0.5,
+    roughnessRelief: 0.4,
   },
   {
     id: 'courier-charts',
@@ -53,9 +53,9 @@ export const UPGRADES_GREYBRIDGE: readonly Upgrade[] = [
   {
     id: 'salt-runners',
     name: 'Salt Runners',
-    description: 'Broad flotation runners that spread the load across soft ground. Lets the wagon cross tidal flats and fen mud that would swallow it, and cuts rough-ground drag by half again.',
+    description: 'Broad flotation runners that spread the load across soft ground. Lets the wagon cross tidal flats and fen mud that would swallow it, and eases a little more of the roughest drag.',
     cost: 140,
     speedBonus: 0,
-    roughnessRelief: 0.5,
+    roughnessRelief: 0.2,
   },
 ];

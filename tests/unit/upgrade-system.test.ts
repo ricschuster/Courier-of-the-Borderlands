@@ -299,6 +299,31 @@ describe('terrainSpeedFactor', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Every shipped relief upgrade must still pull its weight (#298)
+// ---------------------------------------------------------------------------
+// terrainSpeedFactor clamps summed roughnessRelief to 1.0, so if the real
+// upgrade values sum above 1.0 the last one bought adds no speed (the Salt
+// Runners bug). These guard the tuned 0.4 / 0.4 / 0.2 split from silently
+// regressing back to a set where one relief upgrade is dead weight.
+describe('shipped relief upgrades all contribute to terrain speed (#298)', () => {
+  const relief = UPGRADES_GREYBRIDGE.filter((u) => (u.roughnessRelief ?? 0) > 0);
+
+  it('their relief values sum to at most 1.0, so none is wasted at the cap', () => {
+    const sum = relief.reduce((total, u) => total + (u.roughnessRelief ?? 0), 0);
+    expect(sum).toBeLessThanOrEqual(1);
+  });
+
+  it('dropping any single relief upgrade lowers the terrain speed factor', () => {
+    const all = new Set(relief.map((u) => u.id));
+    const full = terrainSpeedFactor(0.5, all, UPGRADES_GREYBRIDGE);
+    for (const dropped of relief) {
+      const subset = new Set([...all].filter((id) => id !== dropped.id));
+      expect(terrainSpeedFactor(0.5, subset, UPGRADES_GREYBRIDGE)).toBeLessThan(full);
+    }
+  });
+});
+
 describe('upgradeEffectLabel', () => {
   it('summarises a speed upgrade', () => {
     expect(upgradeEffectLabel(WHEEL_UPGRADE)).toBe('+25% speed');
