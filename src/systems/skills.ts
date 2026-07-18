@@ -2,6 +2,7 @@
 // game's existing effect pipeline (speed, fog reveal, reward multipliers).
 
 import { skillPointsForLevel } from './experience';
+import type { CargoCategoryId } from './cargo-types';
 
 export interface SkillEffect {
   readonly speedBonus?: number; // added to the speed multiplier, per rank
@@ -44,11 +45,29 @@ export const SKILLS: readonly Skill[] = [
     id: 'cipher',
     name: 'Cipher',
     description:
-      'You can read the coded letters and secrets in your cargo, unlocking hidden dialogue about who is quietly rebuilding the roads. A story skill: it reveals lore, not speed or coin.',
+      'You can read the coded letters and secrets in your cargo, unlocking hidden dialogue about who is quietly rebuilding the roads, and secrets cargo pays you +15 percent.',
     maxRank: 1,
     perRank: {},
   },
 ];
+
+// The Cipher rider (#323). Cipher had no mechanical effect, so its scarce point
+// bought only missable flavour. A courier who can read coded cargo now earns a
+// flat fraction more on 'secrets' deliveries, giving the story skill a
+// measurable payoff without changing the base secrets pay everyone else earns.
+export const CIPHER_SECRETS_BONUS = 0.15;
+
+/**
+ * Extra reward fraction from Cipher on a 'secrets' delivery: CIPHER_SECRETS_BONUS
+ * while the skill is owned and the cargo is secrets, 0 otherwise. Applied off
+ * the same boosted payout as the Negotiator cut, so the two stack additively.
+ */
+export function cipherSecretsBonus(
+  ranks: SkillRanks,
+  cargoType: CargoCategoryId | undefined,
+): number {
+  return cargoType === 'secrets' && rankOf(ranks, 'cipher') > 0 ? CIPHER_SECRETS_BONUS : 0;
+}
 
 // A skill contributes a derived story flag ("skill_<id>") once owned, so that
 // dialogue choices can gate on a social skill without the dialogue engine

@@ -10,6 +10,8 @@ import {
   skillSpeedBonus,
   skillRevealBonus,
   skillRewardBonus,
+  cipherSecretsBonus,
+  CIPHER_SECRETS_BONUS,
   skillFlag,
   derivedSkillFlags,
 } from '../../src/systems/skills';
@@ -154,6 +156,21 @@ describe('derivedSkillFlags', () => {
 
   it('ignores unknown ids so a stale save cannot grant a phantom flag', () => {
     expect(derivedSkillFlags({ nonsense: 3 })).toEqual([]);
+  });
+});
+
+describe('cipherSecretsBonus', () => {
+  it('pays the rider on secrets cargo when Cipher is owned', () => {
+    expect(cipherSecretsBonus({ cipher: 1 }, 'secrets')).toBe(CIPHER_SECRETS_BONUS);
+  });
+
+  it('pays nothing on secrets cargo without Cipher', () => {
+    expect(cipherSecretsBonus({}, 'secrets')).toBe(0);
+  });
+
+  it('pays nothing on non-secrets cargo even with Cipher', () => {
+    expect(cipherSecretsBonus({ cipher: 1 }, 'goods')).toBe(0);
+    expect(cipherSecretsBonus({ cipher: 1 }, undefined)).toBe(0);
   });
 });
 
