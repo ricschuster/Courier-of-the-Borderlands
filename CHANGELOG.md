@@ -10,6 +10,51 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.5.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.4.0...courier-of-the-borderlands-v0.5.0) (2026-07-18)
+
+
+### Features
+
+* link the telemetry dashboard from the site footers ([#307](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/307)) ([753481c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/753481c596e82d7a42c23de857fbe8b0cf4cd530)), closes [#297](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/297)
+* make the title difficulty rows clickable ([#335](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/335)) ([40fd634](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/40fd634e4c012cd5a34e66262cda88a1bac9dbb7))
+* teach the off-road wear lesson on first leaving the road ([#334](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/334)) ([e60176e](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e60176ea81dd8f876939bb6068a1666994d748cf)), closes [#326](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/326)
+
+
+### Bug Fixes
+
+* close any open panel with Esc ([#331](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/331)) ([85841ad](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/85841ad4220026bbbb27c223208baf5a7fb25ebf)), closes [#319](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/319)
+* confirm board contract acceptance with a second press ([#333](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/333)) ([eb8a3aa](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eb8a3aa8d76cc9b6fb340c417b98590ba52c9489))
+* fail loudly when a legend symbol is not one code unit ([#303](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/303)) ([33ab4c3](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/33ab4c32c4a3c30306b763c16a1e2eb758e17ecc)), closes [#293](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/293)
+* gate board digit input on the summary and capstone panels ([#330](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/330)) ([3ff3316](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3ff3316e821bf241c4ef0fac3716d24918a39002)), closes [#316](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/316)
+* ignore board number keys while a blocking overlay is open ([#308](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/308)) ([a8bdaf1](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a8bdaf1ada23da76fb38a418ad81030ff9e1c858)), closes [#292](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/292)
+* label the repair hint as a full repair with its per-point rate ([#332](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/332)) ([ea48792](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ea48792455b063d629908746cefe359925f38fd4)), closes [#320](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/320)
+* persist the courier tile so a reload is not a free tow ([#329](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/329)) ([8c18e3c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8c18e3ceff75297d1ed02ee627b9156ad598bc3c)), closes [#315](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/315)
+* repair the autoplay driver and document it ([#285](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/285)) ([fe1ad0a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fe1ad0ab465f266e345081ebd366171933c79778)), closes [#284](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/284)
+* reset per-run panel and telemetry state on new game ([#302](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/302)) ([0f134a3](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0f134a350cfe5566ded6ef6bb2c85f6c871b7d2f)), closes [#291](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/291)
+
+
+### Refactoring
+
+* extract delivery reward composition to a pure system ([#311](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/311)) ([334fbf5](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/334fbf508c30ecd336783310c8e89c17dd035ca4))
+* extract the e2e test bridge from map-scene ([#310](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/310)) ([d0e88f8](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d0e88f8f540771dec764eb5644dbb782015ab6ec))
+* extract the low-condition warning rule to wagon-condition ([#312](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/312)) ([eca114c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eca114c6ca16381e2118ad927b18468a6cc8d0b3)), closes [#301](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/301)
+
+
+### Documentation
+
+* add 2026-07-15 handoff v24 ([#280](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/280)) ([3b58046](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3b58046a9d108a2134883c1c514e21319dae6017))
+* add 2026-07-15 handoff v25 ([#287](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/287)) ([a09d796](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a09d796ea6a1ba8aa3a38d1b94124138590cca39))
+* add 2026-07-16 handoff v26 ([#290](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/290)) ([1ec46b1](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1ec46b102cc82166db1f1f3bf6ac74a10b2029ce))
+* add 2026-07-16 handoff v27 ([#309](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/309)) ([6486bd5](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/6486bd58c56d3a99f8bab1c11db295abd11da939))
+* add 2026-07-16 handoff v28 ([#313](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/313)) ([7398271](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7398271ea8db5bef4136642b6bb9f640a83888b4))
+* add 2026-07-16 handoff v29 and persona playtest report ([#314](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/314)) ([17808c0](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/17808c015732226b02735fc7f32c5cbf3e6073e6))
+* add 2026-07-16 handoff v30 ([#336](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/336)) ([a525484](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a525484154228648afd7d68547d7a359fa2b34ca))
+* clean up CLAUDE.md (fix JSON contradiction, retire shipped-MVP scaffolding) ([#289](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/289)) ([2dca181](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2dca18131392cf28f402ee72abdf6cd355547e8f))
+* fix README JSON drift and complete the e2e coordinate list ([#306](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/306)) ([e7997b4](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e7997b410f5f9cabc9ae41be2e1aa15a88360724)), closes [#296](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/296)
+* record recurring traps and retire the personal memory store ([#286](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/286)) ([045e05b](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/045e05b0e846f554827e7d7679d0f1f5c2875147))
+* record the file-passing rule for commit messages and PR bodies ([#283](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/283)) ([cdbd6ed](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cdbd6ed3807b0d872626c55b0e93196528a8e942))
+* record the settled design calls in the playtest notes ([#282](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/282)) ([d82457b](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d82457b59201a34a2b803f58189ec26b1754d966))
+
 ## [0.4.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.3.0...courier-of-the-borderlands-v0.4.0) (2026-07-15)
 
 
