@@ -25,6 +25,7 @@ describe('computeDeliveryReward', () => {
     expect(reward.baseReward).toBe(45);
     expect(reward.payout).toBe(45);
     expect(reward.skillReward).toBe(0);
+    expect(reward.cipherReward).toBe(0);
     expect(reward.bonusCoins).toBe(0);
     expect(reward.total).toBe(45);
     expect(reward.reconnectPremium).toBe(false);
@@ -68,6 +69,24 @@ describe('computeDeliveryReward', () => {
     const reward = computeDeliveryReward(input({ cargoType: 'secrets' }));
     expect(reward.baseReward).toBe(54);
     expect(reward.total).toBe(54);
+  });
+
+  it('adds the Cipher rider on a secrets delivery, off the boosted payout (#323)', () => {
+    // 45 secrets x1.2 = 54 payout; cipher +15% of 54 = 8.1 -> 8. Total 62.
+    const withCipher = computeDeliveryReward(input({ cargoType: 'secrets', skills: { cipher: 1 } }));
+    expect(withCipher.payout).toBe(54);
+    expect(withCipher.cipherReward).toBe(8);
+    expect(withCipher.total).toBe(62);
+  });
+
+  it('pays no Cipher rider on non-secrets cargo, nor on secrets without Cipher', () => {
+    const goodsCipher = computeDeliveryReward(input({ cargoType: 'goods', skills: { cipher: 1 } }));
+    expect(goodsCipher.cipherReward).toBe(0);
+    expect(goodsCipher.total).toBe(45);
+
+    const secretsNoCipher = computeDeliveryReward(input({ cargoType: 'secrets' }));
+    expect(secretsNoCipher.cipherReward).toBe(0);
+    expect(secretsNoCipher.total).toBe(54);
   });
 
   it('withholds the bonus when its objective was missed', () => {

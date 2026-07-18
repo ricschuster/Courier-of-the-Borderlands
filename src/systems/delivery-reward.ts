@@ -9,15 +9,17 @@
 //   3. the standing (reputation) bonus applies to the result
 //   4. the Negotiator skill fraction is computed off the standing-boosted
 //      payout, rounded
-//   5. a met bonus objective adds its flat coins last
+//   5. the Cipher rider adds its fraction off the same boosted payout on a
+//      secrets delivery, rounded
+//   6. a met bonus objective adds its flat coins last
 //
-//   total = payout + skillReward + bonusCoins
+//   total = payout + skillReward + cipherReward + bonusCoins
 
 import { cargoPayout, type CargoCategoryId } from './cargo-types';
 import { reconnectionRewardMultiplier } from './world-state';
 import type { SettlementStatus } from './world-state';
 import { applyRewardBonus } from './reputation-perks';
-import { skillRewardBonus, type SkillRanks } from './skills';
+import { skillRewardBonus, cipherSecretsBonus, type SkillRanks } from './skills';
 import { bonusFor, bonusAchieved, type BonusFacts } from './contract-bonus';
 
 export interface DeliveryRewardInput {
@@ -48,9 +50,11 @@ export interface DeliveryReward {
   readonly payout: number;
   /** The Negotiator skill's cut, computed off the boosted payout. */
   readonly skillReward: number;
+  /** The Cipher rider's cut on a secrets delivery, 0 otherwise. */
+  readonly cipherReward: number;
   /** Flat coins from a met bonus objective, 0 otherwise. */
   readonly bonusCoins: number;
-  /** Coins to add to the ledger: payout + skillReward + bonusCoins. */
+  /** Coins to add to the ledger: payout + skillReward + cipherReward + bonusCoins. */
   readonly total: number;
   /** Whether the reconnection premium applied (for the event-log note). */
   readonly reconnectPremium: boolean;
@@ -64,6 +68,7 @@ export function computeDeliveryReward(input: DeliveryRewardInput): DeliveryRewar
   );
   const payout = applyRewardBonus(baseReward, input.totalReputation);
   const skillReward = Math.round(payout * skillRewardBonus(input.skills));
+  const cipherReward = Math.round(payout * cipherSecretsBonus(input.skills, input.cargoType));
   const bonus = bonusFor(input.contractId);
   const bonusCoins =
     bonus !== undefined && bonusAchieved(bonus, input.bonusFacts) ? bonus.reward : 0;
@@ -71,8 +76,9 @@ export function computeDeliveryReward(input: DeliveryRewardInput): DeliveryRewar
     baseReward,
     payout,
     skillReward,
+    cipherReward,
     bonusCoins,
-    total: payout + skillReward + bonusCoins,
+    total: payout + skillReward + cipherReward + bonusCoins,
     reconnectPremium: reconnectMult > 1,
   };
 }

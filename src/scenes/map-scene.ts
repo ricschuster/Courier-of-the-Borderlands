@@ -1293,13 +1293,15 @@ export class MapScene extends Phaser.Scene {
     // reputation boost, not the cargo pay modifier.
     const perkNote = reward.payout > reward.baseReward ? ` (${perk.label})` : '';
     const skillNote = reward.skillReward > 0 ? ` +${reward.skillReward} negotiated.` : '';
+    const cipherNote = reward.cipherReward > 0 ? ` +${reward.cipherReward} deciphered.` : '';
     const bonusNote = reward.bonusCoins > 0 ? ` Bonus met: +${reward.bonusCoins} coins.` : '';
     const cargoNote =
       cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
     const reconnectNote = reward.reconnectPremium ? ' The reconnected road pays better.' : '';
     this.logEvent(
       `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${reward.payout + reward.skillReward} coins${perkNote}, +${contract.reputation} reputation.${skillNote}${bonusNote}${cargoNote}${reconnectNote}`,
+        `Reward: ${reward.payout + reward.skillReward + reward.cipherReward} coins${perkNote}, ` +
+        `+${contract.reputation} reputation.${skillNote}${cipherNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
     this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
     this.refreshObjective();
