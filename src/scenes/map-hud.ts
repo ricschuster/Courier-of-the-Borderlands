@@ -776,7 +776,7 @@ export class MapHud {
       const y = Math.floor(i / model.width);
       const px = originX + x * cell;
       const py = originY + y * cell;
-      const fill = c.revealed ? (c.color ?? 0x5a8f4a) : 0x1c1c1c;
+      const fill = c.revealed ? (c.color ?? 0x6fa24a) : 0x1c1c1c;
       g.fillStyle(fill, 1);
       g.fillRect(px, py, cell - 1, cell - 1);
       // Surveyed-but-unwalked tiles (a Wayfinder survey) show their terrain as a
