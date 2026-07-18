@@ -63,6 +63,7 @@ import {
   lowConditionWarning,
   repair,
   repairCost,
+  repairHelpText,
   rescue,
   sanitizeCondition,
   maxConditionForLevel,
@@ -948,7 +949,12 @@ export class MapScene extends Phaser.Scene {
     const result = rescue(this.state.ledger.coins, this.wagonTuning);
     if (!result.ok) {
       this.hud.showToast(
-        `The wagon is stranded, but you cannot afford a rescue (${this.wagonTuning.rescueCost}c). Limp to a settlement.`,
+        repairHelpText({
+          atSettlement: false,
+          condition: this.wagonCondition,
+          max: this.wagonMax(),
+          tuning: this.wagonTuning,
+        }),
       );
       return;
     }
@@ -974,10 +980,16 @@ export class MapScene extends Phaser.Scene {
       this.hud.showToast('The wagon is in good repair.');
       return;
     }
-    const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
     const result = repair(this.wagonCondition, this.state.ledger.coins, max, this.wagonTuning);
     if (!result.ok) {
-      this.hud.showToast(`Not enough coins to repair the wagon (full repair ${cost}c).`);
+      this.hud.showToast(
+        repairHelpText({
+          atSettlement: true,
+          condition: this.wagonCondition,
+          max,
+          tuning: this.wagonTuning,
+        }),
+      );
       return;
     }
     this.wagonCondition = result.condition;
