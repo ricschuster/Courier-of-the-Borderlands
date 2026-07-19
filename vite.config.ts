@@ -59,6 +59,7 @@ export default defineConfig({
         manual: 'manual.html',
         credits: 'credits.html',
         news: 'news.html',
+        effortEstimate: 'effort-estimate.html',
       },
       output: {
         // Split the Phaser engine into its own chunk, separate from app code.
