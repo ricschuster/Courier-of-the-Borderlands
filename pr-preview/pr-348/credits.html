@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Courier of the Borderlands - Credits</title>
+    <meta
+      name="description"
+      content="Asset and software credits for Courier of the Borderlands: Kenney's CC0 art packs, Phaser, Vite, and TypeScript."
+    />
+    <style>
+      /* Palette and type deliberately mirror index.html and manual.html so the
+         site reads as one place. If these diverge, change all three. */
+      :root {
+        color-scheme: dark;
+        --bg: #14140f;
+        --panel: #201d15;
+        --panel-2: #2a2619;
+        --line: #3a3426;
+        --ink: #e8e2d0;
+        --muted: #a99f86;
+        --accent: #c9a24a;
+        --accent-ink: #1a160c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      a {
+        color: var(--accent);
+      }
+      header.hero {
+        padding: 48px 20px 28px;
+        text-align: center;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #23200f, var(--bg));
+      }
+      header.hero h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+        letter-spacing: 0.3px;
+      }
+      header.hero p {
+        margin: 0 auto;
+        max-width: 640px;
+        color: var(--muted);
+      }
+      main {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 8px 20px 80px;
+      }
+      section {
+        margin: 40px 0;
+      }
+      h2 {
+        font-size: 1.35rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+      }
+      .lead {
+        color: var(--muted);
+      }
+      .credit {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 16px 0;
+      }
+      .credit h3 {
+        margin: 0 0 6px;
+        font-size: 1.05rem;
+      }
+      .credit dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 4px 16px;
+        margin: 0;
+        font-size: 0.92rem;
+      }
+      .credit dt {
+        color: var(--muted);
+      }
+      .credit dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 560px) {
+        .credit dl {
+          grid-template-columns: 1fr;
+          gap: 0 0;
+        }
+        .credit dt {
+          margin-top: 8px;
+        }
+      }
+      .callout {
+        background: var(--panel);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 12px 16px;
+        margin: 16px 0;
+        color: var(--muted);
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 28px 20px 60px;
+        text-align: center;
+        color: var(--muted);
+      }
+      footer a {
+        margin: 0 10px;
+      }
+      .back {
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Credits</h1>
+      <p>
+        What the frontier is built from, and who to thank for it.
+      </p>
+    </header>
+
+    <main>
+      <section>
+        <h2>Art</h2>
+        <p class="lead">
+          The map, markers, and panel frames are skinned with Kenney's asset
+          packs. All three are released under Creative Commons Zero, which asks
+          for nothing in return. They are credited here anyway, because the work
+          deserves saying out loud.
+        </p>
+
+        <div class="callout">
+          Kenney makes these packs public domain so anyone can build with them.
+          If they are useful to you too, they are at
+          <a href="https://kenney.nl/">kenney.nl</a>.
+        </div>
+
+        <div class="credit">
+          <h3>Roguelike / RPG pack</h3>
+          <dl>
+            <dt>Used for</dt>
+            <dd>Terrain tiles that skin the map</dd>
+            <dt>Author</dt>
+            <dd>Kenney</dd>
+            <dt>Licence</dt>
+            <dd>Creative Commons Zero (CC0), public domain</dd>
+            <dt>Source</dt>
+            <dd>
+              <a href="https://kenney.nl/assets/roguelike-rpg-pack"
+                >kenney.nl/assets/roguelike-rpg-pack</a
+              >
+            </dd>
+          </dl>
+        </div>
+
+        <div class="credit">
+          <h3>Tiny Town</h3>
+          <dl>
+            <dt>Used for</dt>
+            <dd>Settlement and signpost markers</dd>
+            <dt>Author</dt>
+            <dd>Kenney</dd>
+            <dt>Licence</dt>
+            <dd>Creative Commons Zero (CC0), public domain</dd>
+            <dt>Source</dt>
+            <dd>
+              <a href="https://kenney.nl/assets/tiny-town"
+                >kenney.nl/assets/tiny-town</a
+              >
+            </dd>
+          </dl>
+        </div>
+
+        <div class="credit">
+          <h3>UI Pack RPG Expansion</h3>
+          <dl>
+            <dt>Used for</dt>
+            <dd>The panel frame behind overlay panels, and the condition bar</dd>
+            <dt>Author</dt>
+            <dd>Kenney</dd>
+            <dt>Licence</dt>
+            <dd>Creative Commons Zero (CC0), public domain</dd>
+            <dt>Source</dt>
+            <dd>
+              <a href="https://kenney.nl/assets/ui-pack-rpg-expansion"
+                >kenney.nl/assets/ui-pack-rpg-expansion</a
+              >
+            </dd>
+          </dl>
+        </div>
+      </section>
+
+      <section>
+        <h2>Built with</h2>
+        <p class="lead">
+          The game runs in the browser on open-source software.
+        </p>
+        <div class="credit">
+          <h3>Phaser</h3>
+          <dl>
+            <dt>Used for</dt>
+            <dd>The game engine: rendering, input, and physics</dd>
+            <dt>Licence</dt>
+            <dd>MIT</dd>
+            <dt>Source</dt>
+            <dd><a href="https://phaser.io/">phaser.io</a></dd>
+          </dl>
+        </div>
+        <div class="credit">
+          <h3>Vite and TypeScript</h3>
+          <dl>
+            <dt>Used for</dt>
+            <dd>The build, the dev server, and the type system holding it together</dd>
+            <dt>Licence</dt>
+            <dd>MIT (Vite), Apache-2.0 (TypeScript)</dd>
+            <dt>Source</dt>
+            <dd>
+              <a href="https://vite.dev/">vite.dev</a> and
+              <a href="https://www.typescriptlang.org/">typescriptlang.org</a>
+            </dd>
+          </dl>
+        </div>
+      </section>
+
+      <section>
+        <h2>The game</h2>
+        <p class="lead">
+          Courier of the Borderlands is a solo project, built in the open with
+          Claude Code. It is free software, released under the
+          <a href="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPL v3</a>:
+          you can read it, change it, and pass it on. The code, the design
+          notes, and the arguments behind them are all on
+          <a href="https://github.com/ricschuster/Courier-of-the-Borderlands"
+            >GitHub</a
+          >.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div>
+        <a href="./index.html">Home</a>
+        <a href="./play.html">Play</a>
+        <a href="./manual.html">Manual</a>
+        <a href="./news.html">What's new</a>
+        <a href="./telemetry.html">Telemetry</a>
+        <a href="./effort-estimate.html">Effort estimate</a>
+        <a href="https://github.com/ricschuster/Courier-of-the-Borderlands">Source</a>
+      </div>
+      <p class="back">
+        Asset sources are tracked in the repository at
+        <code>assets/credits.md</code>.
+      </p>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Courier of the Borderlands - What's new</title>
+    <meta
+      name="description"
+      content="Release notes for Courier of the Borderlands: what changed in each version."
+    />
+    <style>
+      /* Palette and type deliberately mirror index.html and manual.html so the
+         site reads as one place. If these diverge, change all of them. */
+      :root {
+        color-scheme: dark;
+        --bg: #14140f;
+        --panel: #201d15;
+        --panel-2: #2a2619;
+        --line: #3a3426;
+        --ink: #e8e2d0;
+        --muted: #a99f86;
+        --accent: #c9a24a;
+        --accent-ink: #1a160c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      a {
+        color: var(--accent);
+      }
+      header.hero {
+        padding: 48px 20px 28px;
+        text-align: center;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #23200f, var(--bg));
+      }
+      header.hero h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+        letter-spacing: 0.3px;
+      }
+      header.hero p {
+        margin: 0 auto;
+        max-width: 640px;
+        color: var(--muted);
+      }
+      main {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 8px 20px 80px;
+      }
+      .callout {
+        background: var(--panel);
+        border-left: 3px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: 12px 16px;
+        margin: 28px 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .lead {
+        color: var(--muted);
+      }
+      /* Everything below styles the markup injected from CHANGELOG.md by the
+         changelogPage plugin in vite.config.ts. Keep the selectors in step with
+         renderChangelogHtml in src/systems/changelog.ts. */
+      .release {
+        margin: 40px 0;
+      }
+      .release h2 {
+        font-size: 1.5rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+        margin-bottom: 4px;
+      }
+      .release h2 a {
+        text-decoration: none;
+      }
+      .release h2 a:hover {
+        text-decoration: underline;
+      }
+      .release .date {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .release h3 {
+        font-size: 1rem;
+        margin: 20px 0 6px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .release ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .release li {
+        margin-bottom: 6px;
+      }
+      .release .refs {
+        font-size: 0.82rem;
+        white-space: nowrap;
+      }
+      .release .refs a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .release .refs a:hover {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      .release code {
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 0 5px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85em;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 28px 20px 60px;
+        text-align: center;
+        color: var(--muted);
+      }
+      footer a {
+        margin: 0 10px;
+      }
+      .back {
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>What's new</h1>
+      <p>Every version of Courier of the Borderlands, newest first.</p>
+    </header>
+
+    <main>
+      <div class="callout">
+        These notes are generated from the project's commit history, so they are
+        written for the people building the game as much as for the people
+        playing it. Expect the odd bit of plumbing next to the roads.
+      </div>
+
+      <section class="release">
+<h2><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.4.0...courier-of-the-borderlands-v0.5.0">0.5.0</a></h2>
+<p class="date">2026-07-18</p>
+<h3>Features</h3>
+<ul>
+<li>link the telemetry dashboard from the site footers ([#307](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/307)) ([753481c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/753481c596e82d7a42c23de857fbe8b0cf4cd530)), closes [#297](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/297)</li>
+<li>make the title difficulty rows clickable <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/335">#335</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/40fd634e4c012cd5a34e66262cda88a1bac9dbb7">40fd634</a></span></li>
+<li>teach the off-road wear lesson on first leaving the road ([#334](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/334)) ([e60176e](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e60176ea81dd8f876939bb6068a1666994d748cf)), closes [#326](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/326)</li>
+</ul>
+<h3>Bug Fixes</h3>
+<ul>
+<li>close any open panel with Esc ([#331](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/331)) ([85841ad](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/85841ad4220026bbbb27c223208baf5a7fb25ebf)), closes [#319](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/319)</li>
+<li>confirm board contract acceptance with a second press <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/333">#333</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eb8a3aa8d76cc9b6fb340c417b98590ba52c9489">eb8a3aa</a></span></li>
+<li>fail loudly when a legend symbol is not one code unit ([#303](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/303)) ([33ab4c3](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/33ab4c32c4a3c30306b763c16a1e2eb758e17ecc)), closes [#293](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/293)</li>
+<li>gate board digit input on the summary and capstone panels ([#330](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/330)) ([3ff3316](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3ff3316e821bf241c4ef0fac3716d24918a39002)), closes [#316](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/316)</li>
+<li>ignore board number keys while a blocking overlay is open ([#308](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/308)) ([a8bdaf1](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a8bdaf1ada23da76fb38a418ad81030ff9e1c858)), closes [#292](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/292)</li>
+<li>label the repair hint as a full repair with its per-point rate ([#332](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/332)) ([ea48792](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ea48792455b063d629908746cefe359925f38fd4)), closes [#320](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/320)</li>
+<li>persist the courier tile so a reload is not a free tow ([#329](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/329)) ([8c18e3c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8c18e3ceff75297d1ed02ee627b9156ad598bc3c)), closes [#315](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/315)</li>
+<li>repair the autoplay driver and document it ([#285](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/285)) ([fe1ad0a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fe1ad0ab465f266e345081ebd366171933c79778)), closes [#284](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/284)</li>
+<li>reset per-run panel and telemetry state on new game ([#302](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/302)) ([0f134a3](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0f134a350cfe5566ded6ef6bb2c85f6c871b7d2f)), closes [#291](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/291)</li>
+</ul>
+<h3>Refactoring</h3>
+<ul>
+<li>extract delivery reward composition to a pure system <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/311">#311</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/334fbf508c30ecd336783310c8e89c17dd035ca4">334fbf5</a></span></li>
+<li>extract the e2e test bridge from map-scene <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/310">#310</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d0e88f8f540771dec764eb5644dbb782015ab6ec">d0e88f8</a></span></li>
+<li>extract the low-condition warning rule to wagon-condition ([#312](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/312)) ([eca114c](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eca114c6ca16381e2118ad927b18468a6cc8d0b3)), closes [#301](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/301)</li>
+</ul>
+<h3>Documentation</h3>
+<ul>
+<li>add 2026-07-15 handoff v24 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/280">#280</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3b58046a9d108a2134883c1c514e21319dae6017">3b58046</a></span></li>
+<li>add 2026-07-15 handoff v25 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/287">#287</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a09d796ea6a1ba8aa3a38d1b94124138590cca39">a09d796</a></span></li>
+<li>add 2026-07-16 handoff v26 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/290">#290</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1ec46b102cc82166db1f1f3bf6ac74a10b2029ce">1ec46b1</a></span></li>
+<li>add 2026-07-16 handoff v27 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/309">#309</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/6486bd58c56d3a99f8bab1c11db295abd11da939">6486bd5</a></span></li>
+<li>add 2026-07-16 handoff v28 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/313">#313</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7398271ea8db5bef4136642b6bb9f640a83888b4">7398271</a></span></li>
+<li>add 2026-07-16 handoff v29 and persona playtest report <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/314">#314</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/17808c015732226b02735fc7f32c5cbf3e6073e6">17808c0</a></span></li>
+<li>add 2026-07-16 handoff v30 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/336">#336</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a525484154228648afd7d68547d7a359fa2b34ca">a525484</a></span></li>
+<li>clean up CLAUDE.md (fix JSON contradiction, retire shipped-MVP scaffolding) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/289">#289</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2dca18131392cf28f402ee72abdf6cd355547e8f">2dca181</a></span></li>
+<li>fix README JSON drift and complete the e2e coordinate list ([#306](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/306)) ([e7997b4](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e7997b410f5f9cabc9ae41be2e1aa15a88360724)), closes [#296](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/296)</li>
+<li>record recurring traps and retire the personal memory store <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/286">#286</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/045e05b0e846f554827e7d7679d0f1f5c2875147">045e05b</a></span></li>
+<li>record the file-passing rule for commit messages and PR bodies <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/283">#283</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cdbd6ed3807b0d872626c55b0e93196528a8e942">cdbd6ed</a></span></li>
+<li>record the settled design calls in the playtest notes <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/282">#282</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d82457b59201a34a2b803f58189ec26b1754d966">d82457b</a></span></li>
+</ul>
+</section>
+<section class="release">
+<h2><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.3.0...courier-of-the-borderlands-v0.4.0">0.4.0</a></h2>
+<p class="date">2026-07-15</p>
+<h3>Features</h3>
+<ul>
+<li>add feedback juice on delivery, unlock, repair, and stranding ([#277](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/277)) ([cf53507](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cf535076e35ffbb4aac9dce5295e0a9cc48b2558)), closes [#227](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/227)</li>
+<li>persist runtime error detail to the telemetry dashboard ([#276](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/276)) ([2b60a61](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2b60a61a97211088288bd42cbc040b4c25e1a59b)), closes [#221](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/221)</li>
+</ul>
+<h3>Bug Fixes</h3>
+<ul>
+<li>namespace localStorage per deploy so a preview cannot overwrite a real save ([#279](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/279)) ([fbb4376](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fbb4376e3db398ee1f7c9f6f02469ef6fa6e6fb7)), closes [#278](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/278)</li>
+<li>scroll the journal, skills, and upgrade panels with PgUp/PgDn ([#275](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/275)) ([8860f6f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8860f6fa8bd73b07e0d091b9d7ba7871a49f4f1f)), closes [#274](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/274)</li>
+</ul>
+<h3>Documentation</h3>
+<ul>
+<li>record the 2026-07-15 playtest and close out both design threads <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/272">#272</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8ea658a937b54767cb102af471d36ff47adf6575">8ea658a</a></span></li>
+</ul>
+</section>
+<section class="release">
+<h2><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.2.0...courier-of-the-borderlands-v0.3.0">0.3.0</a></h2>
+<p class="date">2026-07-15</p>
+<h3>Features</h3>
+<ul>
+<li>add a landing page as the site front door ([#245](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/245)) ([0df1479](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0df1479ff96960e25188935edf4f3b68d2df3aa1)), closes [#237](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237)</li>
+<li>add a What&#39;s new page generated from the changelog <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/254">#254</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8587f53961bb443cb1343318dff22e2e08675190">8587f53</a></span></li>
+<li>add screenshots to the landing page and README ([#250](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/250)) ([cc3c6ca](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cc3c6ca4d575db8717ab71e0bed82c0d075ed00c)), closes [#249](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/249)</li>
+<li>label telemetry records with their run source ([#266](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/266)) ([ec35f6a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ec35f6a345530f8983b383f5dc98968ac55add86)), closes [#264](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/264)</li>
+<li>link the manual from the game page <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/252">#252</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8654bc70e8d29add3f31f9ccdda9a75c82bf21e3">8654bc7</a></span></li>
+</ul>
+<h3>Bug Fixes</h3>
+<ul>
+<li>correct the documented difficulty control ([#256](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/256)) ([e3b8d3f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e3b8d3fe913df483637507899246d2ac7a315131)), closes [#255](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/255)</li>
+<li>document the upgrade menu instead of the old buy-cheapest key ([#258](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/258)) ([639e303](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/639e30308008c613d908487fbac2b6ef84ff17ba)), closes [#257](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/257)</li>
+<li>repair the invalid release-please workflow ([#247](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/247)) ([a005c33](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a005c3386946c0e0f38bc348792f39d27956d8be)), closes [#238](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/238)</li>
+<li>show only the current region&#39;s terrain in the codex ([#262](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/262)) ([4bfc9f6](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4bfc9f660eba829c8c1366895e54d8919df6e099)), closes [#251](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/251)</li>
+</ul>
+<h3>Documentation</h3>
+<ul>
+<li>add 2026-07-14 handoff v19 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/241">#241</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b4cade039f6a632fc402edb2577dd10848d1a9ab">b4cade0</a></span></li>
+<li>add 2026-07-15 handoff v20 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/260">#260</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/80e9a8c3fd09c59580d846fe0fda1ee17b0aa382">80e9a8c</a></span></li>
+<li>add 2026-07-15 handoff v21 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/265">#265</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9b8413b8b5d5c32db0c630ce83d6b7c7411250cc">9b8413b</a></span></li>
+<li>add 2026-07-15 handoff v22 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/271">#271</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c003395783424282a05f598a1baf8ca2f6035e4a">c003395</a></span></li>
+<li>add a player-facing credits page <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/253">#253</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c254036f370c04ae063906d2dbc7a9fee263808d">c254036</a></span></li>
+<li>add a player-facing game manual page <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237">#237</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/239">#239</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d6e0e50269d9d0f50e94d85931c86891121b8efe">d6e0e50</a></span></li>
+<li>add an FAQ to the manual ([#259](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/259)) ([693ea6f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/693ea6fb2c7edcde35cbebccc79dd579cffcfc02)), closes [#237](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/237)</li>
+<li>record the RELEASE_PLEASE_TOKEN expiry date ([#244](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/244)) ([a3980b2](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a3980b242e4c35c24d62e25113ec1315653a8142)), closes [#243](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/243)</li>
+<li>update handoff v20 with the resolved release token <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/263">#263</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4c2011781c45cabaf3240c8af8410d719d65542a">4c20117</a></span></li>
+</ul>
+</section>
+<section class="release">
+<h2><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.1.0...courier-of-the-borderlands-v0.2.0">0.2.0</a></h2>
+<p class="date">2026-07-15</p>
+<h3>Features</h3>
+<ul>
+<li>add a second region (Saltreach) with travel between regions <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2660738ca60f80feaa032719b8bc4dbf27be9724">2660738</a></span></li>
+<li>add achievements, weather, bonus objectives, and terrain codex <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/6bf7abd99cc42ac5e3ffcd28b4f003721cbccedc">6bf7abd</a></span></li>
+<li>add arc-driven contract availability (M5.4) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/52">#52</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0df4771400526698ccf2877697522b32b06a62bb">0df4771</a></span></li>
+<li>add camera follow for maps larger than the viewport <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/27">#27</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eff0b61de82a316aa90b7670a6f11e771c686807">eff0b61</a></span></li>
+<li>add cargo types and locked ford to Fenmarch <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/16">#16</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/80db683a9319851d83f5d1cc9df3c7273671ce77">80db683</a></span></li>
+<li>add cargo types with pay effects <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/8">#8</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b181a26d54c6b334041d540aa0af418237d4f85b">b181a26</a></span></li>
+<li>add courier experience and a skill track (M5.1) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/39">#39</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/85fd2726ce86981f0fd83c9eb74f97ff31768712">85fd272</a></span></li>
+<li>add deterministic per-tile terrain variety <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/209">#209</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/215">#215</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/781959ed3348b720051c3d4125af8b2a84cd8757">781959e</a></span></li>
+<li>add drivable courier wagon with smooth top-down movement <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/97d4d246d8bc0732797e19de6aff79432bfebe0d">97d4d24</a></span></li>
+<li>add Fenmarch region and multi-gateway travel <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/9">#9</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ae1876dcb77f18e2507ee1792ca913a9a06dbb64">ae1876d</a></span></li>
+<li>add first delivery contract with pickup, destination, and feedback <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/73b494bc2093957c15d2f4293535a5f04e446d13">73b494b</a></span></li>
+<li>add fog-of-war reveal <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c5f37afc27ada8f2734ef0bb416f3e9a9d4a02f8">c5f37af</a></span></li>
+<li>add Greybridge tile map with terrain data model <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c569c89aaff20b7adbe43e0ce9096d30f78c990c">c569c89</a></span></li>
+<li>add minimap, discoveries journal, run summary, and a second upgrade <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/145316a0e260f98e8c8f48ef412192679506005c">145316a</a></span></li>
+<li>add mission chains as the story spine (M5.3) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/47">#47</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c4365e3ce86a80c43c6d7f987837ad2458fe03a1">c4365e3</a></span></li>
+<li>add non-combat road encounters (M5.3) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/50">#50</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/30d840967ba6e35ddc9714598eb8000d9f5b1396">30d8409</a></span></li>
+<li>add npm run shot for allowlisted visual verification <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/77">#77</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/db14139a965143bfd810f1868b92fa125b33eb7e">db14139</a></span></li>
+<li>add per-PR preview deploys <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/219">#219</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/234">#234</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/32b8ed90534abd82a7906d1c6b82d85951e1b1cc">32b8ed9</a></span></li>
+<li>add pure dialogue engine (M5.2 foundation) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/42">#42</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9a986ca5ca954c4d08d425e5b534007cf07362bc">9a986ca</a></span></li>
+<li>add release versioning and automated release notes <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/218">#218</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/232">#232</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/91f17bd30f33b50864feb4f778684c997252472a">91f17bd</a></span></li>
+<li>add repo-local region-map and playtest-triage skills <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/196">#196</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/94b4b84e971f3b8441c90f86b6c96c0f136da926">94b4b84</a></span></li>
+<li>add reputation-gated contract board at Greywater <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8455abcfbf9d745f03283ea5c15fba6a3a70bdc3">8455abc</a></span></li>
+<li>add route guidance, reputation pay, Sprung Axle, and trip odometer <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a3ce4c7bf36a43cfe13a9669f669a205198f6a5c">a3ce4c7</a></span></li>
+<li>add save and resume with localStorage <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4e1024723c4cec11360ab6cb5be31f68010e4bef">4e10247</a></span></li>
+<li>add seeded PRNG utility and route weather through it <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/28">#28</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8430175353033ae0f402888a47224ad35f410819">8430175</a></span></li>
+<li>add spoke conversations for Saltreach and Fenmarch (M5.2) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/45">#45</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5dd6328f2e9f698828309efdc759d21b66a53382">5dd6328</a></span></li>
+<li>add terrain speed modifiers and impassable tiles <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dcf8903cec578c034a8ffa8987a346a7d1c5ff0a">dcf8903</a></span></li>
+<li>add the Cipher social skill and hook skills into dialogue (M5.2) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/46">#46</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/232ad7ea9167bd602c9f0fcb27cee94c3eb3026a">232ad7e</a></span></li>
+<li>add three contracts, economy, reputation, and vehicle upgrade <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/78cc3fe380fd55c46e5cabaea6f24d7a88919633">78cc3fe</a></span></li>
+<li>add three side-route road encounters <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/51">#51</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2389527d9a0a986b9375b984ebdca27fdfc168e5">2389527</a></span></li>
+<li>add unlockable ford shortcut and unlock system <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/936d9450714d7fd29f8d0a3e642e4d5d4c45ad09">936d945</a></span></li>
+<li>autonomous full-arc playthrough and CI arc-completion check <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/92">#92</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8300bf447df3192740b065510f50ea5cb1e6e0c3">8300bf4</a></span></li>
+<li>capability-key passability (roads-gate-the-wagon slice 1) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/95">#95</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d2909826c5057c1a5f32d17430f5f0d16bbf11da">d290982</a></span></li>
+<li>capture gameplay telemetry and add a dashboard <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/220">#220</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/231">#231</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/67f44887032d785d91db7bcc44853fd42be1cbb2">67f4488</a></span></li>
+<li>clarify what the Cipher skill does <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/183">#183</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/191">#191</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9901be5718f6b58f7e192a9a0811db93ec0e2e88">9901be5</a></span></li>
+<li>ease road travel speed from 1.4x to 1.2x <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/185">#185</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/192">#192</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b46098ae887b2fd4f85e8b48f0fc8d3a34128a16">b46098a</a></span></li>
+<li>end-of-arc capstone panel when the blockade breaks <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/87">#87</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ed80a13a64a5899e468cb74085246e5db1bc6322">ed80a13</a></span></li>
+<li>enlarge Greybridge to 30x22 with new content <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/32">#32</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/121f19ed473489b5b1a6576c67f7804fecd57568">121f19e</a></span></li>
+<li>enlarge the later maps so the difficulty curve stops inverting <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/151">#151</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/165">#165</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/bf6c1fb17559ffd2ad3eea53b2ad4dd113c2c3b6">bf6c1fb</a></span></li>
+<li>Fenholt, a premium contract behind a mere-gated fen (slice 5) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/104">#104</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dc7d9b280916ec2f9fa259cf58a467a7eba1e742">dc7d9b2</a></span></li>
+<li>first-run hardening (boot overlay, intro card, save-failure warning) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/129">#129</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/10dfd18db5b81539cb58ce5651f242d9a410fb75">10dfd18</a></span></li>
+<li>frame the contract board and add a wagon-condition meter <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/203">#203</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/207">#207</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/12f552fff3d292e9d4674d6a1df87816c1413134">12f552f</a></span></li>
+<li>frame the dialogue and story panels with the Kenney panel <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/203">#203</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/205">#205</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f3e9030969c5eaa53d249e5c767e5d018bb2629e">f3e9030</a></span></li>
+<li>frame the toggled overlay panels with a Kenney RPG panel <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/203">#203</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/204">#204</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ddd336b67331f5ccc4de6dad2adeec9028c91c0b">ddd336b</a></span></li>
+<li>give the postmaster a distinct return greeting <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/66">#66</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3779fea01247a9a43acbbd9348730a39f72605e6">3779fea</a></span></li>
+<li>hub region layout and arrival at return gateways <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/24">#24</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2a183b4e827dd97d9e1c2bac795372d55573a93c">2a183b4</a></span></li>
+<li>HUD readability, a coin sink, and clearer gateway signage <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/38">#38</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c44f6ca858c72578473e90385afde626efacc0ac">c44f6ca</a></span></li>
+<li>invalidate stale fog when a region is resized <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/31">#31</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/333740d6716a32734cb50833075ae992835547cb">333740d</a></span></li>
+<li>just-in-time onboarding for weather, skills, upgrades, standing <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/160">#160</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/68abed3255ab0e7bb9d10ce6498f14145c492840">68abed3</a></span></li>
+<li>lock difficulty at a new-game title screen <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/150">#150</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/157">#157</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4efc4141c0dc09c5b19942079688515c70903569">4efc414</a></span></li>
+<li>make contract board header per-region <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/14">#14</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1c254127f73312eedd09e27fa7efa709771e6594">1c25412</a></span></li>
+<li>make deliveries reconnect settlements (world-state slice) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/37">#37</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e263161d59f7751e0391649935a90d80cf8c8c31">e263161</a></span></li>
+<li>make Fenmarch bite with a region wear multiplier <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/186">#186</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/194">#194</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c9b33e346bb3cbbea36fa63f3d9f0fc2dd96c3c8">c9b33e3</a></span></li>
+<li>make the Greybridge ford pay off in a real delivery <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/34">#34</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0b8c2f7f7ddb5a6f29b77184ab21a44a00292b33">0b8c2f7</a></span></li>
+<li>make the journal and skills overlays scrollable and legible <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/62">#62</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5c83cf50c1ea0c58957daf60f3791a8453c535e8">5c83cf5</a></span></li>
+<li>mark unresolved road encounters on the map <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/184">#184</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/193">#193</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4da9a8982aeefa6c626badb89f9d460ca55532b8">4da9a89</a></span></li>
+<li>move the Fenmarch gateway to the south edge <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/25">#25</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ec6014a693b2b44f66be6a8340c3fd0b2da47c6d">ec6014a</a></span></li>
+<li>open new work on the board as a region reconnects <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/88">#88</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9642017219172d67fc5e49be286b5068aebe1b6c">9642017</a></span></li>
+<li>pay a reconnection premium on deliveries to reconnected places <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/86">#86</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5e24994eb860bb79a344212020aa3775afd8cae2">5e24994</a></span></li>
+<li>player-facing difficulty selector for the travel sink <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/135">#135</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/140">#140</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c9261d92ba5f6a80d37b981873e31b2d5b537fa7">c9261d9</a></span></li>
+<li>point the objective toward its target with a compass heading <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/65">#65</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/890cb1c26e98bd96b47cf25f9dad3287abc6ec6e">890cb1c</a></span></li>
+<li>re-readable Recent events log in the journal <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/60">#60</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a1f5dc8e4b360cb8933695f09d711a29ea931dc7">a1f5dc8</a></span></li>
+<li>Reedgrave, a premium contract behind a wagon-gated mire (slice 2) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/97">#97</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dc969543f3078914bc4d0584ee19bba2139fdb9d">dc96954</a></span></li>
+<li>reserved overlay region so panels and toasts stop colliding <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/162">#162</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cfc00bcc16cd684783b2525ad26b1a04b3b25d56">cfc00bc</a></span></li>
+<li>reveal-rewarded wayside discoveries <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/111">#111</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/198">#198</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/28a311def57811a3f4fec69fe02d6a4f39c43ce4">28a311d</a></span></li>
+<li>richer upgrade descriptions that name each effect <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/70">#70</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/06b61303b8c4f1f9af8f411fc968b37badf38a13">06b6130</a></span></li>
+<li>Saltmere, a premium contract behind a tidal-gated lagoon (slice 5) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/103">#103</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fec31cebd175dbb788326eccfaf0cdcf379e1301">fec31ce</a></span></li>
+<li>scaffold M0 walking skeleton with Vite, TypeScript, and Phaser 3 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7df8cfa986d41bc4362aea37c5bf4d3fa696ff1a">7df8cfa</a></span></li>
+<li>scale destination wayfinding by difficulty <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/171">#171</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/173">#173</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4532eb90dea16bcc12fec753f2e46520eaca308c">4532eb9</a></span></li>
+<li>scroll cue on overlays and keep the help line visible <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/75">#75</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dd8fccbc220aa627b0d13eef77695b54717b70e9">dd8fccb</a></span></li>
+<li>selectable wagon upgrade menu <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/161">#161</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/163">#163</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/14e99eeff2cba4970906e21474fc700563eeec74">14e99ee</a></span></li>
+<li>show mission step progress and spell out pickup-then-deliver <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/59">#59</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4025f6c3230d8a8913087f80521676ffb58c8164">4025f6c</a></span></li>
+<li>skills as keys - Off-road rank 2 opens the deep mire <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/99">#99</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/137254fc1e3258d0203a777c5ceacf50abda5dee">137254f</a></span></li>
+<li>skin settlements and signposts with Tiny Town art <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/200">#200</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/201">#201</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eaa6d8b84b192c4023d4e1c84670d4d9abe97b9c">eaa6d8b</a></span></li>
+<li>skin terrain with Kenney tiles behind a data layer <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/152">#152</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/199">#199</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c8bd0e3f8cdaa4b54e8a89514a107a703f077225">c8bd0e3</a></span></li>
+<li>skin the courier as a covered wagon that faces travel <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/200">#200</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/202">#202</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8a0816e0e957e65b243b47a009d7ae86859a69a5">8a0816e</a></span></li>
+<li>surface arc-gated contracts as a Hidden Road journal thread <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/54">#54</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8d9862f3eacbd38df776763e3075db55de736a31">8d9862f</a></span></li>
+<li>surface settlement lore on first arrival <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/448dab2a276da19fbe1ec8dee899cb5c8cffefb9">448dab2</a></span></li>
+<li>surface unspent skill points with a salient badge and recurring nudge <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/174">#174</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/175">#175</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/403b8e899d6be26eb05b76f8b92a1393fa133e5d">403b8e8</a></span></li>
+<li>trail connectors for the spoke off-road settlements <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/176">#176</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/178">#178</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/df47dcf2e997a173a7ac6aff8c8c998439b6fc23">df47dcf</a></span></li>
+<li>trail tile connects off-road settlements without easing wear <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/176">#176</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/177">#177</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2fdb90d182f771c170b272d12e3cb5a2175e88a2">2fdb90d</a></span></li>
+<li>unified HUD status frame and contextual control hints <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/159">#159</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/184a3bd0671a50b4663cf56f564a364068d38eb4">184a3bd</a></span></li>
+<li>wagon condition travel sink (ADR 0005) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/134">#134</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e77783f69c7f70edd0a46e91ba8a578849d17505">e77783f</a></span></li>
+<li>warn when the courier reaches a still-locked ford <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/63">#63</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/aac02d079ee50f82b6152b51eb209c03d481bf7c">aac02d0</a></span></li>
+<li>warn when wagon condition runs low <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/182">#182</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/190">#190</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/182012f14df5968568fe9c125e1cc09b5ec13a00">182012f</a></span></li>
+<li>wire dialogue into the game with the first conversation (M5.2) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/44">#44</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3701b6827c71e144f855f27d49e6f3831d268562">3701b68</a></span></li>
+</ul>
+<h3>Bug Fixes</h3>
+<ul>
+<li>align region-clear with the mission spine and fix playtest bugs ([#132](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/132)) ([13ef95a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/13ef95ab431c67b1403156cdc2e8256425cc47b6)), closes [#131](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/131)</li>
+<li>clear lingering toasts when a conversation opens <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/154">#154</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eb1f02f939591bb125a8b34676699e9f89465cb7">eb1f02f</a></span></li>
+<li>clear Session 2 playtest UX blockers <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/58">#58</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e591de956615662f1357dbfbdfe344ff74355f9c">e591de9</a></span></li>
+<li>harden arc e2e against dropped one-shot key presses <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/107">#107</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/114">#114</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/638371dfbf0560ecaf848b3efc3e4141b40b052f">638371d</a></span></li>
+<li>harden full-arc driver against coast-past-home stall <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/137">#137</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/abdd814aa3ca6e0c8a617aefe9ed0fe471f65616">abdd814</a></span></li>
+<li>hide the contract board while a dialogue is open <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/181">#181</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/189">#189</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4506fe90928ccb1b9cc4d2443e7b252d65ffbe9e">4506fe9</a></span></li>
+<li>hide the redundant in-town gateway sign <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/64">#64</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5b7a3c697ea1de699711702a4444c134e2243306">5b7a3c6</a></span></li>
+<li>hide toasts behind an open blocking overlay so they stop covering it <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/172">#172</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3d76742105661d263747b88d33313383127165d0">3d76742</a></span></li>
+<li>hold toasts until the player dismisses them <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/83">#83</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/94ee33494e07f2907f014c07a9c8af8b77adca3a">94ee334</a></span></li>
+<li>keep coin balance integer after wagon repair <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/145">#145</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/463cc328eba024e169cf972ddd02dfe5507eddf2">463cc32</a></span></li>
+<li>keep edge gateway labels on the map <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/68">#68</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/94be0b27a745ab691e3f4d95763cfc2a30dd7668">94be0b2</a></span></li>
+<li>keep HUD level and skill points in sync while driving <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/146">#146</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/87bdfe79999d96657fe7a6df5b2dd2cbf9b65d92">87bdfe7</a></span></li>
+<li>make ford unlock per-region <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/7">#7</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4ac76c5fdd47a58d9748e5f798187973e308668c">4ac76c5</a></span></li>
+<li>make Salt Runners (upgrade 7) buyable by extending the number keys <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/169">#169</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d32080fe3b61a2e21ad2ef56748b3e1c04f47e35">d32080f</a></span></li>
+<li>make the full-arc gate robust and run it pre-merge on code PRs <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/96">#96</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0f5875373309cfbff912dcebe56d48ab80a3ea75">0f58753</a></span></li>
+<li>migrate old saves on version bump instead of wiping them <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/123">#123</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/127">#127</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/369794b4702a5ea3c3e489658ba73d38efc37c17">369794b</a></span></li>
+<li>move the Fenmarch gateway off Southmill toward the map edge <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/78">#78</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/91376614645f6490579aa4b6c61e90b1fb7e55f5">9137661</a></span></li>
+<li>move toasts clear of the top-left status column <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/74">#74</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3ea3b7d96dfeac446a2c7c24d7aa27c84fe4fe2f">3ea3b7d</a></span></li>
+<li>open gated terrain when a capability is gained mid-scene <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/102">#102</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8356c8fe954992c7b24d59fb95470d5a5bb5b7dd">8356c8f</a></span></li>
+<li>show the Region Cleared panel on every region <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/84">#84</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5394b046f9b8ef4b8ae90196e7053f4780fea032">5394b04</a></span></li>
+<li>signpost the Fenmarch gateway at Southmill <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/73">#73</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b887c13448f346daf598a2928af7eecf93bc022c">b887c13</a></span></li>
+<li>tidal-crossing hint respects capability keys, not just unlocks <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/180">#180</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/188">#188</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7652e8fda2c58184b1b61051852e6b4f19cfcaa4">7652e8f</a></span></li>
+<li>warm return greetings at the spokes after their reveal <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/85">#85</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3adfdc72741ffccfac6e1b5b628bbcefff62db3b">3adfdc7</a></span></li>
+</ul>
+<h3>Performance</h3>
+<ul>
+<li>split the Phaser engine into its own bundle chunk <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/210">#210</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/216">#216</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1b0c66bc617e2755b75179de635945a667bc03a7">1b0c66b</a></span></li>
+</ul>
+<h3>Refactoring</h3>
+<ul>
+<li>extract board, summary, and skill panel text <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/82">#82</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9035b936d7bdcfba73ce31c7b68340b2bc077d1c">9035b93</a></span></li>
+<li>extract DialogueController from map-scene <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/55">#55</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c8a06c590cd26506ac6c05760f5e3573d0ddf806">c8a06c5</a></span></li>
+<li>extract HUD and overlays from map-scene into MapHud <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/43">#43</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/09cb9c74c8f924b0f3bbc517e291ce4cb514f68e">09cb9c7</a></span></li>
+<li>extract journal panel text into a pure module <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/81">#81</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/07530d2d68afaaf5171870c532d103185b43bc58">07530d2</a></span></li>
+<li>extract map markers into a presentation module <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/80">#80</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9ff821a7e5c3086e10b21553cb169667220a3662">9ff821a</a></span></li>
+<li>extract objective/wayfinding text into a pure system <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/71">#71</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fe446a5e44b8094c1a86ef6d4ae98ea75ab003cf">fe446a5</a></span></li>
+</ul>
+<h3>Documentation</h3>
+<ul>
+<li>add 2026-07-05 handoff v03 with updated backlog <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/13">#13</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d6f29ca8753db4aa26c27ada52ad6e9594ee4e54">d6f29ca</a></span></li>
+<li>add 2026-07-05 handoff v04 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/22">#22</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/5f1c99f64b9d285d76208b85196f3a037f103b4d">5f1c99f</a></span></li>
+<li>add 2026-07-05 session handoff (cross-machine) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/5">#5</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e8d35b924077f3a70b336cb98a63119b9b6d245e">e8d35b9</a></span></li>
+<li>add 2026-07-06 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/26">#26</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3a9c8e469d475e4f7411bd950a8a2491464a7675">3a9c8e4</a></span></li>
+<li>add 2026-07-06 handoff v02 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/30">#30</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9e82eb818c61290dfdeba0ab110f8ffe35380870">9e82eb8</a></span></li>
+<li>add 2026-07-06 handoff v03 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/33">#33</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/01cf47c9036908f767d235262674e10dbc828f5b">01cf47c</a></span></li>
+<li>add 2026-07-06 handoff v04 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/36">#36</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a4884470d5e114fa6b67feafa86f48df016a386f">a488447</a></span></li>
+<li>add 2026-07-06 handoff v05 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/40">#40</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2f617d3b38d5a9057b3a24bf541ccfef3a40dd79">2f617d3</a></span></li>
+<li>add 2026-07-07 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/48">#48</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f1c5d77eaf9ab49375bf974d1bb490e27035b1fb">f1c5d77</a></span></li>
+<li>add 2026-07-07 handoff v04 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/56">#56</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/ac358de8f9e5d991da59ecca102929bb1c0b4b8f">ac358de</a></span></li>
+<li>add 2026-07-08 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/61">#61</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2f32134c2680b0eaa5a7de20906e6d8bc1544d76">2f32134</a></span></li>
+<li>add 2026-07-09 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/69">#69</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2bf932827e92b9722f3fb84f66203f68f07a1ab7">2bf9328</a></span></li>
+<li>add 2026-07-09 handoff v02 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/72">#72</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/025282a6f93021b62e50cd13c68ff4abf3b9a773">025282a</a></span></li>
+<li>add 2026-07-09 handoff v04 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/79">#79</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/480bbbfec81fb24f478d62846ca15ef78a9bc411">480bbbf</a></span></li>
+<li>add 2026-07-09 handoff v05 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/89">#89</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a404e71bb12758ee357ab4245e6fac7af852bb9c">a404e71</a></span></li>
+<li>add 2026-07-10 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/98">#98</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8fdcc506e71840303ccab72a1e0bf3de5e602296">8fdcc50</a></span></li>
+<li>add 2026-07-11 handoff v01 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/101">#101</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3c16397f3391f28f4fa95b45ce4ce59763311437">3c16397</a></span></li>
+<li>add 2026-07-11 handoff v02 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/105">#105</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f8d16daf72309cb0def751bbdda2322bce10aa36">f8d16da</a></span></li>
+<li>add 2026-07-11 handoff v03 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/117">#117</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fb0f0ac41f8816161160358df2e41e1c4147adcd">fb0f0ac</a></span></li>
+<li>add 2026-07-11 handoff v04 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/122">#122</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dca437680ce39f90ad80be9cdd84f1007db634f7">dca4376</a></span></li>
+<li>add 2026-07-11 handoff v05 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/130">#130</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/6d0370c46f07cb4aaca37d53b3d2aaa8be4d6f18">6d0370c</a></span></li>
+<li>add 2026-07-11 handoff v06 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/136">#136</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d0b143dfb29ec1b1ee1c61a385e3abaf64628caf">d0b143d</a></span></li>
+<li>add 2026-07-11 handoff v07 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/138">#138</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/deaeeb27d3998b97cdc913b6e467c43fc3e8a63a">deaeeb2</a></span></li>
+<li>add 2026-07-12 handoff v08 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/139">#139</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/3ad51f867bec34e1eda5ea92f99468343426614a">3ad51f8</a></span></li>
+<li>add 2026-07-12 handoff v09 and note the selector in ADR 0005 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/141">#141</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2792a7aab438eb136d48dd153faeede0cf214292">2792a7a</a></span></li>
+<li>add 2026-07-12 handoff v11 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/158">#158</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cd900d1a8def004eb26eb9368934543e50fbd43b">cd900d1</a></span></li>
+<li>add 2026-07-12 handoff v12 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/164">#164</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/999a2a56bbb5a0df85c52923f0639ba6c8393de3">999a2a5</a></span></li>
+<li>add 2026-07-12 handoff v13 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/168">#168</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/9f2dd895b9e0c7b2efc1ac9bb6a93ec8954138a1">9f2dd89</a></span></li>
+<li>add 2026-07-12 handoff v14 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/179">#179</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/8b504edf93aa8b9f60f8d0e3c9380db098eac849">8b504ed</a></span></li>
+<li>add 2026-07-13 handoff v15 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/195">#195</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f0c1697d88c02be2cad39dfbba5c57bfd9126cb4">f0c1697</a></span></li>
+<li>add 2026-07-13 handoff v16 and skills pointer in CLAUDE.md <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/197">#197</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/616f52f15f467dc86c79a1527c27cfc1a18ee990">616f52f</a></span></li>
+<li>add 2026-07-13 handoff v17 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/206">#206</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/221129f963b36907d393c28fd881a28861b66a1a">221129f</a></span></li>
+<li>add 2026-07-13 handoff v18 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/217">#217</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0023249fef9582fa6ede156d1a9a3c52727f5cc3">0023249</a></span></li>
+<li>add command style guidance to CLAUDE.md <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/21">#21</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/86721f6650d03f915325bb1d5008b05a62bbc39d">86721f6</a></span></li>
+<li>add M5.4 playtest prep (Session 2 script + remainder spec) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/57">#57</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c74a1259c0ac70a5a46e34e5f1456efb55f76c86">c74a125</a></span></li>
+<li>add Session 3 playtest notes <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/67">#67</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/bea1ba6822d16849aaa50f54e4588c481f9d5792">bea1ba6</a></span></li>
+<li>adopt GitHub issues as the cross-session tracker <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/112">#112</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/05b465d1c4fb6844e97b578983fff9529c9ddbee">05b465d</a></span></li>
+<li>capture durable owner direction and tooling caveats in CLAUDE.md <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/166">#166</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2c83a8f1c6d44b459786335d6742a3554ef83494">2c83a8f</a></span></li>
+<li>design note for roads-gate-the-wagon progression fix <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/94">#94</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f7dcdd5b34d49655e52c6b0a290db65051d544ad">f7dcdd5</a></span></li>
+<li>drop withdrawn contracts (M5.4 Item 1) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/91">#91</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d5c115ed44d8c4e3bc6ff1787a1870c75590dbd4">d5c115e</a></span></li>
+<li>glance at open GitHub issues at session start <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/108">#108</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/48699ce99bfa7efe6acf26d49ca29e2ae760294c">48699ce</a></span></li>
+<li>link the telemetry dashboard from the README <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/235">#235</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/be116f675d21f79ba923cfa3eb60d8189e86702e">be116f6</a></span></li>
+<li>lock narrative spine (the Blockade) <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/41">#41</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/174044c30da764bbd811ba15c47a1c2e164b70ff">174044c</a></span></li>
+<li>make the repo the durable store; capture PR/auto-merge preference <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/214">#214</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2b62ddcad94fc1f75c1401d3028f1cccfe1f27f8">2b62ddc</a></span></li>
+<li>playtest notes (05) and the M5.4 milestone updated. <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e263161d59f7751e0391649935a90d80cf8c8c31">e263161</a></span></li>
+<li>reconcile milestones with shipped work <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/17">#17</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a83166537fe46e87894ba1e26d4b057364209ff1">a831665</a></span></li>
+<li>record RPG and narrative layer decision and M5 plan <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/35">#35</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0e4241e96b0342bfd9b6c048fe8da3eab0f08f0c">0e4241e</a></span></li>
+<li>record Session 4 playtest results and handoff v03 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/76">#76</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/91b4b86b9935df6ed287a0f1264fa526d3f01f70">91b4b86</a></span></li>
+<li>refresh README to match the shipped build <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/128">#128</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a0592622b06a583fb30ec749ccad88ebe076a755">a059262</a></span></li>
+<li>review and refresh the README <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/236">#236</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/96f0ccc84a8bbd31d7ddc931e5d710bceb5ee857">96f0ccc</a></span></li>
+<li>UI, onboarding, and look-and-feel design proposal <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/147">#147</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/190e0904fbb6bfada4e1ef9d8fa7b07fa86e9ecb">190e090</a></span></li>
+<li>update design docs and add 2026-07-05 handoff v02 <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/issues/10">#10</a>, <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/f273a6e5e997abbee1b9053f0f65f8fe4a6302da">f273a6e</a></span></li>
+<li>update README for the deployed two-region game <span class="refs"><a href="https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c74aea2ea610c999a911b7ccc0e2b26567887218">c74aea2</a></span></li>
+</ul>
+</section>
+<section class="release">
+<h2>0.1.0</h2>
+<p class="date">2026-07-14</p>
+<h3>Features</h3>
+<ul>
+<li>Three-region arc (Greybridge, Saltreach, Fenmarch) with per-region fog of war,</li>
+<li>Full delivery loop: contract board, cargo types with pay modifiers, delivery</li>
+<li>Progression: courier skills and experience, wagon upgrades, and a wagon</li>
+<li>Narrative layer: settlement dialogue, story threads, missions, road</li>
+<li>Unlockable routes: per-region fords and the Off-road mire shortcut.</li>
+<li>Gameplay telemetry captured to localStorage with a standalone dashboard</li>
+</ul>
+<h3>Art</h3>
+<ul>
+<li>Kenney CC0 art skin behind data-driven layers (terrain, settlements,</li>
+</ul>
+<h3>Build and tooling</h3>
+<ul>
+<li>TypeScript + Phaser 3 + Vite, deployed to GitHub Pages.</li>
+<li>Unit tests (Vitest) for pure systems, a browser smoke suite and a full-arc</li>
+<li>Phaser split into its own cached bundle chunk.</li>
+</ul>
+</section>
+    </main>
+
+    <footer>
+      <div>
+        <a href="./index.html">Home</a>
+        <a href="./play.html">Play</a>
+        <a href="./manual.html">Manual</a>
+        <a href="./credits.html">Credits</a>
+        <a href="./telemetry.html">Telemetry</a>
+        <a href="./effort-estimate.html">Effort estimate</a>
+        <a href="https://github.com/ricschuster/Courier-of-the-Borderlands/releases">Releases</a>
+      </div>
+      <p class="back">
+        Generated from <code>CHANGELOG.md</code> at build time.
+      </p>
+    </footer>
+  </body>
+</html>
