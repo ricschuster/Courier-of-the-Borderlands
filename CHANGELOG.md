@@ -10,6 +10,22 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.6.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.5.0...courier-of-the-borderlands-v0.6.0) (2026-07-19)
+
+
+### Features
+
+* add a save indicator and enlarge the minimap ([#342](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/342)) ([fae61df](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fae61df1675915e6cba09a3f90dd827d3109d402))
+* add a solo build-effort estimate page ([#348](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/348)) ([0ab99b0](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0ab99b08fa5a74545223d71168970dd6732df70a)), closes [#347](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/347)
+* give Cipher a secrets-cargo payout rider ([#340](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/340)) ([983d24b](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/983d24b972ee48779619be5a8373891f0e04ef75))
+* give Wayfinder a minimap survey ring ([#341](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/341)) ([a2972ea](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a2972eafdd7a702562dd820a1fd2de90739b4853))
+* rebalance relief upgrades so all three add speed ([#339](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/339)) ([a4dec13](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a4dec13a43c919bfb88966ca8b6a751b013e3f58))
+
+
+### Bug Fixes
+
+* name the real exit when stranded and too broke to repair ([#337](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/337)) ([e2419e8](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e2419e8a8522a63d204b46dbc9653ea265492d5c)), closes [#317](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/317)
+
 ## [0.5.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.4.0...courier-of-the-borderlands-v0.5.0) (2026-07-18)
 
 
