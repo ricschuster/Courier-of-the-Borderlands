@@ -3,6 +3,7 @@ import { REGIONS, type Region } from '../../src/systems/region-system';
 import { createTileMap, getTerrainIdAt, type TileMap } from '../../src/systems/tile-map';
 import { getTerrain, isPassableWith } from '../../src/systems/terrain-system';
 import { findPath, type PathNode, type PathResult } from '../../src/systems/pathfinding';
+import { RECONNECTED_NOTES } from '../../src/data/reconnection-notes';
 
 // Data-driven invariants over every authored region. These are "property"
 // tests in the sense that the properties must hold for all shipped regions and
@@ -149,6 +150,22 @@ describe.each(regionEntries)('region invariants: %s', (_id, region) => {
       expect(path.reachable, `contract ${c.id}: no route ${c.pickupId} -> ${c.destinationId}`).toBe(
         true,
       );
+    }
+  });
+
+  // Narrative-consistency guard (#299). Reconnecting a settlement is the felt
+  // payoff of a delivery, and it reads as one only when the place answers in its
+  // own voice. Three pocket destinations (reedgrave, saltmere, fenholt) silently
+  // fell back to the shared "The road here is open again" line for months,
+  // because nothing checked. No contract delivers to a home settlement, so every
+  // destination needs bespoke text and there is no exemption list to maintain.
+  it('has a bespoke reconnection note for every contract destination', () => {
+    for (const c of region.contracts) {
+      expect(
+        RECONNECTED_NOTES[c.destinationId],
+        `contract ${c.id} reconnects '${c.destinationId}', which has no bespoke note in ` +
+          `src/data/reconnection-notes.ts and would fall back to the generic line`,
+      ).toBeDefined();
     }
   });
 });

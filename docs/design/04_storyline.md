@@ -157,6 +157,26 @@ This is what makes the spine buildable on what already exists.
   settlements is that region's act beat and the trigger for its reveal.
 - **Reconnection notes (built, `src/data/reconnection-notes.ts`).** Already the
   felt payoff per settlement; consistent with this conceit and reusable as-is.
+
+  **Pocket settlements authored (2026-07-24, #299).** Reedgrave, Saltmere, and
+  Fenholt are the three premium pocket destinations, each reached by wading a
+  gated shortcut or taking the long way round, and each reconnected by a secrets
+  contract. All three silently fell back to the generic "The road here is open
+  again" line, which read as the world not noticing the hardest deliveries in
+  the game. Their notes now answer the specific cargo:
+
+  - **Reedgrave** (a lead-sealed casket the marsh "has been promised"): the
+    casket goes to the black channel, and for one night the reeds do not move.
+  - **Saltmere** (drowned quietly, no one sent word): someone behind the lagoon
+    had been waiting to hear otherwise.
+  - **Fenholt** (the fen closed over its road): no reply comes, but fresh poles
+    stand in the flats, as though a causeway were being remembered.
+
+  None names what is inside a sealed cargo, per the deliberately-left-open
+  guardrail, and none reuses the lamp image Mirewatch and Duskmere already own.
+  A region invariant now fails if any contract destination lacks bespoke text,
+  so the next authored destination cannot repeat the omission. No contract
+  delivers to a home settlement, so the rule needs no exemption list.
 - **Dialogue (M5.2).** Branching nodes plus **story flags** carry the reveals and
   gate the act transitions (for example `greybridge_reveal`,
   `saltreach_method`, `fenmarch_cost`, `blockade_broken`). Story flags are the

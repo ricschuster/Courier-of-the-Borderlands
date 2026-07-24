@@ -20,6 +20,8 @@ export const RECONNECTED_NOTES: Readonly<Record<string, string>> = {
     'The hill clans set a fresh stone at Northcairn. The writ was read; the passes stay open a while longer.',
   mirewatch:
     'Mirewatch takes the sealed tube without a word. A lamp now burns out in the reeds where none did before.',
+  reedgrave:
+    'Reedgrave takes the casket down to the black channel and gives it to the water. The marsh has what it was promised, and for one night the reeds do not move at all.',
 
   // Saltreach
   reedford:
@@ -28,6 +30,8 @@ export const RECONNECTED_NOTES: Readonly<Record<string, string>> = {
     'Saltkeep opens its accounts to you. The garrison seems to remember there is still a road home.',
   'cormorant-rock':
     'The birds of Cormorant Rock scatter and wheel back. Your unsigned letter reached whoever it was meant for.',
+  saltmere:
+    'Saltmere drowned quietly and no one sent word. Someone behind the lagoon has been waiting to hear otherwise, and now they have.',
 
   // Fenmarch
   duskmere:
@@ -36,6 +40,8 @@ export const RECONNECTED_NOTES: Readonly<Record<string, string>> = {
     'Thornwick unbars its gate the width of a ledger. What it guards is still never named.',
   hollowfen:
     'The old stones at Hollowfen stand a little less alone. The waiting, for now, has an answer.',
+  fenholt:
+    'Fenholt reads the cipher behind the mere and sends no reply. The next time you pass, fresh poles stand in the flats, as though a causeway were being remembered.',
 };
 
 /** Payoff line for a reconnected settlement, or a generic line if none authored. */
