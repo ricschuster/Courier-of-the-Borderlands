@@ -425,3 +425,38 @@ No bugs, confusions, or balance complaints were reported, so nothing was triaged
 into fix-now work. This is the first playtest in the log to generate no fixes,
 which is itself the signal: both design directions the project has been running
 on since 2026-07-09 are now finished.
+
+## Toast queue (settled 2026-07-24, #327)
+
+The 2026-07-16 blind run reported two toast problems: a stale "Wagon repaired"
+sitting on screen for minutes, and three toasts plus a banner stacking on
+arrival and burying the actionable line. The obvious answer, an auto-fade, was
+held back for eight days because it would reverse a decision this log had
+already tuned twice: toasts once faded on a length-scaled timer (roughly 4.5 to
+9 seconds, see Session 5 above), and a playtest complained they vanished before
+they could be read, which is why they now hold until Space.
+
+**Decision: keep the hold, queue the messages. No timers anywhere.**
+
+- Only one toast is on screen at a time. The rest wait behind it, so a pile-up
+  cannot bury the actionable line or the banner.
+- Each message costs its own Space press. Previously one press called a
+  clear-all, so when three arrived together the player read one and silently
+  lost two.
+- The dismiss cue carries the waiting count ("Space: dismiss (2 more)"), because
+  a queue is otherwise invisible: nothing tells the player that Space reveals
+  another message rather than returning to a quiet screen.
+- A repeat of a message already queued is dropped rather than queued twice.
+  Several toasts fire on a condition rather than an event (the blocked-ford
+  hint, the low-condition and save-failure warnings), and without this the
+  player would pay a press per repeat of a line they had already read.
+- Opening a conversation now hides the toast for the duration and restores it
+  afterwards, rather than clearing it. The 2026-07-12 complaint was a popup
+  sitting over the greeting, which hiding solves; clearing would have discarded
+  unread messages, which is the same bug in a different place.
+
+The owner's framing when picking this shape: no timer, and each toast should
+need its own press. The queue rules are pure and live in
+`src/systems/toast-queue.ts`; `tests/e2e/toast-queue.spec.ts` pins the browser
+behaviour, and both halves were verified by neutralizing them and watching the
+suite fail.

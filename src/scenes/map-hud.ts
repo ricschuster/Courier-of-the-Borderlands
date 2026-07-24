@@ -14,6 +14,15 @@ import { buildLegend, type LegendTerrain } from '../systems/legend';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
+import {
+  EMPTY_TOAST_QUEUE,
+  clearToastQueue,
+  dismissCurrentToast,
+  enqueueToast,
+  pendingToastCount,
+  toastDismissHint,
+  type ToastQueue,
+} from '../systems/toast-queue';
 import { ScrollablePanel } from './scrollable-panel';
 import { FramedPanel } from './framed-panel';
 
@@ -95,13 +104,12 @@ const WAGON_NUMBER_COLOR: Readonly<Record<WagonState, string>> = {
 const MINIMAP_CELL = 9;
 const MINIMAP_MAX_PX = 288;
 
-// Toasts stack downward from TOAST_TOP, just below the top-left status panel, so
-// a tall multi-line toast grows into the map rather than up over the status.
-// They flow by measured height (TOAST_GAP between them) rather than a fixed slot
-// pitch, so a wrapped multi-line toast never overlaps the next one. See
-// docs/design/05_playtest_notes.md and docs/design/08_ui_and_onboarding.md.
+// The toast hangs from TOAST_TOP, just below the top-left status panel, so a
+// tall multi-line message grows into the map rather than up over the status.
+// Only one is on screen at a time (the rest queue), so there is no stacking
+// pitch to reserve. See docs/design/05_playtest_notes.md and
+// docs/design/08_ui_and_onboarding.md.
 const TOAST_TOP = 162;
-const TOAST_GAP = 8;
 
 /** Wallet line inputs, assembled into the top status line by the HUD. */
 export interface WalletView {
@@ -166,9 +174,12 @@ export class MapHud {
   // Label above the minimap so it reads as a map, not noise (#327).
   private readonly minimapTitle: Phaser.GameObjects.Text;
   private minimapVisible = false;
-  // Active toasts keyed by slot. They persist until the player dismisses them
-  // (no fade timer), so a story or delivery message can be read at any pace.
-  private readonly toasts = new Map<number, Phaser.GameObjects.Text>();
+  // Queued messages and the single Text object rendering the front of the queue.
+  // Toasts persist until the player dismisses them (no fade timer), so a story or
+  // delivery message can be read at any pace, and only one is on screen at a time
+  // so a pile-up cannot bury the actionable line (#327).
+  private toastQueue: ToastQueue = EMPTY_TOAST_QUEUE;
+  private toastText: Phaser.GameObjects.Text | null = null;
 
   /**
    * @param legendTerrains the terrains this region's map uses, for the codex.
@@ -560,6 +571,8 @@ export class MapHud {
   setDialogue(view: DialogueView | null): void {
     if (view === null) {
       this.dialoguePanel.setVisible(false);
+      // The conversation is over, so any held message can come back.
+      this.layoutToasts();
       return;
     }
     const lines = [view.speaker.toUpperCase(), '', view.text, ''];
@@ -568,6 +581,10 @@ export class MapHud {
     });
     lines.push('', 'Press a number to choose. Esc to step away.');
     this.dialoguePanel.setText(lines.join('\n')).setVisible(true);
+    // Hide rather than discard: a toast over the greeting was a 2026-07-12
+    // playtest complaint, but the queue may hold messages the player has not
+    // read yet, and clearing them here would lose them unread (#327).
+    this.layoutToasts();
   }
 
   isDialogueVisible(): boolean {
@@ -810,32 +827,51 @@ export class MapHud {
   // --- Toast ------------------------------------------------------------
 
   /**
-   * Centred message that stays until the player dismisses it (Space), rather
-   * than fading on a timer that was always either too short or too long (Session
-   * 5 playtest). `slot` stacks simultaneous toasts (0 = first, below the status
-   * column; 1, 2 sit under it); a new toast in a slot replaces the old one.
+   * Queue a centred message. It stays until the player dismisses it (Space),
+   * rather than fading on a timer that was always either too short or too long
+   * (Session 5 playtest).
+   *
+   * Messages queue rather than stack: arriving at a settlement can raise a
+   * delivery line, a settlement note, and an achievement in the same frame, and
+   * showing all three buried the actionable line while one Space wiped all three
+   * unread (#327). The queue rules live in `systems/toast-queue`.
    *
    * Toasts are laid out in a band that clears the contract board: when the board
    * is up (at home) they sit in the free area to its right, otherwise centred.
    * This removes the toast-over-board overlap the D1 pass targets (#149).
    */
-  showToast(message: string, slot = 0): void {
-    this.toasts.get(slot)?.destroy();
-    const toast = this.scene.add
-      .text(GAME_WIDTH / 2, TOAST_TOP, message, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffffff',
-        backgroundColor: '#00000088',
-        padding: { x: 8, y: 4 },
-        align: 'center',
-      })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(DEPTH_HUD);
-    this.toasts.set(slot, toast);
-    // Lay out every active toast, so a new one at home also nudges any lingering
-    // road toast out from over the board.
+  showToast(message: string): void {
+    this.toastQueue = enqueueToast(this.toastQueue, message);
+    this.renderToast();
+  }
+
+  /**
+   * Sync the on-screen Text with the front of the queue. Reuses the one Text
+   * object across messages so the toast keeps its depth and scroll settings.
+   */
+  private renderToast(): void {
+    const message = this.toastQueue.current;
+    if (message === null) {
+      this.toastText?.destroy();
+      this.toastText = null;
+      return;
+    }
+    if (this.toastText === null) {
+      this.toastText = this.scene.add
+        .text(GAME_WIDTH / 2, TOAST_TOP, message, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ffffff',
+          backgroundColor: '#00000088',
+          padding: { x: 8, y: 4 },
+          align: 'center',
+        })
+        .setOrigin(0.5, 0)
+        .setScrollFactor(0)
+        .setDepth(DEPTH_HUD);
+    } else {
+      this.toastText.setText(message);
+    }
     this.layoutToasts();
   }
 
@@ -850,43 +886,58 @@ export class MapHud {
     return { centerX: GAME_WIDTH / 2, wrapW: GAME_WIDTH - 80 };
   }
 
-  /**
-   * Anchor every active toast to the current band and stack them by measured
-   * height (lowest slot on top), so a wrapped multi-line toast never overlaps
-   * the next one and none of them overlap the board.
-   */
+  /** Anchor the toast to the current band so it never overlaps the board. */
   layoutToasts(): void {
     // A blocking overlay (upgrade menu, journal, skills, codex) fills the centre
     // where toasts also sit, and it hides the board so the side-band dodge does
-    // not apply. Rather than fight it, hide the toasts while such a panel is open;
-    // they persist undismissed and reappear (via layoutToasts on close) once the
+    // not apply. Rather than fight it, hide the toast while such a panel is open;
+    // it persists undismissed and reappears (via layoutToasts on close) once the
     // panel is shut, so the "clean switch" the D1 pass intends holds here too
     // (#170).
-    const hidden = this.isBlockingOverlayOpen();
+    if (this.toastText === null) {
+      return;
+    }
     const band = this.toastBand();
-    let y = TOAST_TOP;
-    for (const slot of [...this.toasts.keys()].sort((a, b) => a - b)) {
-      const toast = this.toasts.get(slot);
-      if (toast === undefined) {
-        continue;
-      }
-      toast.setVisible(!hidden);
-      // Set the wrap width first: it re-renders the text and updates height.
-      toast.setWordWrapWidth(band.wrapW).setX(band.centerX).setY(y);
-      y += toast.height + TOAST_GAP;
-    }
+    // The dialogue box sits in the same centre band and is not a "blocking
+    // overlay" (it has its own Esc and board handling), so it gets the same
+    // hide-and-restore treatment here rather than being folded into that
+    // predicate, which also gates board input and Esc.
+    this.toastText.setVisible(!this.isBlockingOverlayOpen() && !this.isDialogueVisible());
+    // Set the wrap width first: it re-renders the text and updates height.
+    this.toastText.setWordWrapWidth(band.wrapW).setX(band.centerX).setY(TOAST_TOP);
   }
 
-  /** Whether any toast is currently on screen, so the scene can show a dismiss cue. */
+  /** Whether a toast is currently on screen, so the scene can show a dismiss cue. */
   hasToasts(): boolean {
-    return this.toasts.size > 0;
+    return this.toastQueue.current !== null;
   }
 
-  /** Clear every visible toast. Called when the player presses the dismiss key. */
-  dismissToasts(): void {
-    for (const toast of this.toasts.values()) {
-      toast.destroy();
-    }
-    this.toasts.clear();
+  /**
+   * Advance the queue by one. Called when the player presses the dismiss key, so
+   * each message costs its own press and none is cleared unread (#327).
+   */
+  dismissToast(): void {
+    this.toastQueue = dismissCurrentToast(this.toastQueue);
+    this.renderToast();
+  }
+
+  /**
+   * Drop the whole queue, including messages never shown. For the case where the
+   * screen is taken over wholesale (the end-of-arc capstone), not for the
+   * dismiss key.
+   */
+  clearToasts(): void {
+    this.toastQueue = clearToastQueue();
+    this.renderToast();
+  }
+
+  /** The dismiss cue for the help line, including any waiting count, or null. */
+  toastHint(): string | null {
+    return toastDismissHint(this.toastQueue);
+  }
+
+  /** Queue state for the e2e bridge: what is up, and how much is behind it. */
+  toastState(): { readonly current: string | null; readonly pending: number } {
+    return { current: this.toastQueue.current, pending: pendingToastCount(this.toastQueue) };
   }
 }

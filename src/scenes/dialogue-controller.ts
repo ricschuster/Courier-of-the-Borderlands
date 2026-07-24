@@ -156,10 +156,11 @@ export class DialogueController {
     if (start === undefined) {
       return false;
     }
-    // Clear any lingering toasts (the "arrival" note persists until dismissed) so
-    // they do not sit over the conversation. The dialogue is now the focus; a
-    // stale popup overlapping the greeting was a 2026-07-12 playtest complaint.
-    this.host.getHud().dismissToasts();
+    // A lingering toast (the "arrival" note persists until dismissed) must not
+    // sit over the conversation: a stale popup overlapping the greeting was a
+    // 2026-07-12 playtest complaint. The HUD now hides toasts for the duration
+    // of the dialogue and restores them when it closes, so an unread queued
+    // message survives the conversation instead of being dropped (#327).
     this.activeDialogue = dialogue;
     this.dialogueNodeId = start.id;
     this.showDialogueNode();
