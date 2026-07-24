@@ -32,8 +32,14 @@ export interface TerrainType {
 }
 
 export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
-  plains: { id: 'plains', name: 'Plains', color: 0x5a8f4a, passable: true, speedModifier: 1 },
-  forest: { id: 'forest', name: 'Forest', color: 0x2f5a2a, passable: true, speedModifier: 0.55 },
+  // Terrain fill colours (minimap, legend, terrain readout; the main map is
+  // sprite-skinned, #203). The passable wet terrains are pulled onto the blue
+  // axis so the old four-greens set (plains/forest/marsh/deep-mire, separable
+  // only by lightness) no longer collapses under deuteranopia/protanopia (#228):
+  // plains stays light green and forest dark green, but marsh reads teal and the
+  // deep mire slate-blue, distinct by hue as well as lightness.
+  plains: { id: 'plains', name: 'Plains', color: 0x6fa24a, passable: true, speedModifier: 1 },
+  forest: { id: 'forest', name: 'Forest', color: 0x1e6e3a, passable: true, speedModifier: 0.55 },
   // Road/bridge: the fast way to travel. Movement was 1.4x but read as too fast
   // on the open road (2026-07-12 playtest, #185), so it is eased to 1.2x. Wear is
   // pinned at 1.4x via wearSpeedModifier so roads still normalise to roughness 0
@@ -62,7 +68,7 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   hills: { id: 'hills', name: 'Hills', color: 0x8a7f5a, passable: true, speedModifier: 0.75 },
   // Marsh: passable but the slowest open terrain, so the southern reeds punish
   // anyone who leaves the road for a straight line.
-  marsh: { id: 'marsh', name: 'Marsh', color: 0x4a6a4a, passable: true, speedModifier: 0.45 },
+  marsh: { id: 'marsh', name: 'Marsh', color: 0x3f8f86, passable: true, speedModifier: 0.45 },
   // Trail: a rough dirt track that connects the off-road settlements to the road
   // network so no village looks stranded in blank wilderness (#176). It reads and
   // drives as a path (a touch quicker than trackless forest/marsh), but its wear
@@ -83,7 +89,7 @@ export const TERRAIN_TYPES: Readonly<Record<string, TerrainType>> = {
   'deep-mire': {
     id: 'deep-mire',
     name: 'Deep Mire',
-    color: 0x3b4a38,
+    color: 0x35485c,
     passable: false,
     speedModifier: 0.4,
     unlockId: 'mire-crossing',
