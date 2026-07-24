@@ -63,7 +63,7 @@ jobs:
       #
       # The token expires 2026-12-31. On expiry this silently falls back to the
       # blocked-PR behaviour above rather than failing loudly. Rotation: #243.
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
