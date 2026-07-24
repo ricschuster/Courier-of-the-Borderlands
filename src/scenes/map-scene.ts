@@ -692,6 +692,25 @@ export class MapScene extends Phaser.Scene {
       return;
     }
 
+    // A blocking overlay (journal, skills, codex, upgrade menu) is modal too
+    // (#300). It used to be a cosmetic layer over live gameplay: the blind run
+    // drove twelve tiles behind a panel without knowing, wearing the wagon, and
+    // a delivery could pay out, R could repair, T could cross a region gateway,
+    // and a road encounter could open its dialogue on top of the open panel.
+    // Only the panel's own input runs here, so the world is paused exactly as it
+    // is for a conversation, and one thing is on screen at a time (#149).
+    if (this.hud.isBlockingOverlayOpen()) {
+      this.courier.setVelocity(0, 0);
+      this.handleSkillInput();
+      this.handleUpgradeInput();
+      this.handleUpgradeToggle();
+      this.handleToggles();
+      // After the toggles, so a panel opened this frame is the one that pages.
+      this.handleScrollInput();
+      this.handleOverlayEscape();
+      return;
+    }
+
     const input: MoveInput = {
       up: this.cursors.up.isDown || this.wasd.W.isDown,
       down: this.cursors.down.isDown || this.wasd.S.isDown,
