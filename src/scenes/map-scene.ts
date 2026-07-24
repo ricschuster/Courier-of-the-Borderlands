@@ -621,7 +621,7 @@ export class MapScene extends Phaser.Scene {
         result === 'unavailable'
           ? 'This browser is not saving progress (private mode or storage is disabled).'
           : 'Could not save progress (browser storage may be full).';
-      this.hud.showToast(`${reason} Your run will be lost when you close the tab.`, 1);
+      this.hud.showToast(`${reason} Your run will be lost when you close the tab.`);
     }
   }
 
@@ -1647,10 +1647,14 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Clear any on-screen toasts when the player presses the dismiss key (Space). */
+  /**
+   * Advance the toast queue when the player presses the dismiss key (Space).
+   * One press clears one message and reveals the next, so a message queued
+   * behind another is never dismissed unread (#327).
+   */
   private handleDismissInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.dismissKey) && this.hud.hasToasts()) {
-      this.hud.dismissToasts();
+      this.hud.dismissToast();
     }
   }
 
@@ -1745,9 +1749,12 @@ export class MapScene extends Phaser.Scene {
     }
 
     // Only cue the dismiss key while a toast is actually up (Session 5 playtest:
-    // messages now hold until Space).
-    if (this.hud.hasToasts()) {
-      segments.push('Space: dismiss');
+    // messages now hold until Space). The cue carries the waiting count, since a
+    // queue is otherwise invisible: the player cannot tell that Space reveals
+    // another message rather than returning to a quiet screen (#327).
+    const toastHint = this.hud.toastHint();
+    if (toastHint !== null) {
+      segments.push(toastHint);
     }
 
     segments.push('N: new game');
@@ -1987,9 +1994,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   /** Toast a story message and keep it in the journal's re-readable recent log. */
-  private logEvent(message: string, slot = 0): void {
+  private logEvent(message: string): void {
     this.recentEvents = pushEvent(this.recentEvents, message);
-    this.hud.showToast(message, slot);
+    this.hud.showToast(message);
   }
 
   private refreshJournal(): void {
@@ -2050,10 +2057,12 @@ export class MapScene extends Phaser.Scene {
       this.hud.setCapstone(null);
       return;
     }
-    // On the frame the finale first appears, clear any lingering toast so it does
-    // not cross the panel, and retire the region-cleared summary it supersedes.
+    // On the frame the finale first appears, clear the whole toast queue so no
+    // message crosses the panel, and retire the region-cleared summary it
+    // supersedes. Clear-all rather than one press: the finale takes the screen
+    // over wholesale, and there is no run left for a queued line to inform.
     if (!this.hud.isCapstoneVisible()) {
-      this.hud.dismissToasts();
+      this.hud.clearToasts();
       this.summaryDismissedRegions.add(this.region.id);
       this.hud.setSummary(null);
       // Rising edge of the finale: capture the arc-completion telemetry milestone.
@@ -2156,7 +2165,7 @@ export class MapScene extends Phaser.Scene {
       this.achievements.add(id);
       if (announce) {
         const def = ACHIEVEMENTS.find((a) => a.id === id);
-        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`, 2);
+        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`);
       }
     }
   }
@@ -2225,7 +2234,7 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.visited.add(settlement.id);
-    this.logEvent(`${settlement.name}. ${settlement.note}`, 1);
+    this.logEvent(`${settlement.name}. ${settlement.note}`);
     this.refreshAchievements(true);
     this.save();
   }

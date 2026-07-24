@@ -107,6 +107,12 @@ export interface E2EState {
   /** Whether the home contract board is currently shown. */
   readonly boardVisible: boolean;
   /**
+   * The toast on screen and how many are queued behind it (#327). Toasts render
+   * to canvas, so this is the only way a spec can tell that a message is up, or
+   * that a dismiss press revealed the next one rather than clearing everything.
+   */
+  readonly toasts: { readonly current: string | null; readonly pending: number };
+  /**
    * The board contract a first digit-press has armed and that a second press of
    * the same slot will accept, or null when nothing is armed (#321).
    */
@@ -336,6 +342,7 @@ function buildState(host: E2EHost): E2EState {
     summaryVisible: hud.isSummaryVisible(),
     capstoneVisible: hud.isCapstoneVisible(),
     boardVisible: hud.isBoardVisible(),
+    toasts: hud.toastState(),
     armedContractId: host.armedContractId(),
     activeMissionId: e2eObjective?.mission.id ?? null,
     activeMissionStepId: e2eObjective?.step.id ?? null,
