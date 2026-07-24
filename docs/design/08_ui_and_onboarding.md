@@ -172,6 +172,29 @@ a real UI change and probably its own issue once the frame (D1) exists.
    validated 2026-07-12 balance arc ran with full info, so distance-hiding on
    Standard is a deliberate difficulty increase to re-check on the next playtest.
 
+5. Overlays are modal (#300, decided 2026-07-24): **a blocking overlay pauses
+   the world, exactly as a conversation does.** Until now only dialogue froze the
+   wagon; the journal, skills, codex, and upgrade menu were cosmetic layers over
+   live gameplay. The 2026-07-16 persona playtest measured what that allowed with
+   the journal open: twelve tiles driven with wear accrued, a delivery paid out
+   under the panel, R repairing, T crossing a region gateway, and a road
+   encounter opening its dialogue on top of the open journal. The blind player
+   drove behind a panel without knowing, and only discovered it after closing.
+
+   Nothing desynced, so this was a legibility call rather than a bug: the choice
+   was to bless peek-while-driving or to make panels modal. Modal won because no
+   player ever asked to act behind a panel, one reported being surprised by it,
+   and the encounter-over-journal case broke the one-thing-at-a-time rule the D1
+   pass had already committed to.
+
+   While a blocking overlay is up, only the panel's own input runs: skill and
+   upgrade digits, the toggle keys, page scrolling, and Esc. Driving, wear, fog
+   reveal, delivery, arrival, encounters, repair, and gateway travel are all
+   suspended until it closes. `tests/e2e/overlay-freeze.spec.ts` pins both
+   directions, because freezing too much is as broken as freezing too little: an
+   early return that skipped the panel handlers would trap the player inside a
+   panel they could not use or close.
+
 ## Art (deferred: fix first, then discuss)
 
 Decision 2026-07-12: **not yet.** Fix the gameplay and UI issues first, then open
