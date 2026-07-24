@@ -176,8 +176,8 @@ There is no JSON game data, and adding some is a non-goal. The early docs
 recommended JSON "eventually," but the project settled on typed modules because
 they get compiler checking for free and need no schema tooling. Do not report
 JSON data as current state or plan against it; a tool or feature that assumes a
-JSON content layer (see the closed #225 and #229) is building on something that
-does not exist. Migrating to JSON would need an ADR in `docs/decisions/` first.
+JSON content layer (see the closed #225) is building on something that does not
+exist. Migrating to JSON would need an ADR in `docs/decisions/` first.
 
 ## Testing expectations
 
