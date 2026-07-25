@@ -91,11 +91,29 @@ test('unlocked ford shortens the pathfinding route and is drivable', async ({ pa
 
   // Drive across the ford for real, proving it is not just marked passable.
   const visited: string[] = [];
-  await driveToTile(page, held, eastGoalX, eastGoalY, (t) => visited.push(`${t.x},${t.y}`));
+  const cues = new Set<string>();
+  await page.evaluate(() => globalThis.__courier?.clearAudioCue());
+  await driveToTile(
+    page,
+    held,
+    eastGoalX,
+    eastGoalY,
+    (t) => visited.push(`${t.x},${t.y}`),
+    (state) => {
+      if (state.audio.lastCue !== null) {
+        cues.add(state.audio.lastCue);
+      }
+    },
+  );
   expect(
     visited,
     'courier should have physically occupied the ford tile while crossing',
   ).toContain(`${fordTileX},${fordTileY}`);
+  // Water under the wheels (#383). This crossing is the only place in the suite
+  // the ford cue can be proven to have a caller: the drive above is already here,
+  // and with no sound device a cue that never fires is indistinguishable from one
+  // that does (trap 1).
+  expect(cues, `cues while crossing the ford: ${[...cues].join(', ')}`).toContain('ford-crossed');
 
   expect(errors, `runtime errors during ford route run:\n${errors.join('\n')}`).toEqual([]);
 });

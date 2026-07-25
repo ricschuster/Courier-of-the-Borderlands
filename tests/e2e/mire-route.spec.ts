@@ -78,6 +78,16 @@ test('ranking Off-road to 2 opens the deep mire in the same scene', async ({ pag
   );
   expect(mireGated, 'deep mire should be impassable at Off-road rank 1').toBe(false);
 
+  // Park on the mire's west edge while it is still gated. Standing beside ground
+  // the wagon cannot cross raises the "blocked" hint, and #383 gave that hint a
+  // sound. This is the one place in the suite that cue has a caller to prove, and
+  // with no sound device in CI a call site that never fires is indistinguishable
+  // from one that does (trap 1).
+  await driveToTile(page, held, MIRE_TILE.x - 1, MIRE_TILE.y);
+  await expect
+    .poll(async () => (await readTick(page, 0, 0)).state.audio.lastCue, { timeout: 5_000 })
+    .toBe('ford-blocked');
+
   // Open the skill panel and rank Off-road (panel slot 2) to rank 2, re-pressing
   // until it registers. Ranking works anywhere, so no home visit is needed.
   await setSkillPanel(page, true);
@@ -98,13 +108,27 @@ test('ranking Off-road to 2 opens the deep mire in the same scene', async ({ pag
   // edge and driveToTile throws. The onTile callback records the route so we can
   // assert the mire tile was physically occupied.
   const visited: string[] = [];
-  await driveToTile(page, held, REEDGRAVE_TILE.x, REEDGRAVE_TILE.y, (t) =>
-    visited.push(`${t.x},${t.y}`),
+  const cues = new Set<string>();
+  await page.evaluate(() => globalThis.__courier?.clearAudioCue());
+  await driveToTile(
+    page,
+    held,
+    REEDGRAVE_TILE.x,
+    REEDGRAVE_TILE.y,
+    (t) => visited.push(`${t.x},${t.y}`),
+    (state) => {
+      if (state.audio.lastCue !== null) {
+        cues.add(state.audio.lastCue);
+      }
+    },
   );
   expect(
     visited,
     'courier should have physically crossed the deep-mire tile',
   ).toContain(`${MIRE_TILE.x},${MIRE_TILE.y}`);
+  // And it sounded like wet, heavy ground rather than like nothing (#383). Same
+  // trap-1 reasoning as the blocked cue above.
+  expect(cues, `cues while crossing the mire: ${[...cues].join(', ')}`).toContain('gated-ground');
 
   expect(errors, `runtime errors during mire route run:\n${errors.join('\n')}`).toEqual([]);
 });

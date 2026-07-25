@@ -2,8 +2,10 @@
 
 Status: designed 2026-07-25. Phase 1 (eight synthesized cues) built the same day
 in #382. The owner then asked for far more of them, which is "The breadth pass"
-below and is tracked as #383, #384 and #385. Real samples and music are still owed;
-see "Placeholder first, samples second". Tracks #226.
+below. #383 built the rolling bed, the master gain, the tier discipline and the
+one-cue-per-frame rule; #384 and #385 add the remaining cues on top of it. Real
+samples and music are still owed; see "Placeholder first, samples second".
+Tracks #226.
 
 Scope of this note: sound effects. Music is deliberately out of the first slice
 (see "Music, and why it is not here yet").
@@ -183,6 +185,83 @@ carries everything, which is also where a future volume slider goes.
 Scroll stays silent by decision: it fires per wheel notch and would buzz rather
 than tick. Recorded in #385 as a decision, not an omission.
 
+## The mix, as built (#383)
+
+Three things landed together because none of them works alone.
+
+**The tier bands.** `systems/audio-cues.ts` gives every cue a tier, and the tier
+bounds its gain. Frequent means quiet, decided once rather than argued per cue.
+
+| tier | gain | fires |
+|---|---|---|
+| bed | 0.02-0.08 | continuously |
+| tick | 0.04-0.07 | every panel, every press |
+| cue | 0.10-0.18 | several times a run |
+| event | 0.18-0.24 | a few times a run |
+| moment | 0.24-0.32 | once or twice a run |
+
+Ticks sit inside the bed's own range rather than above it. That is deliberate: a
+tick is heard because it is a short pitched transient against broadband noise,
+not because it out-shouts the wheels, and anything loud enough to win that fight
+would be too loud to hear a hundred times a run.
+
+**The collision rule.** `systems/audio-mix.ts`. Requests accumulate through a
+frame and the highest tier plays; ties break on gain, then on request order. The
+losers are dropped, not queued. The flush runs at the top of `update()`, which is
+the only statement that provably runs on every path through a frame including
+both modal early-returns, so the cue a frame earns is heard one frame later. 16ms
+is inaudible; a missed early-return would not be.
+
+**The master gain.** One node, `MASTER_GAIN` in `audio-mix.ts`, currently 0.9.
+Every voice passes through it: it is where headroom is taken now that a
+continuous bed plays under thirty cues, and where a volume slider will attach.
+
+## The rolling bed (#383)
+
+Split the way everything else in this repo is: `systems/audio-bed.ts` decides
+what the bed should sound like (pure, no WebAudio), `scenes/audio-bed-voice.ts`
+makes that sound (looping noise through a bandpass, into a gain, with an LFO
+knock).
+
+- **Gain follows actual movement**, not input. Terrain, upgrades, weather and
+  limping are already folded into the wagon's velocity, so the bed reflects them
+  for free rather than re-deriving any of them. Pressed into a mountain the wagon
+  is not rolling, and the bed knows it.
+- **Timbre follows terrain**, through four surfaces rather than eleven terrains:
+  paved, open, rough, wet. The ear needs to hear which kind of ground this is;
+  a distinct sound per terrain id would be a memory test, which the one rule
+  above forbids anyway.
+- **Weather filters it.** Mud thickens, fair winds thin, mist muffles. One
+  multiplier on a bed that already exists, and it is the cheapest available
+  answer to the standing complaint that weather felt like it did nothing.
+- **Condition knocks.** Below the same fraction the HUD meter turns amber at, an
+  amplitude modulation ramps in, so the wagon sounds hurt exactly when it looks
+  hurt. Never deep enough to chop the bed to silence: hurt, not broken.
+- **Stopping settles** through an asymmetric ramp: quick to rise, slow to fall.
+  That asymmetry is the whole transition, in one number rather than a scheduled
+  one-shot that would fight the bed it was decorating.
+
+The voice lives as long as the document, alongside the AudioContext and for the
+same reason. A scene teardown settles it to zero rather than tearing the graph
+down, so travelling through a gateway lets the wheels trail off across the
+rebuild instead of hanging at their last gain.
+
+### Measured, not assumed
+
+Rendered through a real `OfflineAudioContext`, the way #382 established:
+
+- Cue peaks land at 0.9x their table gain, within 2-6%. That confirms the master
+  gain is in the path rather than merely defined.
+- Audible spans run to about 70% of nominal duration, which is the exponential
+  decay dropping below the audibility floor and is the same figure #382 measured.
+- The bed peaks at 0.021 (road) to 0.030 (limping) despite commanding up to 0.08,
+  because bandpass-filtered noise carries far less peak energy than its envelope
+  ceiling. **The commanded numbers are the ones the issue specified and the ones
+  the tests pin, but the audible bed is roughly three times quieter than those
+  numbers read.** Worth a human listen before Phase 2: raising it is one constant.
+- Bed plus the loudest cue together peaks at 0.251, under the cue alone at 0.255.
+  Nothing clips.
+
 ## Where the code goes
 
 Following the repo's own split, and mirroring juice:
@@ -190,9 +269,15 @@ Following the repo's own split, and mirroring juice:
 - `src/systems/audio-preference.ts` (pure): the muted flag, its storage key via
   `namespacedKey`, load/save with the storage guards, and the default. Unit
   tested.
-- `src/systems/audio-cues.ts` (pure): the cue table (name, weight, synth
-  parameters). A table, not logic, so a cue's weight is reviewable in one place
-  and testable without Phaser.
+- `src/systems/audio-cues.ts` (pure): the cue table (name, tier, weight, synth
+  parameters) and the tier bands. A table, not logic, so a cue's weight is
+  reviewable in one place and testable without Phaser.
+- `src/systems/audio-mix.ts` (pure): the one-cue-per-frame collision rule and the
+  master gain constant.
+- `src/systems/audio-bed.ts` (pure): what the rolling bed should sound like for a
+  given speed, terrain, condition and weather.
+- `src/scenes/audio-bed-voice.ts`: the bed's WebAudio graph, built once per
+  document and only modulated after that.
 - `src/scenes/audio.ts`: the Phaser-facing `Audio` class: scene-lifetime, built
   in `create()`, one method per moment, every method a no-op when muted or
   locked. Records the last requested cue for the e2e hook.

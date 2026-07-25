@@ -98,7 +98,29 @@ export interface E2EState {
    * nothing, so `lastCue` staying null after an action is the proof that mute
    * actually silences rather than merely being stored.
    */
-  readonly audio: { readonly lastCue: string | null; readonly muted: boolean };
+  readonly audio: {
+    readonly lastCue: string | null;
+    /**
+     * The cue that won its frame and actually played, which is not always the
+     * last one requested (#383). One-cue-per-frame has no other observable: with
+     * no device, a suppressed cue and a played cue are the same silence.
+     */
+    readonly lastPlayed: string | null;
+    readonly muted: boolean;
+    /**
+     * The rolling bed's current profile. A continuous voice has no "last cue" to
+     * record, so without this the whole of #383 would be unprovable from the
+     * browser, which is trap 1. `surface` is the terrain profile in force, so a
+     * spec can prove the ground changed the sound rather than merely that a
+     * number moved.
+     */
+    readonly bed: {
+      readonly gain: number;
+      readonly centerHz: number;
+      readonly knock: number;
+      readonly surface: string;
+    };
+  };
   /** Labels of the choices offered on the current dialogue node (empty when closed). */
   readonly dialogueChoices: readonly string[];
   /** Id of the road encounter currently playing, or null when none is open. */
@@ -298,6 +320,27 @@ function seat(host: E2EHost, tileX: number, tileY: number): boolean {
   return true;
 }
 
+/**
+ * What the audio system is doing, for specs that cannot hear it. Everything here
+ * exists because e2e runs with no AudioContext at all: a call site that never
+ * fires, a cue suppressed by a frame collision, and a bed stuck at zero gain are
+ * all indistinguishable from correct behaviour otherwise (trap 1).
+ */
+function audioSnapshot(audio: Audio): E2EState['audio'] {
+  const bed = audio.bedState();
+  return {
+    lastCue: audio.lastRequestedCue(),
+    lastPlayed: audio.lastPlayedCue(),
+    muted: audio.isMuted(),
+    bed: {
+      gain: bed.gain,
+      centerHz: bed.centerHz,
+      knock: bed.knock,
+      surface: bed.surface,
+    },
+  };
+}
+
 /** Snapshot of live state for tests. Recomputed on every call. */
 function buildState(host: E2EHost): E2EState {
   const region = host.getRegion();
@@ -371,7 +414,7 @@ function buildState(host: E2EHost): E2EState {
     dialogueOpen: hud.isDialogueVisible(),
     overlayScrollOffset: hud.scrollOffset(),
     juiceEnabled: host.getJuice().isEnabled(),
-    audio: { lastCue: host.getAudio().lastRequestedCue(), muted: host.getAudio().isMuted() },
+    audio: audioSnapshot(host.getAudio()),
     dialogueChoices: dialogue.choiceLabels(),
     activeEncounterId: dialogue.activeEncounterId(),
     regionCleared: host.regionCleared(),

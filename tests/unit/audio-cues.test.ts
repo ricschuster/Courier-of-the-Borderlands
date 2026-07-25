@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
   AUDIO_CUES,
+  CUE_TIERS,
   MAX_CUE_GAIN,
   MAX_CUE_MS,
+  TIER_GAIN,
   allCues,
   cueFor,
+  tierRank,
   type AudioCueId,
 } from '../../src/systems/audio-cues';
+import { BED_MAX_GAIN } from '../../src/systems/audio-bed';
 
 // These tests pin the promises docs/design/09_audio.md makes about the mix, not
 // the exact numbers. A cue can be retuned freely; what cannot change quietly is
@@ -32,11 +36,69 @@ describe('the cue table', () => {
       'repaired',
       'level-up',
       'contract-accepted',
+      'gated-ground',
+      'ford-crossed',
+      'road-joined',
+      'road-left',
+      'ford-blocked',
+      'bump',
     ];
     for (const id of ids) {
       expect(cueFor(id).id).toBe(id);
     }
     expect(allCues()).toHaveLength(ids.length);
+  });
+});
+
+describe('the tiers', () => {
+  // The tier discipline is the whole defence against fatigue as the cue count
+  // grows (#383): frequent means quiet, decided once per tier rather than argued
+  // per cue. Without these, each new cue would be tuned against the last one
+  // written and thirty of them would creep upward together.
+
+  it('keeps every cue inside its tier band', () => {
+    for (const cue of allCues()) {
+      const [low, high] = TIER_GAIN[cue.tier];
+      expect(cue.gain, `${cue.id} is below the ${cue.tier} band`).toBeGreaterThanOrEqual(low);
+      expect(cue.gain, `${cue.id} is above the ${cue.tier} band`).toBeLessThanOrEqual(high);
+    }
+  });
+
+  it('orders the bands so a louder tier is genuinely louder', () => {
+    // The bands may touch, but they may not invert: a tick must never be able to
+    // outweigh an event. This is what makes the collision rule meaningful, since
+    // it picks by tier and only then by gain.
+    for (let i = 1; i < CUE_TIERS.length; i += 1) {
+      const lower = CUE_TIERS[i - 1];
+      const higher = CUE_TIERS[i];
+      if (lower === undefined || higher === undefined) {
+        continue;
+      }
+      expect(tierRank(higher)).toBeGreaterThan(tierRank(lower));
+      expect(TIER_GAIN[higher][0]).toBeGreaterThanOrEqual(TIER_GAIN[lower][0]);
+      expect(TIER_GAIN[higher][1]).toBeGreaterThan(TIER_GAIN[lower][1]);
+    }
+  });
+
+  it('keeps every tick down at the level of the bed', () => {
+    // Ticks are the highest-frequency sound in the game. They are meant to be
+    // heard as short pitched transients against the broadband bed, not to out-
+    // shout it: a tick louder than the wheels would be the first thing to become
+    // fatiguing, and it fires on every panel and every press.
+    for (const cue of allCues().filter((c) => c.tier === 'tick')) {
+      expect(cue.gain, `${cue.id} pokes through the bed`).toBeLessThanOrEqual(BED_MAX_GAIN);
+    }
+  });
+
+  it('puts the driving events in the tiers the design note gave them', () => {
+    // Crossing onto a road happens constantly; reaching gated ground happens a
+    // handful of times a run. They must not be the same weight.
+    expect(cueFor('road-joined').tier).toBe('tick');
+    expect(cueFor('road-left').tier).toBe('tick');
+    expect(cueFor('bump').tier).toBe('tick');
+    expect(cueFor('ford-blocked').tier).toBe('tick');
+    expect(cueFor('gated-ground').tier).toBe('cue');
+    expect(cueFor('ford-crossed').tier).toBe('cue');
   });
 });
 
@@ -63,11 +125,13 @@ describe('the mix', () => {
     expect(delivered.gain).toBeLessThan(cueFor('repair-refused').gain);
   });
 
-  it('makes accepting a contract the quietest cue', () => {
-    // The most frequent deliberate press in the game.
+  it('makes accepting a contract the quietest thing that is not a tick', () => {
+    // The most frequent deliberate press in the game. Ticks are quieter still by
+    // construction (#383), so the claim is about the cue tier and above: nothing
+    // that marks a decision may sit under the one the player makes most.
     const accepted = cueFor('contract-accepted');
-    for (const cue of allCues().filter((c) => c.id !== 'contract-accepted')) {
-      expect(accepted.gain).toBeLessThanOrEqual(cue.gain);
+    for (const cue of allCues().filter((c) => c.id !== 'contract-accepted' && c.tier !== 'tick')) {
+      expect(accepted.gain, `${cue.id} is quieter than accepting`).toBeLessThanOrEqual(cue.gain);
     }
   });
 

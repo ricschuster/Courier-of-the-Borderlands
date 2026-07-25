@@ -111,6 +111,158 @@ describe('Audio', () => {
     const audio = new Audio(true);
     expect(() => audio.unlock()).not.toThrow();
   });
+
+  it('requests a cue for each driving moment', () => {
+    const audio = new Audio(true);
+    audio.roadJoined();
+    expect(audio.lastRequestedCue()).toBe('road-joined');
+    audio.roadLeft();
+    expect(audio.lastRequestedCue()).toBe('road-left');
+    audio.gatedGround();
+    expect(audio.lastRequestedCue()).toBe('gated-ground');
+    audio.fordCrossed();
+    expect(audio.lastRequestedCue()).toBe('ford-crossed');
+    audio.fordBlocked();
+    expect(audio.lastRequestedCue()).toBe('ford-blocked');
+    audio.bumped();
+    expect(audio.lastRequestedCue()).toBe('bump');
+  });
+});
+
+describe('one cue voice per frame', () => {
+  // The mute preference persists, so each of these has to start from a clean
+  // store or a mute set by the previous test leaks in as the starting state.
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  // The scene flushes at the top of update(), so a "frame" here is everything
+  // requested between two flushes (#383).
+
+  it('plays the winner of the frame, not the last thing requested', () => {
+    // The distinction that matters: `lastRequestedCue` answers "does this call
+    // site exist", `lastPlayedCue` answers "what did the player hear". Conflating
+    // them would make the collision rule unobservable.
+    const audio = new Audio(true);
+    audio.stranded();
+    audio.roadJoined();
+    expect(audio.lastRequestedCue()).toBe('road-joined');
+    expect(audio.lastPlayedCue()).toBeNull();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBe('stranded');
+  });
+
+  it('plays each frame separately', () => {
+    // The loser is dropped, not carried into the next frame: a cue that arrives
+    // late is detached from the moment it described.
+    const audio = new Audio(true);
+    audio.delivered();
+    audio.roadJoined();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBe('delivered');
+    audio.roadLeft();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBe('road-left');
+  });
+
+  it('leaves the record alone on an empty frame', () => {
+    // Most frames request nothing, and they must not wipe what was just heard.
+    const audio = new Audio(true);
+    audio.delivered();
+    audio.flushFrame();
+    audio.flushFrame();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBe('delivered');
+  });
+
+  it('plays nothing at all while muted', () => {
+    const audio = new Audio(true);
+    audio.toggleMuted();
+    audio.stranded();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBeNull();
+  });
+
+  it('drops requests made before a mute in the same frame', () => {
+    // Pressing V is handled at the top of update(), but a cue can be requested by
+    // an overlap callback outside update() entirely. Muting has to take effect
+    // now, not one frame later.
+    const audio = new Audio(true);
+    audio.delivered();
+    audio.toggleMuted();
+    audio.flushFrame();
+    expect(audio.lastPlayedCue()).toBeNull();
+  });
+});
+
+describe('the rolling bed', () => {
+  // The mute preference persists, so each of these has to start from a clean
+  // store or a mute set by the previous test leaks in as the starting state.
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  const rolling = {
+    speed: 100,
+    referenceSpeed: 200,
+    terrainId: 'plains',
+    conditionFraction: 1,
+    weatherId: 'clear',
+  };
+
+  it('starts silent, before the scene has said anything about the wagon', () => {
+    expect(new Audio(true).bedState().gain).toBe(0);
+  });
+
+  it('reports what the ground is doing', () => {
+    // The e2e hook's only window onto a continuous voice: it has no "last cue".
+    const audio = new Audio(true);
+    audio.updateBed(rolling);
+    expect(audio.bedState().gain).toBeGreaterThan(0);
+    expect(audio.bedState().surface).toBe('open');
+    audio.updateBed({ ...rolling, terrainId: 'road' });
+    expect(audio.bedState().surface).toBe('paved');
+  });
+
+  it('settles over the ground it stopped on', () => {
+    // Freezing behind a panel must not teleport the bed to a default surface, or
+    // the settle would change timbre on the way down.
+    const audio = new Audio(true);
+    audio.updateBed({ ...rolling, terrainId: 'marsh' });
+    audio.settleBed();
+    expect(audio.bedState().gain).toBe(0);
+    expect(audio.bedState().surface).toBe('wet');
+  });
+
+  it('settles safely before the scene has ever driven', () => {
+    // The scene-shutdown path can fire on a scene that never got a frame.
+    const audio = new Audio(true);
+    expect(() => audio.settleBed()).not.toThrow();
+    expect(audio.bedState().gain).toBe(0);
+  });
+
+  it('is silenced by mute, not merely left unrequested', () => {
+    // The dangerous shape of this bug: the bed is a voice rather than a request,
+    // so a mute that only stops cues would leave the wheels rolling, which is the
+    // loudest possible way to fail to mute.
+    const audio = new Audio(true);
+    audio.updateBed(rolling);
+    expect(audio.bedState().gain).toBeGreaterThan(0);
+    audio.toggleMuted();
+    expect(audio.bedState().gain).toBe(0);
+    audio.updateBed(rolling);
+    expect(audio.bedState().gain).toBe(0);
+  });
+
+  it('comes back when the player unmutes', () => {
+    const audio = new Audio(true);
+    audio.toggleMuted();
+    audio.updateBed(rolling);
+    expect(audio.bedState().gain).toBe(0);
+    audio.toggleMuted();
+    audio.updateBed(rolling);
+    expect(audio.bedState().gain).toBeGreaterThan(0);
+  });
 });
 
 describe('synthesizeCue', () => {
@@ -206,6 +358,50 @@ describe('synthesizeCue', () => {
     const flat = recorder();
     synthesizeCue(flat.ctx, cueFor('contract-accepted'));
     expect(flat.calls.map((c) => c.name)).not.toContain('freq.exp');
+  });
+
+  it('routes through the master gain when it is given one', () => {
+    // Every voice has to pass the single node a volume slider will one day write
+    // to (#383). A cue wired straight to the destination would bypass it and be
+    // the one sound the slider could not turn down.
+    const targets: unknown[] = [];
+    const rec = recorder();
+    const ctx: CueContext = {
+      ...rec.ctx,
+      createGain: () =>
+        ({
+          gain: {
+            setValueAtTime: () => undefined,
+            linearRampToValueAtTime: () => undefined,
+            exponentialRampToValueAtTime: () => undefined,
+          } as unknown as AudioParam,
+          connect: (to: unknown) => targets.push(to),
+        }) as unknown as GainNode,
+    };
+    const master = { label: 'master' } as unknown as AudioNode;
+    synthesizeCue(ctx, cueFor('delivered'), master);
+    expect(targets).toEqual([master]);
+  });
+
+  it('falls back to the destination with no master gain', () => {
+    // The default keeps the graph complete for callers that predate the master,
+    // rather than leaving a cue connected to nothing at all.
+    const targets: unknown[] = [];
+    const rec = recorder();
+    const ctx: CueContext = {
+      ...rec.ctx,
+      createGain: () =>
+        ({
+          gain: {
+            setValueAtTime: () => undefined,
+            linearRampToValueAtTime: () => undefined,
+            exponentialRampToValueAtTime: () => undefined,
+          } as unknown as AudioParam,
+          connect: (to: unknown) => targets.push(to),
+        }) as unknown as GainNode,
+    };
+    synthesizeCue(ctx, cueFor('delivered'));
+    expect(targets).toEqual([ctx.destination]);
   });
 
   it('never decays to exactly zero, which WebAudio cannot ramp to', () => {
