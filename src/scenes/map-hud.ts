@@ -24,6 +24,8 @@ import {
   dismissCurrentToast,
   enqueueToast,
   pendingToastCount,
+  shownToastCount,
+  toastBody,
   toastDismissHint,
   type ToastQueue,
 } from '../systems/toast-queue';
@@ -858,31 +860,42 @@ export class MapHud {
    * rather than fading on a timer that was always either too short or too long
    * (Session 5 playtest).
    *
-   * Messages queue rather than stack: arriving at a settlement can raise a
-   * delivery line, a settlement note, and an achievement in the same frame, and
-   * showing all three buried the actionable line while one Space wiped all three
-   * unread (#327). The queue rules live in `systems/toast-queue`.
+   * Messages raised in the same frame share one panel and one dismiss press;
+   * later ones wait their turn. Arriving at a settlement can raise a delivery
+   * line, a settlement note, and an achievement together: showing all three as
+   * separate stacked toasts buried the actionable line and one Space wiped all
+   * three unread (#327), while charging a press each cost 3 to 5 presses on one
+   * tile (#378). The rules live in `systems/toast-queue`.
+   *
+   * The game frame is the burst stamp: it increments once per game step, so
+   * "raised together" is exactly "raised in one update()".
    *
    * Toasts are laid out in a band that clears the contract board: when the board
    * is up (at home) they sit in the free area to its right, otherwise centred.
    * This removes the toast-over-board overlap the D1 pass targets (#149).
    */
   showToast(message: string): void {
-    this.toastQueue = enqueueToast(this.toastQueue, message);
+    this.toastQueue = enqueueToast(this.toastQueue, message, this.scene.game.loop.frame);
     this.renderToast();
   }
 
   /**
-   * Sync the on-screen Text with the front of the queue. Reuses the one Text
-   * object across messages so the toast keeps its depth and scroll settings.
+   * Sync the on-screen Text with the group at the front of the queue. Reuses the
+   * one Text object across messages so the toast keeps its depth and scroll
+   * settings.
    */
   private renderToast(): void {
-    const message = this.toastQueue.current;
+    const message = toastBody(this.toastQueue);
     if (message === null) {
       this.toastText?.destroy();
       this.toastText = null;
       return;
     }
+    // A lone message stays centred, as it always has. A grouped panel goes
+    // flush-left: several centred messages of different lengths are a ragged
+    // stack in which one message is hard to tell from the next, and every other
+    // panel in this HUD is left-aligned text.
+    const align = shownToastCount(this.toastQueue) > 1 ? 'left' : 'center';
     if (this.toastText === null) {
       this.toastText = this.scene.add
         .text(GAME_WIDTH / 2, TOAST_TOP, message, {
@@ -891,13 +904,13 @@ export class MapHud {
           color: '#ffffff',
           backgroundColor: '#00000088',
           padding: { x: 8, y: 4 },
-          align: 'center',
+          align,
         })
         .setOrigin(0.5, 0)
         .setScrollFactor(0)
         .setDepth(DEPTH_HUD);
     } else {
-      this.toastText.setText(message);
+      this.toastText.setText(message).setAlign(align);
     }
     this.layoutToasts();
   }
@@ -936,12 +949,13 @@ export class MapHud {
 
   /** Whether a toast is currently on screen, so the scene can show a dismiss cue. */
   hasToasts(): boolean {
-    return this.toastQueue.current !== null;
+    return shownToastCount(this.toastQueue) > 0;
   }
 
   /**
-   * Advance the queue by one. Called when the player presses the dismiss key, so
-   * each message costs its own press and none is cleared unread (#327).
+   * Advance the queue by one group. Called when the player presses the dismiss
+   * key, so a press clears only what was on screen and nothing is cleared unread
+   * (#327, #378).
    */
   dismissToast(): void {
     this.toastQueue = dismissCurrentToast(this.toastQueue);
@@ -963,8 +977,12 @@ export class MapHud {
     return toastDismissHint(this.toastQueue);
   }
 
-  /** Queue state for the e2e bridge: what is up, and how much is behind it. */
-  toastState(): { readonly current: string | null; readonly pending: number } {
-    return { current: this.toastQueue.current, pending: pendingToastCount(this.toastQueue) };
+  /** Queue state for the e2e bridge: what is up, how many lines, and what is behind. */
+  toastState(): { readonly current: string | null; readonly shown: number; readonly pending: number } {
+    return {
+      current: toastBody(this.toastQueue),
+      shown: shownToastCount(this.toastQueue),
+      pending: pendingToastCount(this.toastQueue),
+    };
   }
 }
