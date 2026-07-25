@@ -14,11 +14,28 @@ export const TILE_SIZE = 48;
 // Background colour for empty scenes (dark slate, matches the page).
 export const BACKGROUND_COLOR = '#1a1a1a';
 
+// The one warm gold in the palette, in both forms Phaser needs: numeric for
+// Graphics and tints, CSS string for text styles. Everything gold in the game is
+// this value, so it is written once here.
+//
+// The roles below are named separately even though they all resolve to it today.
+// They are genuinely different things (who the courier is, which settlements have
+// answered, what the UI wants you to click, what a payout looks like), and naming
+// them apart means a future change to one role does not silently repaint the
+// others. Do not collapse them back into a single constant.
+export const WARM_GOLD = 0xf2c14e;
+export const WARM_GOLD_CSS = '#f2c14e';
+
+// UI accent for text and chips that should read as a call to action or as
+// special: the title, the unspent-skill-points chip, the capstone panel.
+export const UI_ACCENT_CSS = WARM_GOLD_CSS;
+
 // Courier wagon. COURIER_SIZE is the on-map display size (and drives the physics
-// body); COURIER_COLOR is the gold used for the wagon's minimap/HUD identity and
-// remains the fallback tint. WAGON_TEXTURE_KEY names the loaded wagon sprite.
+// body); COURIER_COLOR is the wagon's own identity colour, used for its minimap
+// dot. The wagon itself renders as the WAGON_TEXTURE_KEY sprite and is not
+// tinted, so this is not a sprite fallback.
 export const COURIER_SIZE = 20;
-export const COURIER_COLOR = 0xf2c14e;
+export const COURIER_COLOR = WARM_GOLD;
 export const WAGON_TEXTURE_KEY = 'courier-wagon';
 
 // Kenney UI panel (RPG Expansion, CC0) used as a 9-slice frame behind overlay

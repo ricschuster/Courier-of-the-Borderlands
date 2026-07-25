@@ -1,5 +1,11 @@
 import Phaser from 'phaser';
-import { GAME_TITLE, GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from '../config/game-config';
+import {
+  GAME_TITLE,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  BACKGROUND_COLOR,
+  UI_ACCENT_CSS,
+} from '../config/game-config';
 import { DIFFICULTIES, difficultyLabel, type Difficulty } from '../systems/wagon-condition';
 import { saveDifficulty } from '../systems/save-system';
 
@@ -28,7 +34,7 @@ export class TitleScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
 
     this.add
-      .text(cx, 70, GAME_TITLE, { fontFamily: 'monospace', fontSize: '34px', color: '#f2c14e' })
+      .text(cx, 70, GAME_TITLE, { fontFamily: 'monospace', fontSize: '34px', color: UI_ACCENT_CSS })
       .setOrigin(0.5, 0);
 
     this.add
