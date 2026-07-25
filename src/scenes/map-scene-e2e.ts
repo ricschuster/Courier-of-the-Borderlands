@@ -113,6 +113,12 @@ export interface E2EState {
    */
   readonly toasts: { readonly current: string | null; readonly pending: number };
   /**
+   * The control hint currently rendered (#355). Canvas text, so a spec cannot
+   * read it any other way, and it is the only proof that the line tracks the
+   * modal surface instead of freezing on the world's keys.
+   */
+  readonly hintText: string;
+  /**
    * The board contract a first digit-press has armed and that a second press of
    * the same slot will accept, or null when nothing is armed (#321).
    */
@@ -343,6 +349,7 @@ function buildState(host: E2EHost): E2EState {
     capstoneVisible: hud.isCapstoneVisible(),
     boardVisible: hud.isBoardVisible(),
     toasts: hud.toastState(),
+    hintText: hud.hintText(),
     armedContractId: host.armedContractId(),
     activeMissionId: e2eObjective?.mission.id ?? null,
     activeMissionStepId: e2eObjective?.step.id ?? null,
