@@ -6,7 +6,6 @@ import {
   skillPanelText,
   capstoneText,
   upgradeMenuText,
-  modalHintText,
 } from '../../src/systems/panel-text';
 import type { Contract } from '../../src/systems/contract-system';
 import type { Skill, SkillRanks } from '../../src/systems/skills';
@@ -242,75 +241,6 @@ describe('upgradeMenuText', () => {
   it('shows the current coin total', () => {
     const text = upgradeMenuText({ coins: 123, upgrades: UPGRADES, purchased: new Set() });
     expect(text).toContain('Coins: 123');
-  });
-});
-
-describe('modalHintText', () => {
-  // #355: the world hint used to freeze under a modal surface and keep
-  // advertising keys the freeze had made inert. Every line here must therefore
-  // name only keys that actually work while that surface is up.
-
-  it('names the close keys for a panel', () => {
-    expect(modalHintText({ surface: 'journal', scrollable: true, numbersActive: false })).toContain(
-      'Esc or J: close',
-    );
-    expect(modalHintText({ surface: 'skills', scrollable: true, numbersActive: false })).toContain(
-      'Esc or K: close',
-    );
-    expect(modalHintText({ surface: 'codex', scrollable: false, numbersActive: false })).toContain(
-      'Esc or L: close',
-    );
-    expect(modalHintText({ surface: 'upgrades', scrollable: true, numbersActive: false })).toContain(
-      'Esc or B: close',
-    );
-  });
-
-  it('never advertises driving, repair, travel, or the toast dismiss', () => {
-    // The exact strings the blind player saw under an open journal while every
-    // one of them was inert.
-    for (const surface of ['journal', 'skills', 'codex', 'upgrades', 'dialogue'] as const) {
-      const text = modalHintText({ surface, scrollable: true, numbersActive: true });
-      expect(text).not.toContain('drive');
-      expect(text).not.toContain('repair');
-      expect(text).not.toContain('travel');
-      expect(text).not.toContain('dismiss');
-      expect(text).not.toContain('new game');
-    }
-  });
-
-  // "scrollable" means a panel type that scrolls at all, matching what each
-  // panel's own header already advertises; it is not a content-overflow check.
-  it('offers the scroll cue only for the scrolling panel types', () => {
-    expect(modalHintText({ surface: 'journal', scrollable: true, numbersActive: false })).toContain(
-      'PgUp/PgDn: scroll',
-    );
-    // The codex always fits, so cueing a scroll there would be the same lie in
-    // a smaller form.
-    expect(
-      modalHintText({ surface: 'codex', scrollable: false, numbersActive: false }),
-    ).not.toContain('scroll');
-  });
-
-  it('offers the number keys only when they would do something', () => {
-    expect(modalHintText({ surface: 'skills', scrollable: true, numbersActive: true })).toContain(
-      'Number: rank a skill',
-    );
-    expect(modalHintText({ surface: 'upgrades', scrollable: true, numbersActive: true })).toContain(
-      'Number: fit an upgrade',
-    );
-    // No banked point, or nothing left to fit: the digits are inert, so no cue.
-    expect(
-      modalHintText({ surface: 'skills', scrollable: true, numbersActive: false }),
-    ).not.toContain('Number');
-    expect(
-      modalHintText({ surface: 'upgrades', scrollable: true, numbersActive: false }),
-    ).not.toContain('Number');
-  });
-
-  it('keeps the conversation line terse, since the dialogue box states its own keys', () => {
-    expect(modalHintText({ surface: 'dialogue', scrollable: false, numbersActive: true })).toBe(
-      'Esc: step away',
-    );
   });
 });
 

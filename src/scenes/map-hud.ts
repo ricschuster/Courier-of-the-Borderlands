@@ -14,7 +14,7 @@ import {
   WARM_GOLD,
 } from '../config/game-config';
 import { buildLegend, type LegendTerrain } from '../systems/legend';
-import type { ModalSurface } from '../systems/panel-text';
+import type { ModalSurface } from '../systems/hint-text';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
