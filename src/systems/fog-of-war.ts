@@ -53,14 +53,30 @@ export function fogDimsMatch(
   return stored !== undefined && stored[0] === width && stored[1] === height;
 }
 
-/** Rebuild a fog of the given size with the listed indices already revealed. */
-export function fogFromRevealed(width: number, height: number, indices: readonly number[]): Fog {
-  const fog = createFog(width, height);
+/**
+ * Reveal the listed row-major indices on an existing fog, returning the ones
+ * actually applied.
+ *
+ * Out-of-range indices are dropped rather than trusted: a save whose region was
+ * resized can carry indices past the end of the current fog, and a hand-edited
+ * one can carry anything. The returned list is exactly what was revealed, so a
+ * caller can redraw only those tiles.
+ */
+export function revealIndices(fog: Fog, indices: readonly number[]): number[] {
+  const applied: number[] = [];
   for (const index of indices) {
     if (index >= 0 && index < fog.revealed.length) {
       fog.revealed[index] = true;
+      applied.push(index);
     }
   }
+  return applied;
+}
+
+/** Rebuild a fog of the given size with the listed indices already revealed. */
+export function fogFromRevealed(width: number, height: number, indices: readonly number[]): Fog {
+  const fog = createFog(width, height);
+  revealIndices(fog, indices);
   return fog;
 }
 

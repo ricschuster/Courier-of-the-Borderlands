@@ -4,6 +4,7 @@ import {
   isRevealed,
   revealAround,
   revealedIndices,
+  revealIndices,
   fogFromRevealed,
   fogDimsMatch,
 } from '../../src/systems/fog-of-war';
@@ -62,6 +63,41 @@ describe('fog-of-war', () => {
     expect(isRevealed(fog, 0, 0)).toBe(true);
     expect(isRevealed(fog, 2, 2)).toBe(true);
     expect(revealedIndices(fog)).toEqual([0, 8]);
+  });
+
+  // revealIndices applies saved fog onto the live fog and reports back what it
+  // actually revealed, which is what the scene redraws. A resized region can
+  // carry indices past the end of the current fog, so the bounds check and the
+  // returned list have to agree: redrawing a tile that was not revealed would
+  // punch a hole in the fog.
+  describe('revealIndices', () => {
+    it('reveals the listed tiles and returns them', () => {
+      const fog = createFog(3, 3);
+      expect(revealIndices(fog, [0, 4, 8])).toEqual([0, 4, 8]);
+      expect(isRevealed(fog, 0, 0)).toBe(true);
+      expect(isRevealed(fog, 1, 1)).toBe(true);
+      expect(isRevealed(fog, 2, 2)).toBe(true);
+      expect(isRevealed(fog, 1, 0)).toBe(false);
+    });
+
+    it('drops out-of-range indices from both the fog and the returned list', () => {
+      const fog = createFog(3, 3);
+      expect(revealIndices(fog, [-1, 0, 9, 99, 8])).toEqual([0, 8]);
+      expect(revealedIndices(fog)).toEqual([0, 8]);
+    });
+
+    it('adds to what is already revealed rather than replacing it', () => {
+      const fog = createFog(3, 3);
+      revealIndices(fog, [0]);
+      expect(revealIndices(fog, [4])).toEqual([4]);
+      expect(revealedIndices(fog)).toEqual([0, 4]);
+    });
+
+    it('reveals nothing for an empty list', () => {
+      const fog = createFog(3, 3);
+      expect(revealIndices(fog, [])).toEqual([]);
+      expect(revealedIndices(fog)).toEqual([]);
+    });
   });
 
   it('clamps to map bounds without error', () => {
