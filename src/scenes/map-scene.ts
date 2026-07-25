@@ -241,6 +241,11 @@ export class MapScene extends Phaser.Scene {
   // commit the whole next journey; arming names the contract first so a mispress
   // is caught. Cleared whenever the board is not interactable.
   private armedContractId: string | null = null;
+  // Feedback about the last digit pressed at the board (currently only the
+  // reputation refusal), rendered on the board itself for the same reason the
+  // skills and upgrade panels render theirs (#356). Cleared alongside the armed
+  // slot whenever the board stops being interactable.
+  private boardNotice: string | null = null;
   private newGameKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
@@ -523,6 +528,7 @@ export class MapScene extends Phaser.Scene {
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
     this.armedContractId = null;
+    this.boardNotice = null;
     // wagonWearTotal is intentionally not reset here: it is session telemetry
     // (ADR 0005 tuning) that must accumulate across region-travel scene restarts,
     // and its field initializer already zeroes it once per scene construction.
@@ -1322,8 +1328,10 @@ export class MapScene extends Phaser.Scene {
   private handleBoardInput(): void {
     if (!this.boardInteractable()) {
       // Off the board, so drop any armed contract: a digit pressed on the next
-      // visit should arm afresh, not accept a contract from a stale board.
+      // visit should arm afresh, not accept a contract from a stale board. The
+      // notice goes with it, so a fresh visit never opens on a stale refusal.
       this.armedContractId = null;
+      this.boardNotice = null;
       return;
     }
     const list = this.boardContracts();
@@ -1337,20 +1345,24 @@ export class MapScene extends Phaser.Scene {
       if (Phaser.Input.Keyboard.JustDown(key)) {
         if (!canAccept(contract, reputation)) {
           this.armedContractId = null;
-          this.hud.showToast(`${contract.title} needs ${contract.minReputation} reputation.`);
+          this.boardNotice = `${contract.title} needs ${contract.minReputation} reputation.`;
+          this.refreshBoard();
           return;
         }
         if (this.armedContractId === contract.id) {
           // Confirmed: the same slot pressed twice in a row.
           this.armedContractId = null;
+          this.boardNotice = null;
           this.acceptContract(contract);
         } else {
-          // First press: arm this contract and name it, so a mispressed
-          // remembered digit is caught before it commits the journey (#321).
+          // First press: arm this contract, so a mispressed remembered digit is
+          // caught before it commits the journey (#321). The prompt is drawn on
+          // the board rather than toasted: the board is already on screen naming
+          // the slot, and a toast made the player dismiss a question they had
+          // just answered, costing a press per accept under the #327 queue (#376).
           this.armedContractId = contract.id;
-          this.hud.showToast(
-            `Accept [${i + 1}] ${contract.title}? It commits your next journey. Press ${i + 1} again to confirm.`,
-          );
+          this.boardNotice = null;
+          this.refreshBoard();
         }
         return;
       }
@@ -1377,6 +1389,8 @@ export class MapScene extends Phaser.Scene {
         contracts: this.boardContracts(),
         reputation: totalReputation(this.state.ledger),
         worldStatus: this.worldState(),
+        armedContractId: this.armedContractId,
+        notice: this.boardNotice,
       }),
     );
   }

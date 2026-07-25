@@ -76,6 +76,94 @@ describe('boardText', () => {
     expect(text).toContain('100c');
     expect(text).not.toContain('reconnected');
   });
+
+  // The armed slot and its confirm prompt render on the board rather than as a
+  // toast (#377). The toast made the player dismiss a question they had already
+  // answered, which cost a press per accept under the #327 queue.
+  describe('the armed confirm prompt', () => {
+    const two = [
+      contract('c1', { title: 'Letters to Ashford' }),
+      contract('c2', { title: 'Grain to Southmill' }),
+    ];
+
+    it('names the slot and the title of the armed contract', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: two,
+        reputation: 0,
+        worldStatus: {},
+        armedContractId: 'c2',
+      });
+      expect(text).toContain('Press 2 again to commit to Grain to Southmill.');
+    });
+
+    it('marks the armed row and leaves the others unmarked', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: two,
+        reputation: 0,
+        worldStatus: {},
+        armedContractId: 'c2',
+      });
+      expect(text).toContain('> [2] Grain to Southmill');
+      expect(text).toContain('  [1] Letters to Ashford');
+      expect(text).not.toContain('> [1]');
+    });
+
+    it('adds no prompt when nothing is armed', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: two,
+        reputation: 0,
+        worldStatus: {},
+        armedContractId: null,
+      });
+      expect(text).not.toContain('again to commit');
+      expect(text).not.toContain('> ');
+    });
+
+    // The board renumbers between visits (#321), so an armed id that is no longer
+    // offered must not print "Press 0 again": the guard exists precisely because
+    // the slot a remembered digit points at can change.
+    it('adds no prompt when the armed contract is no longer on the board', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: two,
+        reputation: 0,
+        worldStatus: {},
+        armedContractId: 'gone',
+      });
+      expect(text).not.toContain('again to commit');
+    });
+  });
+
+  describe('the board notice', () => {
+    it('renders a refusal on the board', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: [contract('c1', { title: 'Sealed Writ', minReputation: 10 })],
+        reputation: 0,
+        worldStatus: {},
+        notice: 'Sealed Writ needs 10 reputation.',
+      });
+      expect(text).toContain('> Sealed Writ needs 10 reputation.');
+    });
+
+    // Arming is the live question; a refusal from an earlier press must not sit
+    // under it competing for the same line.
+    it('yields to the confirm prompt when a slot is armed', () => {
+      const text = boardText({
+        homeName: 'Greybridge',
+        contracts: [contract('c1', { title: 'Letters to Ashford' })],
+        reputation: 0,
+        worldStatus: {},
+        armedContractId: 'c1',
+        notice: 'stale refusal',
+      });
+      expect(text).toContain('Press 1 again to commit to Letters to Ashford.');
+      expect(text).not.toContain('stale refusal');
+    });
+  });
 });
 
 describe('boardInteractable', () => {
