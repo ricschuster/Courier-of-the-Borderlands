@@ -27,6 +27,7 @@ function baseInput(overrides: Partial<WorldHintInput> = {}): WorldHintInput {
     upgradesAvailable: false,
     skillPointsAvailable: false,
     toastHint: null,
+    audioMuted: false,
     ...overrides,
   };
 }
@@ -167,6 +168,15 @@ describe('worldHintText', () => {
 
   it('names the settlement it can talk to', () => {
     expect(worldHintText(baseInput({ talkTarget: 'Greybridge' }))).toContain('E: talk to Greybridge');
+  });
+
+  it('offers the sound key only while muted (#226)', () => {
+    // One-directional on purpose. A player who has sound does not need telling
+    // they can mute, and this line is context-sensitive precisely because printing
+    // every key read as noise. A player who muted and forgot does need it: silence
+    // is otherwise indistinguishable from a game whose audio is broken.
+    expect(worldHintText(baseInput({ audioMuted: false }))).not.toContain('V:');
+    expect(worldHintText(baseInput({ audioMuted: true }))).toContain('V: sound');
   });
 
   it('names the region a gateway leads to', () => {

@@ -1,6 +1,7 @@
 # Audio
 
-Status: designed 2026-07-25, not yet built. Tracks #226.
+Status: designed 2026-07-25. Phase 1 (synthesized cues) built the same day; see
+"Placeholder first, samples second" for what Phase 2 still owes. Tracks #226.
 
 Scope of this note: sound effects. Music is deliberately out of the first slice
 (see "Music, and why it is not here yet").
@@ -103,14 +104,14 @@ The project's Art strategy is phased: Phase 1 coloured tiles and placeholder UI,
 Phase 2 free asset packs, and art must never block the prototype. Audio gets the
 same treatment, because the same reasoning applies.
 
-**Phase 1: synthesized cues, no asset files.** Short WebAudio blips generated at
-runtime (a tone, an envelope, a decay). The audio equivalent of a coloured tile:
+**Phase 1 (built): synthesized cues, no asset files.** Short WebAudio blips
+generated at runtime (a tone, an envelope, a decay). The audio equivalent of a coloured tile:
 crude, obviously placeholder, and it needs no download, no licence entry, no
 bundle weight, and no binary in the repo. Critically, it exercises every part of
 the design that can actually be got wrong: the preference, the persistence, the
 mute key, the autoplay unlock, the wiring at each call site, and the tests.
 
-**Phase 2: swap in real samples.** Kenney again (CC0, no attribution required,
+**Phase 2 (still owed): swap in real samples.** Kenney again (CC0, no attribution required,
 already the source of every sprite in `assets/credits.md`) via the Interface
 Sounds, RPG Audio, and Impact packs. The swap is one module: cue names and call
 sites do not move. Files land in `assets/audio/` (which exists and holds only
