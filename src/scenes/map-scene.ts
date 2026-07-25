@@ -30,11 +30,12 @@ import {
   createFog,
   revealAround,
   revealedIndices,
+  revealIndices,
   isRevealed,
   fogDimsMatch,
   type Fog,
 } from '../systems/fog-of-war';
-import { addCoins, addReputation, ledgerFrom, totalReputation, tierFor } from '../systems/economy';
+import { addCoins, addReputation, totalReputation, tierFor } from '../systems/economy';
 import {
   loadSave,
   writeSave,
@@ -64,9 +65,7 @@ import {
   repair,
   repairHelpText,
   rescue,
-  sanitizeCondition,
   maxConditionForLevel,
-  clampCondition,
   MAX_CONDITION,
   WAGON_TUNING,
   difficultyLabel,
@@ -82,6 +81,7 @@ import {
   upgradeMenuText,
 } from '../systems/panel-text';
 import { modalHintText, worldHintText } from '../systems/hint-text';
+import { restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
@@ -99,7 +99,6 @@ import {
 import { totalXp, levelForXp, levelProgress } from '../systems/experience';
 import {
   SKILLS,
-  sanitizeRanks,
   availablePoints,
   shouldNudgeUnspentSkills,
   canRankUp,
@@ -132,7 +131,6 @@ import { createRng } from '../systems/rng';
 import {
   setFlags,
   flagsToArray,
-  flagsFromArray,
   emptyFlags,
   hasFlag,
   type StoryFlags,
@@ -495,32 +493,43 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Load global state from a snapshot, or reset to a fresh game if null. */
+  /**
+   * Load global state from a snapshot, or reset to a fresh game if null. The
+   * snapshot-to-run mapping and all of its sanitizing rules are pure, in
+   * run-state.ts; this applies the result to the scene's fields.
+   */
   private restoreState(snapshot: GameSnapshot | null): void {
-    this.state = createGameState();
-    this.completed = new Set();
-    this.visited = new Set();
-    this.activeContract = undefined;
-    this.progress = undefined;
-    this.trip = createTripLog();
-    this.achievements = new Set();
-    this.fogByRegion = {};
-    this.fogDimsByRegion = {};
+    const run = restoreRunState({
+      snapshot,
+      tuning: this.wagonTuning,
+      regionContracts: this.region.contracts,
+    });
+    this.state = run.state;
+    this.completed = run.completed;
+    this.visited = run.visited;
+    this.trip = run.trip;
+    this.achievements = run.achievements;
+    this.skills = run.skills;
+    this.storyFlags = run.storyFlags;
+    this.wagonCondition = run.wagonCondition;
+    this.blockadeBrokenAtLoad = run.blockadeBrokenAtLoad;
+    this.fogByRegion = run.fogByRegion;
+    this.fogDimsByRegion = run.fogDimsByRegion;
+    this.activeContract = run.activeContract;
+    this.progress = run.progress;
+
+    // Per-contract tracking never survives a load: these belong to the journey
+    // that was in progress, not to the run.
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
     this.armedContractId = null;
-    // A new game starts with the small level-1 tank; capacity grows with level.
-    this.wagonCondition = maxConditionForLevel(1, this.wagonTuning);
     // wagonWearTotal is intentionally not reset here: it is session telemetry
     // (ADR 0005 tuning) that must accumulate across region-travel scene restarts,
     // and its field initializer already zeroes it once per scene construction.
-    this.skills = {};
-    this.storyFlags = emptyFlags();
-    this.blockadeBrokenAtLoad = false;
     // The dialogue controller is (re)constructed fresh later in create(), so no
     // conversation state needs resetting here.
 
-    if (snapshot === null) {
+    if (run.freshRun) {
       // A fresh run (new game or first boot), not a region-travel restart: the
       // session-scoped panel and telemetry dedup state belongs to the previous
       // playthrough, so a re-cleared region or re-broken blockade shows its
@@ -528,40 +537,6 @@ export class MapScene extends Phaser.Scene {
       this.summaryDismissedRegions = new Set();
       this.capstoneDismissed = false;
       this.telemetryRecorded = new Set();
-      return;
-    }
-
-    snapshot.unlocks.forEach((id) => this.state.unlocks.add(id));
-    this.state.upgrades = new Set(snapshot.upgrades);
-    this.state.ledger = ledgerFrom(snapshot.coins, snapshot.reputation);
-    this.completed = new Set(snapshot.completed);
-    this.visited = new Set(snapshot.visited);
-    this.trip = createTripLog(snapshot.distanceTiles, snapshot.deliveries);
-    // Clamp a loaded condition to the tank size the courier's current level
-    // affords, so an edited or pre-capacity save cannot exceed it.
-    this.wagonCondition = clampCondition(sanitizeCondition(snapshot.wagonCondition), this.wagonMax());
-    this.achievements = new Set(snapshot.achievements);
-    // Sanitize against the current skill list so a stale or edited save cannot
-    // grant unknown skills or over-max ranks.
-    this.skills = sanitizeRanks({ ...snapshot.skills });
-    this.storyFlags = flagsFromArray(snapshot.storyFlags);
-    // Recorded per load: if the blockade is already broken in the save, the
-    // capstone was earned in an earlier session and must not re-appear now.
-    this.blockadeBrokenAtLoad = hasFlag(this.storyFlags, FLAG_BLOCKADE_BROKEN);
-    for (const [rid, indices] of Object.entries(snapshot.fogByRegion)) {
-      this.fogByRegion[rid] = [...indices];
-    }
-    for (const [rid, dims] of Object.entries(snapshot.fogDimsByRegion)) {
-      this.fogDimsByRegion[rid] = [dims[0], dims[1]];
-    }
-
-    // Restore the active contract only if it belongs to the current region.
-    if (snapshot.activeContractId !== null && snapshot.contractStatus !== null) {
-      const contract = this.region.contracts.find((c) => c.id === snapshot.activeContractId);
-      if (contract !== undefined && !this.completed.has(contract.id)) {
-        this.activeContract = contract;
-        this.progress = { contractId: contract.id, status: snapshot.contractStatus };
-      }
     }
   }
 
@@ -580,15 +555,9 @@ export class MapScene extends Phaser.Scene {
       delete this.fogDimsByRegion[this.region.id];
       return;
     }
-    const valid: number[] = [];
-    for (const index of indices) {
-      if (index < 0 || index >= this.fog.revealed.length) {
-        continue;
-      }
-      this.fog.revealed[index] = true;
-      valid.push(index);
-    }
-    this.terrain.clearFogAt(valid);
+    // Out-of-range indices are dropped by revealIndices, which returns exactly
+    // the tiles revealed so only those get their fog rectangle cleared.
+    this.terrain.clearFogAt(revealIndices(this.fog, indices));
   }
 
   private save(): void {
