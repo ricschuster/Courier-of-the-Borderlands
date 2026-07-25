@@ -5,12 +5,12 @@ import {
   TILE_SIZE,
   COURIER_SPEED,
   FOG_REVEAL_RADIUS,
-  FOG_COLOR,
   CAMERA_LERP,
 } from '../config/game-config';
 import { TERRAIN_TYPES } from '../data/terrain-types';
-import { terrainTileArt, TERRAIN_ATLAS_KEY, type TileArt } from '../data/terrain-art';
 import { createTileMap, getTerrainIdAt, worldToTile, type TileMap } from '../systems/tile-map';
+import { tileCenter } from '../systems/tile-geometry';
+import { MapTerrainLayer } from './map-terrain-layer';
 import {
   getTerrain,
   getSpeedModifier,
@@ -183,11 +183,10 @@ import { Courier } from '../entities/courier';
 import { isE2E, speedFactor, wearDisabled, exposeE2EApi, type E2EHost } from './map-scene-e2e';
 import { computeDeliveryReward } from '../systems/delivery-reward';
 
-// Depth layers, from bottom to top. HUD depth lives in map-hud.ts and marker
-// depth in map-markers.ts.
-const DEPTH_TERRAIN = 0;
+// The courier sits above the terrain (0) and below the fog (5), both of which
+// are drawn by MapTerrainLayer. HUD depth lives in map-hud.ts and marker depth
+// in map-markers.ts.
 const DEPTH_COURIER = 6;
-const DEPTH_FOG = 5;
 
 // Story-flag ids for the one-time onboarding teaches (D2, #149). Reserved
 // prefix so they never collide with dialogue-authored flags; they persist in
@@ -224,8 +223,8 @@ export class MapScene extends Phaser.Scene {
   private map!: TileMap;
   private mapOriginY = 0;
   private courier!: Courier;
-  private impassable!: Phaser.Physics.Arcade.StaticGroup;
-  private gatedBlocks = new Map<string, Phaser.GameObjects.Rectangle[]>();
+  /** Terrain, impassable colliders, and fog rectangles (#365). */
+  private terrain!: MapTerrainLayer;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private buyKey!: Phaser.Input.Keyboard.Key;
@@ -235,7 +234,6 @@ export class MapScene extends Phaser.Scene {
   // Cosmetic feedback only (#227). Never gates or changes a rule.
   private juice!: Juice;
   private fog!: Fog;
-  private fogRects: (Phaser.GameObjects.Rectangle | undefined)[] = [];
   private activeContract: Contract | undefined;
   private progress: ContractProgress | undefined;
   private completed = new Set<string>();
@@ -357,8 +355,6 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(data?: MapSceneData): void {
-    this.gatedBlocks = new Map();
-
     // Restore a saved game if one exists; otherwise start fresh.
     const snapshot = loadSave();
     const regionId = data?.regionId ?? snapshot?.regionId ?? DEFAULT_REGION_ID;
@@ -377,9 +373,9 @@ export class MapScene extends Phaser.Scene {
     // maps and following the courier on maps larger than the viewport.
     this.mapOriginY = 0;
 
-    this.drawTiles();
-    // Colliders read the restored unlock set, so an unlocked ford stays open.
-    this.addImpassableColliders();
+    // Draws the terrain and bakes the colliders. Reads the restored unlock set,
+    // so an unlocked ford stays open.
+    this.terrain = new MapTerrainLayer(this, this.map, this.mapOriginY, this.traversalKeys());
 
     this.physics.world.setBounds(
       0,
@@ -399,13 +395,12 @@ export class MapScene extends Phaser.Scene {
             const id = getTerrainIdAt(this.map, tile.x, tile.y);
             return id !== undefined && isPassableWith(id, this.traversalKeys());
           });
-    const spawnX = arrival.x * TILE_SIZE + TILE_SIZE / 2;
-    const spawnY = this.mapOriginY + arrival.y * TILE_SIZE + TILE_SIZE / 2;
-    this.courier = new Courier(this, spawnX, spawnY);
+    const spawn = this.tileCenter(arrival.x, arrival.y);
+    this.courier = new Courier(this, spawn.x, spawn.y);
     this.courier.sprite.setDepth(DEPTH_COURIER);
-    this.physics.add.collider(this.courier.sprite, this.impassable);
-    this.prevX = spawnX;
-    this.prevY = spawnY;
+    this.physics.add.collider(this.courier.sprite, this.terrain.impassable);
+    this.prevX = spawn.x;
+    this.prevY = spawn.y;
 
     this.setupCamera();
     // Before the markers: the signpost registers an overlap callback that can
@@ -427,7 +422,9 @@ export class MapScene extends Phaser.Scene {
     this.markers.addSettlements(this.region, this.worldState());
     this.markers.addGateways(this.region, this.map.width, this.map.height);
     this.refreshEncounterMarkers();
-    this.addFog();
+    // Fog is built after the markers so it draws over them.
+    this.fog = createFog(this.map.width, this.map.height);
+    this.terrain.buildFog();
     this.restoreFog();
     this.setupInput();
     this.hud = new MapHud(this, terrainsPresent(this.map.tiles, TERRAIN_TYPES));
@@ -584,14 +581,15 @@ export class MapScene extends Phaser.Scene {
       delete this.fogDimsByRegion[this.region.id];
       return;
     }
+    const valid: number[] = [];
     for (const index of indices) {
       if (index < 0 || index >= this.fog.revealed.length) {
         continue;
       }
       this.fog.revealed[index] = true;
-      this.fogRects[index]?.destroy();
-      this.fogRects[index] = undefined;
+      valid.push(index);
     }
+    this.terrain.clearFogAt(valid);
   }
 
   private save(): void {
@@ -1110,10 +1108,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private tileCenter(tileX: number, tileY: number): { x: number; y: number } {
-    return {
-      x: tileX * TILE_SIZE + TILE_SIZE / 2,
-      y: this.mapOriginY + tileY * TILE_SIZE + TILE_SIZE / 2,
-    };
+    return tileCenter(tileX, tileY, this.mapOriginY);
   }
 
   /**
@@ -1132,92 +1127,6 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private drawTiles(): void {
-    // Grey-box fill remains the fallback for any terrain without an art entry,
-    // so the map still renders if a skin is partial (art Phase 2, #152).
-    const tiles = this.add.graphics().setDepth(DEPTH_TERRAIN);
-    for (let y = 0; y < this.map.height; y++) {
-      for (let x = 0; x < this.map.width; x++) {
-        const terrainId = getTerrainIdAt(this.map, x, y);
-        if (terrainId === undefined) {
-          continue;
-        }
-        const terrain = TERRAIN_TYPES[terrainId];
-        if (terrain === undefined) {
-          continue;
-        }
-        const art = terrainTileArt(terrainId, x, y);
-        if (art === undefined) {
-          tiles.fillStyle(terrain.color, 1);
-          tiles.fillRect(x * TILE_SIZE, this.mapOriginY + y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          continue;
-        }
-        this.drawTileArt(x, y, art);
-      }
-    }
-  }
-
-  /**
-   * Draw a terrain tile from the atlas: the ground frame, then any overlay. The
-   * frames and horizontal flip carry the per-tile variety resolved in
-   * terrainTileArt (#209); the overlay shares the base's flip so a tree and its
-   * ground mirror together.
-   */
-  private drawTileArt(x: number, y: number, art: TileArt): void {
-    const center = this.tileCenter(x, y);
-    this.add
-      .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.base)
-      .setDisplaySize(TILE_SIZE, TILE_SIZE)
-      .setFlipX(art.flipX)
-      .setDepth(DEPTH_TERRAIN);
-    if (art.overlay !== undefined) {
-      this.add
-        .image(center.x, center.y, TERRAIN_ATLAS_KEY, art.overlay)
-        .setDisplaySize(TILE_SIZE, TILE_SIZE)
-        .setFlipX(art.flipX)
-        .setDepth(DEPTH_TERRAIN);
-    }
-  }
-
-  private addImpassableColliders(): void {
-    this.impassable = this.physics.add.staticGroup();
-    const keys = this.traversalKeys();
-    for (let y = 0; y < this.map.height; y++) {
-      for (let x = 0; x < this.map.width; x++) {
-        const terrainId = getTerrainIdAt(this.map, x, y);
-        if (terrainId === undefined || isPassableWith(terrainId, keys)) {
-          continue;
-        }
-        const center = this.tileCenter(x, y);
-        const block = this.add.rectangle(center.x, center.y, TILE_SIZE, TILE_SIZE);
-        this.impassable.add(block);
-
-        const unlockId = getTerrain(terrainId)?.unlockId;
-        if (unlockId !== undefined) {
-          const group = this.gatedBlocks.get(unlockId) ?? [];
-          group.push(block);
-          this.gatedBlocks.set(unlockId, group);
-        }
-      }
-    }
-  }
-
-  private addFog(): void {
-    this.fog = createFog(this.map.width, this.map.height);
-    this.fogRects = new Array<Phaser.GameObjects.Rectangle | undefined>(
-      this.map.width * this.map.height,
-    ).fill(undefined);
-    for (let y = 0; y < this.map.height; y++) {
-      for (let x = 0; x < this.map.width; x++) {
-        const center = this.tileCenter(x, y);
-        const rect = this.add
-          .rectangle(center.x, center.y, TILE_SIZE, TILE_SIZE, FOG_COLOR)
-          .setDepth(DEPTH_FOG);
-        this.fogRects[y * this.map.width + x] = rect;
-      }
-    }
-  }
-
   private revealAroundCourier(): void {
     const tile = this.courierTile();
     const base =
@@ -1225,11 +1134,7 @@ export class MapScene extends Phaser.Scene {
       skillRevealBonus(this.skills);
     const radius = Math.max(1, base + this.weather.revealBonus);
     const revealed = revealAround(this.fog, tile.x, tile.y, radius);
-    for (const { x, y } of revealed) {
-      const index = y * this.map.width + x;
-      this.fogRects[index]?.destroy();
-      this.fogRects[index] = undefined;
-    }
+    this.terrain.clearFogAtTiles(revealed);
     // A wayside discovery is found the moment its tile first reveals, so a
     // courier who invests in reveal is paid in lore, not just sight (#111).
     // Derived from the newly-revealed set, so it fires once and never on reload.
@@ -1940,9 +1845,7 @@ export class MapScene extends Phaser.Scene {
     if (!unlock(this.state, id)) {
       return false;
     }
-    const blocks = this.gatedBlocks.get(id);
-    blocks?.forEach((block) => block.destroy());
-    this.gatedBlocks.delete(id);
+    this.terrain.openGates([id]);
     this.refreshFordStatus();
     this.juice.routeUnlocked(this.courier.sprite.x, this.courier.sprite.y);
     this.hud.showToast('Shortcut unlocked: the ford is open.');
@@ -1954,23 +1857,12 @@ export class MapScene extends Phaser.Scene {
   /**
    * Open any gated terrain whose capability the courier now holds. Fords open via
    * unlockFeature, but capability gates (the deep mire) are granted by buying an
-   * upgrade or ranking a skill, which fire no unlock event. The impassable
-   * colliders are baked once at create() from the capabilities held then, so a
-   * capability gained mid-scene leaves a stale collider: the pathfinder routes
-   * through the now-passable tile while physics still blocks it, soft-locking the
-   * courier at its edge. Call this after any upgrade or skill change to destroy
-   * the colliders for every token now in the live traversal set. Idempotent: a
-   * token whose blocks are already gone is a no-op.
+   * upgrade or ranking a skill, which fire no unlock event, so this has to be
+   * called after any upgrade or skill change. See MapTerrainLayer.openGates for
+   * why a stale collider soft-locks the courier.
    */
   private refreshGatedColliders(): void {
-    for (const token of this.traversalKeys()) {
-      const blocks = this.gatedBlocks.get(token);
-      if (blocks === undefined) {
-        continue;
-      }
-      blocks.forEach((block) => block.destroy());
-      this.gatedBlocks.delete(token);
-    }
+    this.terrain.openGates(this.traversalKeys());
   }
 
   private setupInput(): void {
