@@ -58,3 +58,39 @@ jobs:
           source-dir: dist
           preview-branch: gh-pages
           umbrella-dir: pr-preview
+
+      # The remove above empties the preview folder but does not delete it: the
+      # underlying github-pages-deploy-action re-creates a .nojekyll in its
+      # target folder, so every closed PR left a directory holding one empty
+      # file. 82 of those had accumulated by 2026-07-25 (#366).
+      #
+      # This deletes the directory itself, and refuses to act unless .nojekyll is
+      # genuinely all that is left, so it can never take out a live preview.
+      - name: Prune the emptied preview directory
+        if: ${{ github.event.action == 'closed' }}
+        env:
+          PREVIEW_DIR: pr-preview/pr-${{ github.event.number }}
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin gh-pages
+          git checkout -B gh-pages origin/gh-pages
+          if [ ! -d "$PREVIEW_DIR" ]; then
+            echo "$PREVIEW_DIR is already gone, nothing to prune."
+            exit 0
+          fi
+          remaining=$(git ls-files "$PREVIEW_DIR" | grep -cv '/\.nojekyll$' || true)
+          if [ "$remaining" -ne 0 ]; then
+            echo "$PREVIEW_DIR still holds $remaining real file(s); leaving it alone."
+            exit 0
+          fi
+          git rm -r --quiet "$PREVIEW_DIR"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "chore: prune emptied preview directory for PR #${{ github.event.number }}"
+          # The gh-pages-write concurrency group serialises this against the main
+          # deploy, but a rebase-and-retry costs nothing and avoids failing the
+          # workflow over a lost race on a cosmetic commit.
+          git push origin gh-pages || {
+            git pull --rebase origin gh-pages
+            git push origin gh-pages
+          }
