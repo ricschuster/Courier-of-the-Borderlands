@@ -66,6 +66,7 @@ import {
   repairHelpText,
   rescue,
   maxConditionForLevel,
+  conditionFraction,
   MAX_CONDITION,
   WAGON_TUNING,
   difficultyLabel,
@@ -151,6 +152,7 @@ import { MapHud, type WagonState } from './map-hud';
 import { MapMarkers } from './map-markers';
 import { Juice } from './juice';
 import { Audio } from './audio';
+import { BED_REFERENCE_MULTIPLIER } from '../systems/audio-bed';
 import {
   getRegion,
   arrivalTile,
@@ -192,6 +194,11 @@ const DEPTH_COURIER = 6;
 const ONBOARD_SKILLS = 'onboarding:skills';
 const ONBOARD_UPGRADES = 'onboarding:upgrades';
 const ONBOARD_OFFROAD = 'onboarding:offroad';
+
+// Frames between bump knocks while the wagon is pressed into an impassable edge
+// (#383). Driving into a mountain means holding the key, so without a rate limit
+// this would be a buzz rather than a knock. Half a second at 60fps.
+const BUMP_COOLDOWN_FRAMES = 30;
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -354,6 +361,19 @@ export class MapScene extends Phaser.Scene {
   // The most recent story messages, mirrored from their toasts so they can be
   // re-read in the journal after the toast fades (Session 2 playtest).
   private recentEvents: readonly string[] = [];
+  // Terrain under the wagon on the previous frame, so the driving cues fire on the
+  // crossing rather than every frame the wagon spends on the ground (#383).
+  // Undefined on the first frame of a scene, which is why the first frame fires
+  // nothing: spawning on a road is not "joining" one.
+  private prevTerrainId: string | undefined;
+  private prevTerrainKnown = false;
+  // True while the player is holding a movement key, so a bump can be told from
+  // the first frame of a press (velocity is set in update() but the body does not
+  // move until physics runs, so frame one always looks blocked).
+  private wasDriving = false;
+  // Frame the bump cue may next fire on. Driving into a mountain means holding the
+  // key down, and an unrated knock every frame would be a buzz (#383).
+  private bumpReadyFrame = 0;
 
   constructor() {
     super({ key: 'MapScene' });
@@ -415,6 +435,11 @@ export class MapScene extends Phaser.Scene {
     // frame-starvation history (#114, #121). Cues are still recorded, so the
     // specs can prove each call site fires (#226).
     this.audio = new Audio(isE2E());
+    // The rolling bed outlives the scene (it hangs off the shared AudioContext),
+    // so a restart has to hand it back to rest. Without this, travelling through
+    // a gateway leaves the wheels rolling at their last gain through the whole
+    // rebuild, which is the one place a continuous voice can hang (#383).
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.settleBed());
 
     this.markers = new MapMarkers(this, this.mapOriginY);
     // The signpost only exists in regions that host the ford-unlock mechanic.
@@ -672,6 +697,11 @@ export class MapScene extends Phaser.Scene {
     // Count every update, including dialogue-frozen ones, so e2e frame waits
     // keep advancing while a conversation is open.
     this.frameNo += 1;
+    // Play the winner of the frame just ended (#383). This is the only statement
+    // that provably runs on every path through update(), including both modal
+    // early-returns below, which is why the flush lives at the top rather than at
+    // each exit.
+    this.audio.flushFrame();
     // Before every modal early-return below: a player who wants the room quiet
     // should not have to close a panel or finish a conversation first (#226).
     this.handleMuteInput();
@@ -679,6 +709,9 @@ export class MapScene extends Phaser.Scene {
     // number keys pick choices instead of accepting contracts or spending points.
     if (this.hud.isDialogueVisible()) {
       this.courier.setVelocity(0, 0);
+      // The wagon is frozen, so the wheels have to stop too. Settling rather than
+      // cutting, so opening a conversation mid-drive trails off (#383).
+      this.audio.settleBed();
       this.dialogue.handleInput();
       // After the input, so a conversation ended this frame hands the hint line
       // straight back to the world rather than a frame late.
@@ -695,6 +728,7 @@ export class MapScene extends Phaser.Scene {
     // is for a conversation, and one thing is on screen at a time (#149).
     if (this.hud.isBlockingOverlayOpen()) {
       this.courier.setVelocity(0, 0);
+      this.audio.settleBed();
       this.handleSkillInput();
       this.handleUpgradeInput();
       this.handleUpgradeToggle();
@@ -758,7 +792,8 @@ export class MapScene extends Phaser.Scene {
       this.usedFordThisContract = true;
     }
 
-    this.trackDistance(wearRate);
+    const tilesMoved = this.trackDistance(wearRate);
+    this.updateDrivingAudio(input, terrainId, velocity, tilesMoved);
     // Teach the off-road wear lesson the first time the wagon is driven onto
     // rough ground (roughness > 0; roads and bridges normalise to 0). The blind
     // run never learned that leaving the road wears the wagon, and that fed the
@@ -856,8 +891,13 @@ export class MapScene extends Phaser.Scene {
   /**
    * Accumulate distance driven since the previous frame, in tiles, and wear the
    * wagon by `wearRate` per tile for the terrain just crossed (ADR 0005).
+   *
+   * Returns the tiles covered, which the audio bed uses as its "is the wagon
+   * actually rolling" signal: commanded velocity is non-zero while pressed into a
+   * mountain, and a bed that hummed against a wall would be describing a drive
+   * that is not happening (#383).
    */
-  private trackDistance(wearRate: number): void {
+  private trackDistance(wearRate: number): number {
     const dx = this.courier.sprite.x - this.prevX;
     const dy = this.courier.sprite.y - this.prevY;
     this.prevX = this.courier.sprite.x;
@@ -881,6 +921,66 @@ export class MapScene extends Phaser.Scene {
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
       }
+    }
+    return tiles;
+  }
+
+  /**
+   * The rolling bed and the driving cues (#383).
+   *
+   * The bed says what the ground feels like right now; the cues mark the moment it
+   * changed. Both are cosmetic in the design note's sense: the terrain readout
+   * already names the ground, the wagon meter already shows the condition, and the
+   * ford toast already explains a block.
+   */
+  private updateDrivingAudio(
+    input: MoveInput,
+    terrainId: string | undefined,
+    velocity: { x: number; y: number },
+    tilesMoved: number,
+  ): void {
+    const driving = input.up || input.down || input.left || input.right;
+    // Movement that actually happened, not movement that was asked for. Pressed
+    // into a mountain these disagree, and that disagreement is the bump.
+    const rolling = tilesMoved > 0;
+    const blocked = driving && this.wasDriving && !rolling;
+    if (blocked && this.frameNo >= this.bumpReadyFrame) {
+      this.audio.bumped();
+      this.bumpReadyFrame = this.frameNo + BUMP_COOLDOWN_FRAMES;
+    }
+    this.wasDriving = driving;
+
+    this.audio.updateBed({
+      speed: rolling ? Math.hypot(velocity.x, velocity.y) : 0,
+      referenceSpeed: COURIER_SPEED * speedFactor() * BED_REFERENCE_MULTIPLIER,
+      terrainId,
+      conditionFraction: conditionFraction(this.wagonCondition, this.wagonMax()),
+      weatherId: this.weather.id,
+    });
+
+    if (this.prevTerrainKnown && terrainId !== this.prevTerrainId) {
+      this.announceTerrainCrossing(this.prevTerrainId, terrainId);
+    }
+    this.prevTerrainId = terrainId;
+    this.prevTerrainKnown = true;
+  }
+
+  /** One cue for a terrain crossing, or none when the change is unremarkable. */
+  private announceTerrainCrossing(from: string | undefined, to: string | undefined): void {
+    const paved = (id: string | undefined): boolean => id === 'road' || id === 'bridge';
+    if (paved(to) && !paved(from)) {
+      this.audio.roadJoined();
+    } else if (paved(from) && !paved(to)) {
+      this.audio.roadLeft();
+    }
+    // Gated ground is the terrain the base wagon could not enter at all, so
+    // reaching it means a capability opened it. Read off the unlock id rather
+    // than the terrain id so a new region's ford needs no change here.
+    const unlockId = to === undefined ? undefined : getTerrain(to)?.unlockId;
+    if (unlockId === 'mire-crossing' || unlockId === 'tidal-crossing') {
+      this.audio.gatedGround();
+    } else if (unlockId !== undefined) {
+      this.audio.fordCrossed();
     }
   }
 
@@ -1070,6 +1170,7 @@ export class MapScene extends Phaser.Scene {
     if (beside && !this.atLockedFordHinted) {
       this.atLockedFordHinted = true;
       this.hud.showToast('The ford is blocked. Reach the ford-key signpost to open this shortcut.');
+      this.audio.fordBlocked();
     } else if (!beside) {
       this.atLockedFordHinted = false;
     }

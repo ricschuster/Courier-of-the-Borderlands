@@ -68,6 +68,10 @@ test('game moments request their cues, and V silences them', async ({ page }) =>
   const delivered = (await readTick(page, 0, 0)).state;
   expect(delivered.deliveries, 'the delivery should have landed').toBeGreaterThan(0);
   expect(delivered.audio.lastCue).toBe('delivered');
+  // An arrival stacks several requests into one frame, and exactly one of them is
+  // heard (#383). This is the live proof that the flush runs at all: without it
+  // nothing would ever play, and `lastCue` above would still be green.
+  expect(delivered.audio.lastPlayed, 'the delivery lost its own frame').toBe('delivered');
 
   // Mute, and prove the next moment requests nothing rather than merely storing a
   // flag. Works with messages on screen, so no need to clear the queue first.

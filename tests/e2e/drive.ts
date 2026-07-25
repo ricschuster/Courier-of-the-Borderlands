@@ -264,7 +264,10 @@ export async function releaseAll(page: Page, held: Set<Arrow>): Promise<void> {
  * game's pathfinding one waypoint at a time. Resolves once the courier's tile
  * matches the goal, or throws if it cannot get there within the step budget.
  * If `onTile` is given, it is called with every distinct tile the courier
- * occupies along the way, so callers can assert which route was taken.
+ * occupies along the way, so callers can assert which route was taken. If
+ * `onTick` is given, it is called with the whole live state at every step, which
+ * is how a spec samples something that only exists mid-drive (the rolling audio
+ * bed, #383) rather than at the destination.
  */
 export async function driveToTile(
   page: Page,
@@ -272,11 +275,13 @@ export async function driveToTile(
   goalTileX: number,
   goalTileY: number,
   onTile?: (tile: { x: number; y: number }) => void,
+  onTick?: (state: Awaited<ReturnType<typeof readTick>>['state']) => void,
 ): Promise<void> {
   const maxSteps = 400;
   for (let step = 0; step < maxSteps; step++) {
     const { state, next } = await readTick(page, goalTileX, goalTileY);
     onTile?.({ x: state.courier.tileX, y: state.courier.tileY });
+    onTick?.(state);
     if (state.courier.tileX === goalTileX && state.courier.tileY === goalTileY) {
       await releaseAll(page, held);
       return;

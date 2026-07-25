@@ -1,5 +1,8 @@
 import { cueFor, type AudioCue, type AudioCueId } from '../systems/audio-cues';
 import { loadAudioMuted, saveAudioMuted } from '../systems/audio-preference';
+import { chooseCue, MASTER_GAIN } from '../systems/audio-mix';
+import { bedProfileFor, type BedInput, type BedProfile } from '../systems/audio-bed';
+import { createBedVoice, type BedContext, type BedVoice } from './audio-bed-voice';
 
 // Sound effects (#226, designed in docs/design/09_audio.md). The sibling of
 // juice.ts, and it holds to the same promise that file states:
@@ -31,10 +34,20 @@ import { loadAudioMuted, saveAudioMuted } from '../systems/audio-preference';
 // accessibility promise that is only asserted in a unit test is a promise about a
 // function, not about the game". So this records the last cue it was asked for,
 // and the e2e asserts a delivery asked for one and that muting stops it.
+//
+// #383 added two things on top of that:
+//
+//   - A continuous rolling bed under everything. It is a voice, not a cue, so it
+//     goes through its own path and is never suppressed by a collision.
+//   - One cue voice per frame. Requests accumulate through the frame and the
+//     highest tier plays at the start of the next one (see audio-mix.ts). The
+//     one-frame delay is inaudible, and flushing at the top of update() is the
+//     only place that provably covers every one of update()'s early returns.
 
 /** The audible part, separated so the class is testable without WebAudio. */
-interface AudioOutput {
+export interface AudioOutput {
   play(cue: AudioCue): void;
+  bed(profile: BedProfile): void;
   resume(): void;
 }
 
@@ -58,10 +71,15 @@ export interface CueContext {
  * ramps up over the attack and then decays away. Nodes stop themselves, which is
  * what WebAudio expects for one-shots.
  *
+ * `output` is the master gain rather than the context destination (#383), so one
+ * node carries the bed and every cue and a future volume slider has somewhere to
+ * live. Defaults to the destination so the tests that predate the master gain
+ * still describe a complete graph.
+ *
  * Exported for the tests described on CueContext. Throws nothing on its own; the
  * caller owns the catch.
  */
-export function synthesizeCue(ctx: CueContext, cue: AudioCue): void {
+export function synthesizeCue(ctx: CueContext, cue: AudioCue, output?: AudioNode): void {
   const now = ctx.currentTime;
   const end = now + cue.durationMs / 1000;
   const osc = ctx.createOscillator();
@@ -79,20 +97,36 @@ export function synthesizeCue(ctx: CueContext, cue: AudioCue): void {
   // cut would click.
   gain.gain.exponentialRampToValueAtTime(0.0001, end);
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(output ?? ctx.destination);
   osc.start(now);
   osc.stop(end);
 }
 
+/** A bed profile that makes no sound, used while muted and on scene teardown. */
+const SILENT_BED: BedProfile = {
+  gain: 0,
+  centerHz: 900,
+  q: 1.4,
+  knock: 0,
+  surface: 'unknown',
+};
+
 /**
  * Scene-lifetime sound. Construct one per create(); it holds no global state
- * beyond its own AudioContext, which browsers cap per document, so it is created
+ * beyond the shared output, which browsers cap per document, so that is created
  * lazily and reused across scene restarts via a module-level handle.
  */
 export class Audio {
   private muted: boolean;
   private readonly output: AudioOutput | null;
   private lastCue: AudioCueId | null = null;
+  private lastPlayed: AudioCueId | null = null;
+  /** Cues asked for since the last flush. Emptied every frame. */
+  private pending: AudioCueId[] = [];
+  /** The profile currently commanded, so the e2e can see the bed without hearing it. */
+  private bedProfile: BedProfile = SILENT_BED;
+  /** The last input the scene gave the bed, so it can be settled without one. */
+  private bedInput: BedInput | null = null;
 
   /**
    * @param silent true to build with no output at all (the e2e runs). Cues are
@@ -100,7 +134,7 @@ export class Audio {
    */
   constructor(silent: boolean) {
     this.muted = loadAudioMuted();
-    this.output = silent ? null : webAudioOutput();
+    this.output = silent ? null : sharedOutput();
   }
 
   /** The player's mute state, for the HUD hint and the e2e hook. */
@@ -115,6 +149,13 @@ export class Audio {
   toggleMuted(): boolean {
     this.muted = !this.muted;
     saveAudioMuted(this.muted);
+    if (this.muted) {
+      // The bed is a voice rather than a request, so muting has to reach in and
+      // silence it. A cue path that merely stops requesting would leave the
+      // wheels rolling, which is the loudest possible way to fail to mute.
+      this.pending = [];
+      this.applyBed(SILENT_BED);
+    }
     return this.muted;
   }
 
@@ -122,14 +163,72 @@ export class Audio {
    * The cue most recently requested, or null if none has been since the last
    * reset. Exposed for the e2e hook only: with no sound device in CI this is the
    * only evidence that a call site fired at all.
+   *
+   * This is what was *asked for*, which is deliberately not the same as what was
+   * heard: a request that lost a frame collision still shows up here, because the
+   * question this answers is whether the call site exists.
    */
   lastRequestedCue(): AudioCueId | null {
     return this.lastCue;
   }
 
-  /** Clear the record, so a spec can assert that the next action requested nothing. */
+  /**
+   * The cue that actually won its frame and played, which is what the collision
+   * rule can be proven by. Null until a frame with at least one request flushes.
+   */
+  lastPlayedCue(): AudioCueId | null {
+    return this.lastPlayed;
+  }
+
+  /** Clear both records, so a spec can assert that the next action requested nothing. */
   clearLastRequestedCue(): void {
     this.lastCue = null;
+    this.lastPlayed = null;
+  }
+
+  /**
+   * Play the winner of the frame just ended and start collecting the next one.
+   * Called once at the top of update(), which is the only point that runs on
+   * every path through the frame including the modal early returns.
+   */
+  flushFrame(): void {
+    if (this.pending.length === 0) {
+      return;
+    }
+    const winner = chooseCue(this.pending);
+    this.pending = [];
+    if (winner === null) {
+      return;
+    }
+    this.lastPlayed = winner;
+    this.output?.play(cueFor(winner));
+  }
+
+  /**
+   * Update the rolling bed for this frame. Cheap and expected every frame; the
+   * profile is pure (systems/audio-bed.ts) and the voice only ramps toward it.
+   */
+  updateBed(input: BedInput): void {
+    this.bedInput = input;
+    this.applyBed(this.muted ? SILENT_BED : bedProfileFor(input));
+  }
+
+  /**
+   * Bring the bed to rest without a fresh input: the wagon is frozen behind a
+   * panel or a conversation, or the scene is shutting down. The surface and
+   * weather are kept, so it settles over the ground it stopped on.
+   */
+  settleBed(): void {
+    if (this.bedInput === null) {
+      this.applyBed(SILENT_BED);
+      return;
+    }
+    this.updateBed({ ...this.bedInput, speed: 0 });
+  }
+
+  /** What the bed is currently doing. For the e2e hook: a voice has no "last cue". */
+  bedState(): BedProfile {
+    return this.bedProfile;
   }
 
   /**
@@ -177,14 +276,44 @@ export class Audio {
     this.play('level-up');
   }
 
-  /** A contract was committed to. The quietest cue in the table. */
+  /** A contract was committed to. The quietest cue that is not a tick. */
   contractAccepted(): void {
     this.play('contract-accepted');
   }
 
+  /** The wheels found a road. The pillar, made audible. */
+  roadJoined(): void {
+    this.play('road-joined');
+  }
+
+  /** And lost it again. */
+  roadLeft(): void {
+    this.play('road-left');
+  }
+
+  /** Onto ground the base wagon could not have crossed: deep mire, tidal flats. */
+  gatedGround(): void {
+    this.play('gated-ground');
+  }
+
+  /** Water under the wheels at a ford. */
+  fordCrossed(): void {
+    this.play('ford-crossed');
+  }
+
+  /** A ford that has not been opened yet, beside the toast that explains it. */
+  fordBlocked(): void {
+    this.play('ford-blocked');
+  }
+
+  /** Driving into water or a mountain, which is otherwise silent and reads as a freeze. */
+  bumped(): void {
+    this.play('bump');
+  }
+
   /**
    * Muted comes first, so a muted game requests nothing and the e2e can prove it.
-   * Recording before playing means a browser that cannot make sound still shows
+   * Recording before queueing means a browser that cannot make sound still shows
    * the call site firing.
    */
   private play(id: AudioCueId): void {
@@ -192,7 +321,13 @@ export class Audio {
       return;
     }
     this.lastCue = id;
-    this.output?.play(cueFor(id));
+    this.pending.push(id);
+  }
+
+  /** Command the bed, remembering the profile for the e2e hook. */
+  private applyBed(profile: BedProfile): void {
+    this.bedProfile = profile;
+    this.output?.bed(profile);
   }
 }
 
@@ -226,18 +361,58 @@ function audioContext(): AudioContext | null {
   }
 }
 
-/** Wraps the synthesis in the guarantee that a cue never breaks a frame. */
-function webAudioOutput(): AudioOutput | null {
-  const ctx = audioContext();
-  if (ctx === null) {
+/**
+ * The output graph, built once per document alongside the context. The master
+ * gain and the bed voice both outlive any single scene, for the same reason the
+ * context does, and a scene restart re-points at them rather than rebuilding.
+ */
+let sharedOutputHandle: AudioOutput | null = null;
+
+/** Everything the output graph needs from an AudioContext. */
+export interface OutputContext extends CueContext, BedContext {
+  readonly state: AudioContextState;
+  resume(): Promise<void>;
+}
+
+/**
+ * Build the graph every voice passes through: a master gain into the
+ * destination, with the bed already hanging off it, and cues joining it as they
+ * fire. Returns null if the graph could not be built at all.
+ *
+ * Exported so the routing itself can be asserted (#383). Testing `synthesizeCue`
+ * in isolation proves a cue can be pointed at a master gain; it says nothing
+ * about whether the one the game plays through is, which is the difference
+ * between a promise about a function and a promise about the game.
+ *
+ * Every method wraps the guarantee that sound never breaks a frame.
+ */
+export function createAudioOutput(ctx: OutputContext): AudioOutput | null {
+  let master: GainNode;
+  let voice: BedVoice;
+  try {
+    master = ctx.createGain();
+    master.gain.setValueAtTime(MASTER_GAIN, ctx.currentTime);
+    master.connect(ctx.destination);
+    voice = createBedVoice(ctx, master);
+  } catch {
+    // No master, no bed: fall back to no output rather than to a half-built
+    // graph. Silence is recoverable; a graph missing its gain node is not.
     return null;
   }
   return {
     play(cue: AudioCue): void {
       try {
-        synthesizeCue(ctx, cue);
+        synthesizeCue(ctx, cue, master);
       } catch {
         // A cue is cosmetic; never let one break a frame.
+      }
+    },
+    bed(profile: BedProfile): void {
+      try {
+        voice.update(profile);
+      } catch {
+        // Same promise as a cue, and a per-frame call is the worst possible
+        // place to throw from.
       }
     },
     resume(): void {
@@ -250,4 +425,21 @@ function webAudioOutput(): AudioOutput | null {
       }
     },
   };
+}
+
+/** The document's one output graph, built on first use and then reused. */
+function sharedOutput(): AudioOutput | null {
+  if (sharedOutputHandle !== null) {
+    return sharedOutputHandle;
+  }
+  const ctx = audioContext();
+  if (ctx === null) {
+    return null;
+  }
+  sharedOutputHandle = createAudioOutput(ctx);
+  if (sharedOutputHandle === null) {
+    // Remembered, so a context that cannot build a graph is not retried per cue.
+    contextUnavailable = true;
+  }
+  return sharedOutputHandle;
 }
