@@ -1,7 +1,9 @@
 # Audio
 
-Status: designed 2026-07-25. Phase 1 (synthesized cues) built the same day; see
-"Placeholder first, samples second" for what Phase 2 still owes. Tracks #226.
+Status: designed 2026-07-25. Phase 1 (eight synthesized cues) built the same day
+in #382. The owner then asked for far more of them, which is "The breadth pass"
+below and is tracked as #383, #384 and #385. Real samples and music are still owed;
+see "Placeholder first, samples second". Tracks #226.
 
 Scope of this note: sound effects. Music is deliberately out of the first slice
 (see "Music, and why it is not here yet").
@@ -140,10 +142,46 @@ Weighted per decision 4: the moment that hurt is loudest. Every cue is short
 | Level up / skill point earned | soft | toast, status line | Fires mid-drive, so it must not startle. |
 | Contract accepted | soft | board clears, objective changes | Confirms a commitment. Candidate to cut if the loop gets noisy: it is the most frequent press in the game. |
 
-Deliberately silent: toast dismissal (every press would click), driving and
-terrain changes (continuous, and the wear meter already carries it), fog reveal
-(constant), and the intro card (fires before any gesture, so it cannot play
-anyway).
+Deliberately silent in the first slice: toast dismissal, driving and terrain
+changes, fog reveal, and the intro card (which fires before any gesture, so it
+could not play anyway).
+
+**Three of those four were overturned by the owner on the same day; see "The
+breadth pass" below.** Only fog reveal and the intro card remain silent by
+decision.
+
+## The breadth pass (owner, 2026-07-25, after playing #382)
+
+> Sounds work and make sense. My main comment is there needs to be more SFX in the
+> game. If we do SFX we should do them for many actions and events. An easy one is
+> cart movement. Nothing yet, but would add a lot.
+
+The eight cues above were scoped as a first slice to prove the pipeline. That
+worked, and the answer was that eight is too few: the game should answer the
+player far more often. The inventory came to roughly thirty additions, tracked as
+#383, #384 and #385, and it changes three things about the design above rather than
+merely extending it.
+
+**1. Driving gets a continuous voice.** The reasoning for leaving it silent (it is
+continuous, and the wear meter already carries it) was wrong in an interesting way:
+it treated audio purely as punctuation on discrete events. A rolling bed whose
+timbre follows terrain makes "roads are gameplay" audible, which no meter does. It
+is a new subsystem, not a table row, because it is a persistent voice with
+per-frame modulation rather than a one-shot. See #383.
+
+**2. Breadth needs a collision rule.** With thirty cues, several fire in the same
+frame; a delivery arrival already stacks up to five. Highest tier wins and the rest
+are dropped, not queued, because a late cue is detached from the moment it
+described. Deliberately the same shape as the toast burst grouping (#378): several
+things at once get one response, not a pile.
+
+**3. Breadth needs a tier discipline and a master gain.** Frequent means quiet, as
+a named tier rather than a number chosen per cue (bed, tick, cue, event, moment).
+And a bed under thirty cues means loudness creeps together, so one master gain node
+carries everything, which is also where a future volume slider goes.
+
+Scroll stays silent by decision: it fires per wheel notch and would buzz rather
+than tick. Recorded in #385 as a decision, not an omission.
 
 ## Where the code goes
 
