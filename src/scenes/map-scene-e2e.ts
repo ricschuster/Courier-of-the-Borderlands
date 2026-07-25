@@ -26,6 +26,7 @@ import type { Region } from '../systems/region-system';
 import type { MapHud } from './map-hud';
 import type { DialogueController } from './dialogue-controller';
 import type { Juice } from './juice';
+import type { Audio } from './audio';
 
 // Read-only snapshot of live scene state, exposed to end-to-end tests so a
 // headless browser can drive the courier and assert on the delivery loop.
@@ -86,6 +87,18 @@ export interface E2EState {
    * unobservable from outside, and it is the accessibility contract (#227).
    */
   readonly juiceEnabled: boolean;
+  /**
+   * The audio cue most recently requested, or null if none has been since the last
+   * reset, plus whether the player has muted.
+   *
+   * The whole point of this field: e2e runs with Phaser's noAudio manager and no
+   * AudioContext, so nothing can be heard and a call site that never fires looks
+   * exactly like one that does. That is trap 1's function-with-no-caller, and the
+   * same reasoning that put `juiceEnabled` here (#274, #226). A muted game requests
+   * nothing, so `lastCue` staying null after an action is the proof that mute
+   * actually silences rather than merely being stored.
+   */
+  readonly audio: { readonly lastCue: string | null; readonly muted: boolean };
   /** Labels of the choices offered on the current dialogue node (empty when closed). */
   readonly dialogueChoices: readonly string[];
   /** Id of the road encounter currently playing, or null when none is open. */
@@ -161,6 +174,10 @@ export interface CourierE2EApi {
   // carry a tile past the goal before update() re-reads the released keys,
   // making every exact-tile interaction gate miss under CI load.
   seat(tileX: number, tileY: number): boolean;
+  // Forget the last requested audio cue, so a spec can assert that the *next*
+  // action requested one (or, when muted, requested nothing). Read-side only:
+  // this cannot make a sound or change the mute preference (#226).
+  clearAudioCue(): void;
 }
 
 declare global {
@@ -202,6 +219,7 @@ export interface E2EHost {
   getStoryFlags(): StoryFlags;
   getHud(): MapHud;
   getJuice(): Juice;
+  getAudio(): Audio;
   getDialogue(): DialogueController;
   regionCleared(): boolean;
   missionState(): MissionState;
@@ -250,13 +268,14 @@ export function exposeE2EApi(host: E2EHost): void {
     return;
   }
   globalThis.__courier = {
-    version: 13,
+    version: 14,
     getState: () => buildState(host),
     nextStepToward: (tileX, tileY) => nextStep(host, tileX, tileY),
     isPassableTile: (tileX, tileY) => isPassableTile(host, tileX, tileY),
     pathTo: (tileX, tileY) => pathTo(host, tileX, tileY),
     getFrame: () => host.frame(),
     seat: (tileX, tileY) => seat(host, tileX, tileY),
+    clearAudioCue: () => host.getAudio().clearLastRequestedCue(),
   };
 }
 
@@ -352,6 +371,7 @@ function buildState(host: E2EHost): E2EState {
     dialogueOpen: hud.isDialogueVisible(),
     overlayScrollOffset: hud.scrollOffset(),
     juiceEnabled: host.getJuice().isEnabled(),
+    audio: { lastCue: host.getAudio().lastRequestedCue(), muted: host.getAudio().isMuted() },
     dialogueChoices: dialogue.choiceLabels(),
     activeEncounterId: dialogue.activeEncounterId(),
     regionCleared: host.regionCleared(),

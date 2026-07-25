@@ -150,6 +150,7 @@ import { MISSIONS } from '../data/missions';
 import { MapHud, type WagonState } from './map-hud';
 import { MapMarkers } from './map-markers';
 import { Juice } from './juice';
+import { Audio } from './audio';
 import {
   getRegion,
   arrivalTile,
@@ -230,6 +231,7 @@ export class MapScene extends Phaser.Scene {
   private hud!: MapHud;
   // Cosmetic feedback only (#227). Never gates or changes a rule.
   private juice!: Juice;
+  private audio!: Audio;
   private fog!: Fog;
   private activeContract: Contract | undefined;
   private progress: ContractProgress | undefined;
@@ -248,6 +250,7 @@ export class MapScene extends Phaser.Scene {
   private boardNotice: string | null = null;
   private newGameKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
+  private muteKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
   private trip: TripLog = createTripLog();
   private prevX = 0;
@@ -406,8 +409,12 @@ export class MapScene extends Phaser.Scene {
 
     this.setupCamera();
     // Before the markers: the signpost registers an overlap callback that can
-    // unlock the ford, and that path reports through juice.
+    // unlock the ford, and that path reports through juice and audio.
     this.juice = new Juice(this);
+    // Silent under the e2e hook: CI has no output device, and the arc has a
+    // frame-starvation history (#114, #121). Cues are still recorded, so the
+    // specs can prove each call site fires (#226).
+    this.audio = new Audio(isE2E());
 
     this.markers = new MapMarkers(this, this.mapOriginY);
     // The signpost only exists in regions that host the ford-unlock mechanic.
@@ -652,6 +659,7 @@ export class MapScene extends Phaser.Scene {
       getStoryFlags: () => this.storyFlags,
       getHud: () => this.hud,
       getJuice: () => this.juice,
+      getAudio: () => this.audio,
       getDialogue: () => this.dialogue,
       regionCleared: () => this.regionCleared(),
       missionState: () => this.missionState(),
@@ -664,6 +672,9 @@ export class MapScene extends Phaser.Scene {
     // Count every update, including dialogue-frozen ones, so e2e frame waits
     // keep advancing while a conversation is open.
     this.frameNo += 1;
+    // Before every modal early-return below: a player who wants the room quiet
+    // should not have to close a panel or finish a conversation first (#226).
+    this.handleMuteInput();
     // A conversation is modal: freeze the wagon and take only dialogue input so
     // number keys pick choices instead of accepting contracts or spending points.
     if (this.hud.isDialogueVisible()) {
@@ -770,6 +781,11 @@ export class MapScene extends Phaser.Scene {
     if (liveLevel !== this.hudLevel) {
       const leveledUp = liveLevel > this.hudLevel;
       this.refreshWallet();
+      // Only on the way up: hudLevel also moves on a new game, and a reset is not
+      // an achievement to congratulate.
+      if (leveledUp) {
+        this.audio.levelUp();
+      }
       // Recurring skill nudge (#174): each level-up that leaves points banked
       // re-surfaces them, so skills stop being forgotten past the first teach.
       const points = availablePoints(liveLevel, this.skills);
@@ -935,6 +951,7 @@ export class MapScene extends Phaser.Scene {
           tuning: this.wagonTuning,
         }),
       );
+      this.audio.repairRefused();
       return;
     }
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
@@ -949,7 +966,25 @@ export class MapScene extends Phaser.Scene {
     // The tow has already moved the wagon home; the shake reads as the breakdown
     // that put it there, which is the moment worth feeling.
     this.juice.stranded();
+    this.audio.stranded();
     this.save();
+  }
+
+  /**
+   * V toggles all audio and remembers the choice (#226). Runs before update()'s
+   * modal early-returns, so it works with a panel or a conversation open.
+   *
+   * The confirmation is a toast, which means muting costs a dismiss press. That is
+   * deliberate: it is the only feedback available for a change whose whole effect
+   * is that nothing can be heard, and unmuting would otherwise be indistinguishable
+   * from a game with no sound assets.
+   */
+  private handleMuteInput(): void {
+    if (!Phaser.Input.Keyboard.JustDown(this.muteKey)) {
+      return;
+    }
+    const muted = this.audio.toggleMuted();
+    this.hud.showToast(muted ? 'Sound off. Press V for sound.' : 'Sound on. Press V to mute.');
   }
 
   /** Repair the wagon here, spending coins. Reports the outcome to the player. */
@@ -969,6 +1004,7 @@ export class MapScene extends Phaser.Scene {
           tuning: this.wagonTuning,
         }),
       );
+      this.audio.repairRefused();
       return;
     }
     this.wagonCondition = result.condition;
@@ -978,6 +1014,7 @@ export class MapScene extends Phaser.Scene {
       : `Wagon patched to ${Math.round(result.condition)}/${max} at ${placeName} (all your coin).`;
     this.hud.showToast(note);
     this.juice.repaired(this.courier.sprite.x, this.courier.sprite.y);
+    this.audio.repaired();
     this.refreshWallet();
     this.save();
   }
@@ -1190,6 +1227,7 @@ export class MapScene extends Phaser.Scene {
         `+${contract.reputation} reputation.${skillNote}${cipherNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
     this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
+    this.audio.delivered();
     this.refreshObjective();
     this.refreshWallet();
     this.refreshSummary();
@@ -1267,6 +1305,7 @@ export class MapScene extends Phaser.Scene {
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
     this.logEvent(`Accepted: ${contract.title}. ${contract.note}`);
+    this.audio.contractAccepted();
     this.refreshObjective();
     this.save();
   }
@@ -1457,6 +1496,7 @@ export class MapScene extends Phaser.Scene {
     this.panelNotice = null;
     this.hud.showToast(`Fitted ${upgrade.name}. ${upgrade.description}`);
     this.juice.upgradeFitted();
+    this.audio.upgradeFitted();
     // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
     // mire); open any tiles it now unlocks so the route is drivable at once.
     this.refreshGatedColliders();
@@ -1670,6 +1710,7 @@ export class MapScene extends Phaser.Scene {
         upgradesAvailable: cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null,
         skillPointsAvailable: availablePoints(this.courierLevel(), this.skills) > 0,
         toastHint: this.hud.toastHint(),
+        audioMuted: this.audio.isMuted(),
       }),
     );
   }
@@ -1772,6 +1813,7 @@ export class MapScene extends Phaser.Scene {
     this.terrain.openGates([id]);
     this.refreshFordStatus();
     this.juice.routeUnlocked(this.courier.sprite.x, this.courier.sprite.y);
+    this.audio.routeUnlocked();
     this.hud.showToast('Shortcut unlocked: the ford is open.');
     this.refreshAchievements(true);
     this.save();
@@ -1800,6 +1842,8 @@ export class MapScene extends Phaser.Scene {
     this.repairKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.newGameKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
     this.mapKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    // V for volume: M is the minimap, and B/E/J/K/L/N/R/T are all taken (#226).
+    this.muteKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.V);
     this.journalKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     this.legendKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.L);
     this.travelKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
@@ -1828,6 +1872,15 @@ export class MapScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.NINE,
     ];
     this.numberKeys = numberCodes.map((code) => keyboard.addKey(code));
+
+    // Autoplay policy blocks audio until a user gesture, and a player with a save
+    // boots straight into the map with no title click, so the first drive key may
+    // be the first gesture of the visit. These fire synchronously inside the DOM
+    // event, which is the only place a resume() is honoured: calling it from
+    // update() would run in a requestAnimationFrame callback, which is not a
+    // gesture context, and the browser would refuse (#226).
+    keyboard.once('keydown', () => this.audio.unlock());
+    this.input.once('pointerdown', () => this.audio.unlock());
 
     // Mouse wheel scrolls the open journal or skills panel, whose content is
     // taller than the screen. Harmless when no scrollable overlay is open.

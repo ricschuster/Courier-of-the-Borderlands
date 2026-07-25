@@ -26,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: GAME_HEIGHT,
   backgroundColor: BACKGROUND_COLOR,
   pixelArt: true,
-  ...(isE2E ? { fps: { min: 20 } } : {}),
+  ...(isE2E ? { fps: { min: 20 }, audio: { noAudio: true } } : {}),
   physics: {
     default: 'arcade',
     arcade: { debug: false },

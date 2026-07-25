@@ -98,6 +98,8 @@ export interface WorldHintInput {
   readonly skillPointsAvailable: boolean;
   /** The toast queue's dismiss cue, or null while no message is up. */
   readonly toastHint: string | null;
+  /** The player has muted the game, so the way back needs to be on screen (#226). */
+  readonly audioMuted: boolean;
 }
 
 /**
@@ -148,6 +150,16 @@ export function worldHintText(input: WorldHintInput): string {
   // another message rather than returning to a quiet screen (#327).
   if (input.toastHint !== null) {
     segments.push(input.toastHint);
+  }
+
+  // Shown only while muted, and deliberately one-directional. This line is
+  // context-sensitive because printing every key read as noise, and a player who
+  // has sound does not need telling they can turn it off (the manual covers that).
+  // A player who muted and forgot does need it: silence is indistinguishable from
+  // a game whose audio is broken, and this is the only thing on screen that says
+  // otherwise.
+  if (input.audioMuted) {
+    segments.push('V: sound');
   }
 
   segments.push('N: new game');
