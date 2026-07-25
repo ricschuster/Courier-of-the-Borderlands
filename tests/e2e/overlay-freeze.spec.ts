@@ -64,6 +64,15 @@ test('a blocking overlay pauses the world but still takes panel input', async ({
   const afterDigit = (await readTick(page, 0, 0)).state;
   expect(afterDigit.toasts.pending).toBe(toastsBefore.pending + 1);
 
+  // The control hint tracks the panel rather than freezing on the world's keys
+  // (#355). Before the fix it kept advertising driving, repair, and the toast
+  // dismiss, all of which the freeze had just made inert.
+  const hint = (await readTick(page, 0, 0)).state.hintText;
+  expect(hint).toContain('Esc or K: close');
+  expect(hint).not.toContain('drive');
+  expect(hint).not.toContain('dismiss');
+  expect(hint).not.toContain('repair');
+
   // And the panel still closes with its own toggle key (setSkillPanel throws if
   // it does not), after which the world runs again.
   await setSkillPanel(page, false);
@@ -74,6 +83,8 @@ test('a blocking overlay pauses the world but still takes panel input', async ({
 
   const resumed = (await readTick(page, 0, 0)).state;
   expect(resumed.courier.x).toBeGreaterThan(before.courier.x);
+  // The world hint comes back with the panel closed.
+  expect(resumed.hintText).toContain('drive');
 
   expect(errors, `runtime errors during the overlay freeze run:\n${errors.join('\n')}`).toEqual([]);
 });

@@ -81,6 +81,7 @@ import {
   skillPanelText,
   capstoneText,
   upgradeMenuText,
+  modalHintText,
 } from '../systems/panel-text';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
@@ -689,6 +690,9 @@ export class MapScene extends Phaser.Scene {
     if (this.hud.isDialogueVisible()) {
       this.courier.setVelocity(0, 0);
       this.dialogue.handleInput();
+      // After the input, so a conversation ended this frame hands the hint line
+      // straight back to the world rather than a frame late.
+      this.refreshModalHint();
       return;
     }
 
@@ -708,6 +712,9 @@ export class MapScene extends Phaser.Scene {
       // After the toggles, so a panel opened this frame is the one that pages.
       this.handleScrollInput();
       this.handleOverlayEscape();
+      // Last, so a panel closed by the input above hands the line straight back
+      // to the world hint on this same frame rather than a frame late.
+      this.refreshModalHint();
       return;
     }
 
@@ -1728,6 +1735,33 @@ export class MapScene extends Phaser.Scene {
    * (upgrades at home, exploration on the road, travel at a gateway, dismiss
    * while a message is up).
    */
+  /**
+   * Hint line for whatever modal surface is up (#355). The world hint cannot
+   * stand in: both modal branches return early, so the line used to freeze
+   * mid-sentence and keep advertising keys the freeze had made inert. Falls back
+   * to the world hint when the surface closed during this same frame.
+   */
+  private refreshModalHint(): void {
+    const surface = this.hud.openModal();
+    if (surface === null) {
+      this.refreshHint();
+      return;
+    }
+    this.hud.setHint(
+      modalHintText({
+        surface,
+        scrollable: this.hud.isScrollablePanelOpen(),
+        // Digits only do something on the two panels that spend: skills need a
+        // banked point, upgrades need something still unfitted.
+        numbersActive:
+          surface === 'skills'
+            ? availablePoints(this.courierLevel(), this.skills) > 0
+            : surface === 'upgrades' &&
+              cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null,
+      }),
+    );
+  }
+
   private refreshHint(): void {
     const tile = this.courierTile();
     const segments: string[] = ['WASD/arrows drive.'];

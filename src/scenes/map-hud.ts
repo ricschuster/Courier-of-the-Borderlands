@@ -11,6 +11,7 @@ import {
   UI_BAR_FRAME_RED,
 } from '../config/game-config';
 import { buildLegend, type LegendTerrain } from '../systems/legend';
+import type { ModalSurface } from '../systems/panel-text';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
@@ -502,6 +503,11 @@ export class MapHud {
     this.hint.setText(text);
   }
 
+  /** The control hint currently on screen. Read-only, for the e2e hook (#355). */
+  hintText(): string {
+    return this.hint.text;
+  }
+
   /** Ford status line: null when the region has no ford, else open/locked with colour. */
   setFordStatus(open: boolean | null): void {
     if (open === null) {
@@ -627,6 +633,24 @@ export class MapHud {
    * board so only one overlay shows at a time (D1 reserved region, #149): the
    * board no longer shows through the journal when both are open at home.
    */
+  /**
+   * Which modal surface currently owns the screen, or null when the world is
+   * live. Dialogue outranks the panels because the scene checks it first (#355).
+   */
+  openModal(): ModalSurface | null {
+    if (this.dialoguePanel.visible) return 'dialogue';
+    if (this.journalPanel.visible) return 'journal';
+    if (this.skillPanel.visible) return 'skills';
+    if (this.legendPanel.visible) return 'codex';
+    if (this.upgradePanel.visible) return 'upgrades';
+    return null;
+  }
+
+  /** Whether the open overlay is one that actually scrolls (the legend always fits). */
+  isScrollablePanelOpen(): boolean {
+    return this.scrollablePanel() !== null;
+  }
+
   isBlockingOverlayOpen(): boolean {
     return (
       this.journalPanel.visible ||
