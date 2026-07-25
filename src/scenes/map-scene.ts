@@ -62,7 +62,6 @@ import {
   isLowCondition,
   lowConditionWarning,
   repair,
-  repairCost,
   repairHelpText,
   rescue,
   sanitizeCondition,
@@ -81,8 +80,8 @@ import {
   skillPanelText,
   capstoneText,
   upgradeMenuText,
-  modalHintText,
 } from '../systems/panel-text';
+import { modalHintText, worldHintText } from '../systems/hint-text';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
@@ -934,34 +933,6 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * The wagon repair/rescue prompt for the bottom hint line, or null when the
-   * wagon is in full repair. Condition itself is shown by the HUD meter (#203);
-   * this carries only the actionable cost/key, kept next to the other key cues.
-   */
-  private wagonHintSegment(): string | null {
-    const max = this.wagonMax();
-    const here = settlementAtTileIn(this.region, this.courierTile().x, this.courierTile().y);
-    const cost = repairCost(this.wagonCondition, max, this.wagonTuning);
-    // R quotes a full restore, not a small top-up: name it "full repair" and show
-    // the per-point rate so the cost is legible before pressing, since a single R
-    // can otherwise spend most of the purse without warning (#320).
-    const rate = this.wagonTuning.costPerPercent;
-    if (isStranded(this.wagonCondition)) {
-      return here === undefined
-        ? `R: pay ${this.wagonTuning.rescueCost}c rescue (or limp to a town)`
-        : `R: full repair ${cost}c (${rate}c/pt)`;
-    }
-    if (this.wagonCondition >= max) {
-      return null;
-    }
-    // Damaged: always show what a full repair would cost, so the player can plan
-    // before reaching a town; press R to do it once on a settlement.
-    return here === undefined
-      ? `full repair ${cost}c at a town (${rate}c/pt)`
-      : `R: full repair ${cost}c (${rate}c/pt)`;
-  }
-
-  /**
    * Repair the wagon at a settlement, or pay for a rescue when stranded in the
    * open. Manual and gold-priced (ADR 0005): the spend is a visible choice.
    */
@@ -1664,14 +1635,6 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * Build the control-hint line from where the player is standing, rather than
-   * printing every key every frame. The dense concatenated string read as noise
-   * (2026-07-12 playtest, docs/design/08_ui_and_onboarding.md): now driving is
-   * always shown, and only the keys relevant to the current context appear
-   * (upgrades at home, exploration on the road, travel at a gateway, dismiss
-   * while a message is up).
-   */
-  /**
    * Hint line for whatever modal surface is up (#355). The world hint cannot
    * stand in: both modal branches return early, so the line used to freeze
    * mid-sentence and keep advertising keys the freeze had made inert. Falls back
@@ -1698,56 +1661,34 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
+  /**
+   * Gather where the courier is standing and hand it to the pure world-hint
+   * builder (hint-text.ts), which decides which keys the line names.
+   */
   private refreshHint(): void {
     const tile = this.courierTile();
-    const segments: string[] = ['WASD/arrows drive.'];
-
     const here = settlementAtTileIn(this.region, tile.x, tile.y);
-    if (here !== undefined && dialogueForSettlement(here.id) !== undefined) {
-      segments.push(`E: talk to ${here.name}`);
-    }
-
-    // Wagon repair/rescue prompt: only when there is something to do (worn or
-    // stranded). The condition itself is on the HUD meter (#203); this is the
-    // actionable cost/key, sitting with the other contextual cues.
-    const wagonSegment = this.wagonHintSegment();
-    if (wagonSegment !== null) {
-      segments.push(wagonSegment);
-    }
-
     const gateway = this.gatewayAtTile(tile);
-    if (gateway !== undefined && this.activeContract === undefined) {
-      // Gateways sit on open road, off any town, so the travel cue is unambiguous.
-      segments.push(`T: travel to ${getRegion(gateway.to).name}`);
-    }
-
-    if (this.atSettlement(this.region.home)) {
-      // At home the board is open: point at the upgrade menu while any upgrade
-      // is still unfitted.
-      if (cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null) {
-        segments.push('B: upgrades');
-      }
-    } else {
-      // On the road the useful keys are the exploration references.
-      segments.push('M: map', 'J: journal', 'L: codex');
-    }
-
-    // Skills are only actionable once a point is banked; show K only then.
-    if (availablePoints(this.courierLevel(), this.skills) > 0) {
-      segments.push('K: skills');
-    }
-
-    // Only cue the dismiss key while a toast is actually up (Session 5 playtest:
-    // messages now hold until Space). The cue carries the waiting count, since a
-    // queue is otherwise invisible: the player cannot tell that Space reveals
-    // another message rather than returning to a quiet screen (#327).
-    const toastHint = this.hud.toastHint();
-    if (toastHint !== null) {
-      segments.push(toastHint);
-    }
-
-    segments.push('N: new game');
-    this.hud.setHint(segments.join('   '));
+    this.hud.setHint(
+      worldHintText({
+        talkTarget:
+          here !== undefined && dialogueForSettlement(here.id) !== undefined ? here.name : null,
+        wagon: {
+          atSettlement: here !== undefined,
+          condition: this.wagonCondition,
+          max: this.wagonMax(),
+          tuning: this.wagonTuning,
+        },
+        travelTarget:
+          gateway !== undefined && this.activeContract === undefined
+            ? getRegion(gateway.to).name
+            : null,
+        atHome: here?.id === this.region.home,
+        upgradesAvailable: cheapestUnpurchased(this.state.upgrades, UPGRADES_GREYBRIDGE) !== null,
+        skillPointsAvailable: availablePoints(this.courierLevel(), this.skills) > 0,
+        toastHint: this.hud.toastHint(),
+      }),
+    );
   }
 
   /**

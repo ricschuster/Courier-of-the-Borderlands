@@ -3,7 +3,8 @@
 // composes the relevant pure systems, and returns the string the HUD renders.
 // No Phaser or DOM here, so the formatting is unit testable. The scene keeps the
 // show/hide decisions and the live state gathering. See journal-text.ts for the
-// same pattern applied to the discoveries journal.
+// same pattern applied to the discoveries journal, and hint-text.ts for the
+// bottom control-hint line.
 
 import { canAccept, type Contract } from './contract-system';
 import { getCargoCategory } from './cargo-types';
@@ -12,48 +13,6 @@ import { computeRunSummary } from './run-summary';
 import { rankOf, type Skill, type SkillRanks } from './skills';
 import { reconnectionRewardMultiplier, type SettlementStatus } from './world-state';
 import { upgradeEffectLabel, type Upgrade } from './upgrade-system';
-
-/** The modal surfaces that take over input, in the order the scene checks them. */
-export type ModalSurface = 'dialogue' | 'journal' | 'skills' | 'codex' | 'upgrades';
-
-export interface ModalHintInput {
-  readonly surface: ModalSurface;
-  /** Whether the open panel actually scrolls, so the cue is not offered on a short one. */
-  readonly scrollable: boolean;
-  /** Whether number keys currently do something (rank a skill, fit an upgrade). */
-  readonly numbersActive: boolean;
-}
-
-/**
- * Control hint for a modal surface (#355).
- *
- * The world hint cannot stand in while something modal is open: `update()`
- * returns early for both the dialogue and the blocking overlays, so the line
- * froze mid-sentence and went on advertising keys the freeze had made inert
- * ("WASD/arrows drive" under an open journal, with driving stopped). This
- * builds the line for what is actually on screen, listing only keys that work.
- */
-export function modalHintText(input: ModalHintInput): string {
-  if (input.surface === 'dialogue') {
-    // The dialogue box states its own controls, so the hint line stays terse
-    // rather than repeating them in a second place.
-    return 'Esc: step away';
-  }
-  const closeKey: Record<Exclude<ModalSurface, 'dialogue'>, string> = {
-    journal: 'J',
-    skills: 'K',
-    codex: 'L',
-    upgrades: 'B',
-  };
-  const segments = [`Esc or ${closeKey[input.surface]}: close`];
-  if (input.scrollable) {
-    segments.push('PgUp/PgDn: scroll');
-  }
-  if (input.numbersActive) {
-    segments.push(input.surface === 'skills' ? 'Number: rank a skill' : 'Number: fit an upgrade');
-  }
-  return segments.join('   ');
-}
 
 export interface BoardTextInput {
   readonly homeName: string;
