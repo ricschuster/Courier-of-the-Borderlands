@@ -55,8 +55,22 @@ preview folders on every merge.
   preview workflow itself does run on this PR, so the preview path is validated
   pre-merge; the non-destructive main deploy is the part to watch on the first
   post-merge deploy.
-- Every PR now costs one extra build and a small, self-cleaning slice of the
-  gh-pages branch.
+- Every PR now costs one extra build and a small slice of the gh-pages branch.
+- **The slice was not self-cleaning, as originally written here** (found
+  2026-07-25, #366). `pr-preview-action`'s removal path empties the preview
+  folder but does not delete it: the underlying `github-pages-deploy-action`
+  re-creates a `.nojekyll` inside its target folder, so every closed PR left a
+  directory containing one empty file. 82 of those had accumulated, along with 3
+  full builds for PRs that closed while removal was not working.
+
+  Fixed by a follow-up step in `preview.yml` that deletes the directory itself
+  after the removal, guarded so it acts only when `.nojekyll` is all that is
+  left. That guard is the important part: an unguarded delete keyed on the PR
+  number would eventually take out a live preview.
+
+  Worth noting for future consequence-writing here: "self-cleaning" was an
+  assumption about a third-party action, recorded as a fact and never checked.
+  The cost was cosmetic this time.
 - **A preview shares an origin with the live game, and therefore its
   localStorage** (found 2026-07-15, #278). This consequence was missed when the
   decision was taken. `localStorage` is scoped to scheme plus host, not path, so

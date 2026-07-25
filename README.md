@@ -318,6 +318,11 @@ comments the URL; the preview updates on each push and is removed when the PR
 closes. This is why the main deploy is non-destructive (it preserves the
 `pr-preview/` subtree). See `docs/decisions/0008-pr-preview-deploys.md`.
 
+Removal happens in two steps, because the preview action empties its folder but
+leaves the directory behind holding an empty `.nojekyll`. A follow-up workflow
+step deletes the directory itself, and refuses to act unless `.nojekyll` is all
+that remains, so it can never delete a live preview (#366).
+
 Full working rules for Claude Code are in `CLAUDE.md`.
 
 ## MVP definition of done
