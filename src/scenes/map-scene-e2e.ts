@@ -107,11 +107,16 @@ export interface E2EState {
   /** Whether the home contract board is currently shown. */
   readonly boardVisible: boolean;
   /**
-   * The toast on screen and how many are queued behind it (#327). Toasts render
-   * to canvas, so this is the only way a spec can tell that a message is up, or
-   * that a dismiss press revealed the next one rather than clearing everything.
+   * The toast on screen, how many messages it groups, and how many are queued
+   * behind it (#327, #378). Toasts render to canvas, so this is the only way a
+   * spec can tell that a message is up, that a burst grouped into one panel, or
+   * that a dismiss press revealed the next group rather than clearing everything.
    */
-  readonly toasts: { readonly current: string | null; readonly pending: number };
+  readonly toasts: {
+    readonly current: string | null;
+    readonly shown: number;
+    readonly pending: number;
+  };
   /**
    * The control hint currently rendered (#355). Canvas text, so a spec cannot
    * read it any other way, and it is the only proof that the line tracks the

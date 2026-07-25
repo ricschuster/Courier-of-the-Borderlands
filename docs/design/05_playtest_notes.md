@@ -460,3 +460,56 @@ need its own press. The queue rules are pure and live in
 `src/systems/toast-queue.ts`; `tests/e2e/toast-queue.spec.ts` pins the browser
 behaviour, and both halves were verified by neutralizing them and watching the
 suite fail.
+
+**Superseded in part on 2026-07-25 by the burst grouping below: one press now
+clears one burst rather than one message.** Everything else in this section still
+holds.
+
+## Toast bursts and the press count (settled 2026-07-25, #376 and #378)
+
+The 2026-07-25 playtest reported "I have to click many times now and the
+accepting quests part could be solved better". Rather than guess at what "many"
+meant, a scripted driver played four Greybridge loops counting every
+non-movement press: **41 presses, 29 of them Space.** That measurement is what
+split the complaint into two pieces.
+
+**The accept flow (#376) was a defect, and was fixed outright.** The first digit
+press at the board armed a slot and *toasted* "Press 1 again to confirm", so the
+confirming press left an answered question on screen costing a Space press to
+clear. Accepting one contract cost four presses. Both the confirm prompt and the
+reputation refusal now render on the board itself, which is the treatment #356
+and #359 already established for the skills panel and the upgrade menu: feedback
+about a key belongs on the surface the player is looking at, not in a queue that
+charges a press for it. The board is where #321's mispress guard lives, so the
+prompt names the slot *and* the title, because the board renumbers between visits.
+
+**The arrival stack (#378) was a design call, because fixing it changes the rule
+above.** Arriving at a destination raises up to five messages in one frame
+(delivery reward, achievement, settlement note, skill-point nudge, standing
+rise), and under the strict queue that was five presses standing on one tile.
+Four options were put to the owner: group them, stop toasting what the journal
+already keeps, fold consequences into the delivery line, or accept the cost.
+
+**Decision: group by burst. Messages raised in the same frame share one panel and
+one press; a later message still waits its turn.**
+
+- This is not a return to the timers of Session 5. Nothing fades, and nothing is
+  dismissed unread, because everything a press clears was on screen at once.
+- It is not the pre-#327 stack either. Grouped messages are separate lines in one
+  laid-out panel, not overlapping text objects piled over the actionable line.
+- Grouping is by burst (the game frame), not by "is there room". A message raised
+  seconds later must not appear inside a panel the player is part-way through
+  reading, which is the #327 guarantee that matters most.
+- A group caps at three (`TOAST_GROUP_MAX`), which covers the arrival burst
+  without growing the panel far enough down the screen to bury the map.
+- A grouped panel renders flush-left; a lone message stays centred. Several
+  centred messages of different lengths are a ragged stack in which one is hard
+  to tell from the next.
+
+Measured after both changes: **29 presses over the same four loops (17 Space).**
+Accepting a contract went 4 presses to 3, and a delivery arrival 5 to 2. The
+steady-state loop went 7 to 4.
+
+Both changes were checked on screen as well as in tests, because no test can see
+a rendered panel: the armed board row and its prompt, the refusal in the notice
+slot, and a three-message group in both the centred and beside-the-board bands.
