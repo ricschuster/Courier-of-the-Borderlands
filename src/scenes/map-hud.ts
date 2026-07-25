@@ -9,6 +9,9 @@ import {
   UI_BAR_FRAME_GREEN,
   UI_BAR_FRAME_AMBER,
   UI_BAR_FRAME_RED,
+  COURIER_COLOR,
+  UI_ACCENT_CSS,
+  WARM_GOLD,
 } from '../config/game-config';
 import { buildLegend, type LegendTerrain } from '../systems/legend';
 import type { ModalSurface } from '../systems/panel-text';
@@ -37,7 +40,7 @@ export const DEPTH_HUD = 10;
 // scene, which colours the main-map settlement markers with the same table.
 export const STATUS_COLOR: Readonly<Record<SettlementStatus, number>> = {
   home: 0xf2efe4,
-  reconnected: 0xf2c14e,
+  reconnected: WARM_GOLD,
   silent: 0x6b6660,
 };
 
@@ -318,7 +321,7 @@ export class MapHud {
         fontFamily: 'monospace',
         fontSize: '13px',
         color: '#1b1300',
-        backgroundColor: '#f2c14e',
+        backgroundColor: UI_ACCENT_CSS,
         padding: { x: 8, y: 4 },
         fontStyle: 'bold',
         align: 'right',
@@ -377,7 +380,7 @@ export class MapHud {
       style: {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#f2c14e',
+        color: UI_ACCENT_CSS,
         padding: { x: 22, y: 18 },
         lineSpacing: 7,
         align: 'center',
@@ -830,7 +833,7 @@ export class MapHud {
         g.fillStyle(STATUS_COLOR[c.settlementStatus ?? 'silent'], 1);
         g.fillRect(px + 1, py + 1, cell - 3, cell - 3);
       } else if (c.marker === 'courier') {
-        g.fillStyle(0xf2c14e, 1);
+        g.fillStyle(COURIER_COLOR, 1);
         g.fillRect(px, py, cell - 1, cell - 1);
       }
     }

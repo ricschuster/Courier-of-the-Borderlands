@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { WARM_GOLD } from '../config/game-config';
 import { prefersReducedMotion } from '../systems/reduced-motion';
 
 // Feedback juice (#227): the short, cheap reactions that make an event land.
@@ -40,7 +41,7 @@ const SHAKE_SOFT: readonly [number, number] = [120, 0.004];
 const SHAKE_HARD: readonly [number, number] = [320, 0.012];
 
 /** Burst tints. Coin gold for a payout, rust for damage, pale green for a road opening. */
-const TINT_COIN = 0xf2c14e;
+const TINT_COIN = WARM_GOLD;
 const TINT_RUST = 0xa8563a;
 const TINT_ROAD = 0x9fd8a0;
 
