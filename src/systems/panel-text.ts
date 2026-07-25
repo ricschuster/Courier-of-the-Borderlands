@@ -211,6 +211,13 @@ export interface SkillPanelTextInput {
   readonly points: number;
   readonly skills: readonly Skill[];
   readonly ranks: SkillRanks;
+  /**
+   * Feedback about the last key pressed in this panel, or null. Refusals render
+   * here rather than as toasts (#356): they can only happen while the panel is
+   * open, so the panel is where the player is already looking, and a toast would
+   * cost a dismiss press per refused key under the #327 queue.
+   */
+  readonly notice?: string | null;
 }
 
 /** The courier skills panel: level, points to spend, and each skill's rank. */
@@ -229,6 +236,9 @@ export function skillPanelText(input: SkillPanelTextInput): string {
     lines.push(`        ${skill.description}`);
   });
   lines.push('', 'Level up by delivering, exploring, and covering ground.');
+  if (input.notice) {
+    lines.push('', `> ${input.notice}`);
+  }
   return lines.join('\n');
 }
 
@@ -238,6 +248,8 @@ export interface UpgradeMenuTextInput {
   readonly upgrades: readonly Upgrade[];
   /** Ids of upgrades already fitted. */
   readonly purchased: ReadonlySet<string>;
+  /** Feedback about the last key pressed in this panel, or null. See #356. */
+  readonly notice?: string | null;
 }
 
 /** The wagon upgrade menu: coins, then one entry per upgrade with cost, state, and effect. */
@@ -259,5 +271,8 @@ export function upgradeMenuText(input: UpgradeMenuTextInput): string {
     lines.push(`        ${upgradeEffectLabel(upgrade)}`);
   });
   lines.push('', 'Fitted upgrades stay with the wagon for the rest of the run.');
+  if (input.notice) {
+    lines.push('', `> ${input.notice}`);
+  }
   return lines.join('\n');
 }

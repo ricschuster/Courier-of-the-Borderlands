@@ -54,15 +54,17 @@ test('a blocking overlay pauses the world but still takes panel input', async ({
   await waitForFrames(page, 2);
   expect((await readTick(page, 0, 0)).state.toasts).toEqual(toastsBefore);
 
-  // The panel's own input still runs. With no banked point, a skill digit
-  // reports that the skill cannot be improved, which is only reachable if
-  // handleSkillInput ran while the overlay was up. The boot message is still on
-  // screen, so the new message lands in the queue behind it.
+  // The panel's own input still runs. With no banked point, a skill digit is
+  // refused, and since #356 that refusal renders in the panel: reaching it at
+  // all proves handleSkillInput ran while the overlay was up.
   expect(driven.skillPoints).toBe(0);
+  expect(driven.panelNotice).toBeNull();
   await tapKey(page, '1');
   await waitForFrames(page, 2);
   const afterDigit = (await readTick(page, 0, 0)).state;
-  expect(afterDigit.toasts.pending).toBe(toastsBefore.pending + 1);
+  expect(afterDigit.panelNotice).toContain('No skill point banked');
+  // ...and it stays out of the toast queue, which is #356's whole point.
+  expect(afterDigit.toasts.pending).toBe(toastsBefore.pending);
 
   // The control hint tracks the panel rather than freezing on the world's keys
   // (#355). Before the fix it kept advertising driving, repair, and the toast

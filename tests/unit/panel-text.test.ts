@@ -313,3 +313,45 @@ describe('modalHintText', () => {
     );
   });
 });
+
+describe('panel notices (#356)', () => {
+  const SKILLS_FOR_NOTICE: Skill[] = [
+    { id: 'teamster', name: 'Teamster', description: '', maxRank: 3, perRank: { speedBonus: 0.1 } },
+  ];
+  const UPGRADES_FOR_NOTICE: readonly Upgrade[] = [
+    { id: 'wheels', name: 'Reinforced Wheels', description: '', cost: 50, speedBonus: 0.25 },
+  ];
+  const skillBase = {
+    level: 1,
+    xpIntoLevel: 0,
+    xpForNextLevel: 50,
+    points: 0,
+    skills: SKILLS_FOR_NOTICE,
+    ranks: {},
+  };
+
+  it('renders a notice in the skills panel when one is set', () => {
+    const text = skillPanelText({ ...skillBase, notice: 'No skill point banked yet.' });
+    expect(text).toContain('> No skill point banked yet.');
+  });
+
+  it('renders a notice in the upgrade menu when one is set', () => {
+    const text = upgradeMenuText({
+      coins: 30,
+      upgrades: UPGRADES_FOR_NOTICE,
+      purchased: new Set(),
+      notice: 'Not enough coins for Reinforced Wheels: 50c, 20 short.',
+    });
+    expect(text).toContain('> Not enough coins for Reinforced Wheels: 50c, 20 short.');
+  });
+
+  it('adds no notice line when there is nothing to say', () => {
+    // Null and absent must behave the same: the field is optional so existing
+    // callers keep working, and neither may leave a stray marker in the panel.
+    expect(skillPanelText({ ...skillBase, notice: null })).not.toContain('>');
+    expect(skillPanelText(skillBase)).not.toContain('>');
+    const menu = { coins: 30, upgrades: UPGRADES_FOR_NOTICE, purchased: new Set<string>() };
+    expect(upgradeMenuText({ ...menu, notice: null })).not.toContain('>');
+    expect(upgradeMenuText(menu)).not.toContain('>');
+  });
+});

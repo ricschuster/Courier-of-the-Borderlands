@@ -338,6 +338,12 @@ export class MapScene extends Phaser.Scene {
   // save field. See docs/design/05_playtest_notes.md.
   private capstoneDismissed = false;
   private blockadeBrokenAtLoad = false;
+  // Feedback about the last key pressed inside the skills panel or upgrade menu
+  // (#356). These refusals can only fire while their panel is open, so they
+  // render in the panel the player is already reading rather than as toasts,
+  // which would cost a dismiss press each under the #327 queue. Cleared when a
+  // panel opens, so a fresh visit never starts on a stale complaint.
+  private panelNotice: string | null = null;
   // Set once per page-load session after the player has been told their progress
   // is not being saved, so a failing autosave warns at most once rather than
   // every tick. Not reset across scene restarts: one warning per visit is enough.
@@ -666,6 +672,7 @@ export class MapScene extends Phaser.Scene {
       atHome: () => this.atSettlement(this.region.home),
       boardContracts: () => this.boardContracts(),
       armedContractId: () => this.armedContractId,
+      panelNotice: () => this.panelNotice,
       regionFordUnlocked: () => this.regionFordUnlocked(),
       worldState: () => this.worldState(),
       courierLevel: () => this.courierLevel(),
@@ -1427,7 +1434,10 @@ export class MapScene extends Phaser.Scene {
       }
       if (canRankUp(this.skills, skill.id, level)) {
         this.skills = rankUp(this.skills, skill.id);
+        // The rank itself is real progress, so it stays a toast: the player will
+        // want it in the journal's recent log, and it outlives the panel.
         this.hud.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
+        this.panelNotice = null;
         // A new rank may grant a terrain capability (Off-road 2 opens the deep
         // mire); open any tiles it now unlocks so the route is drivable at once.
         this.refreshGatedColliders();
@@ -1435,7 +1445,13 @@ export class MapScene extends Phaser.Scene {
         this.refreshWallet();
         this.save();
       } else {
-        this.hud.showToast(`Cannot improve ${skill.name} yet.`);
+        // A refusal is feedback about the key just pressed, not news about the
+        // world, and the panel is on screen to carry it (#356).
+        this.panelNotice =
+          availablePoints(level, this.skills) > 0
+            ? `${skill.name} is already at its highest rank.`
+            : 'No skill point banked yet. Deliver, explore, and cover ground to earn one.';
+        this.refreshSkillPanel();
       }
     }
   }
@@ -1536,6 +1552,8 @@ export class MapScene extends Phaser.Scene {
     }
     if (this.hud.toggleUpgrades()) {
       this.hud.closeOverlaysExcept('upgrades');
+      // A fresh visit starts clean rather than on the complaint from last time.
+      this.panelNotice = null;
       this.refreshUpgradeMenu();
     }
   }
@@ -1555,19 +1573,29 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Attempt to fit one upgrade, with feedback for already-owned and unaffordable. */
+  /**
+   * Attempt to fit one upgrade. Refusals render in the menu the player is
+   * reading rather than as toasts (#356): the menu is the only way to reach this
+   * code, and under the #327 queue each refused key would otherwise cost its own
+   * dismiss press. The purchase itself stays a toast, because it is real
+   * progress that outlives the menu.
+   */
   private buyUpgrade(upgrade: Upgrade): void {
     if (this.state.upgrades.has(upgrade.id)) {
-      this.hud.showToast(`${upgrade.name} is already fitted.`);
+      this.panelNotice = `${upgrade.name} is already fitted.`;
+      this.refreshUpgradeMenu();
       return;
     }
     const result = purchase(this.state.upgrades, this.state.ledger.coins, upgrade);
     if (!result.ok) {
-      this.hud.showToast(`Not enough coins for ${upgrade.name} (${upgrade.cost}).`);
+      const short = upgrade.cost - this.state.ledger.coins;
+      this.panelNotice = `Not enough coins for ${upgrade.name}: ${upgrade.cost}c, ${short} short.`;
+      this.refreshUpgradeMenu();
       return;
     }
     this.state.upgrades = new Set(result.purchased);
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
+    this.panelNotice = null;
     this.hud.showToast(`Fitted ${upgrade.name}. ${upgrade.description}`);
     this.juice.upgradeFitted();
     // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
@@ -1585,6 +1613,7 @@ export class MapScene extends Phaser.Scene {
         coins: this.state.ledger.coins,
         upgrades: UPGRADES_GREYBRIDGE,
         purchased: this.state.upgrades,
+        notice: this.panelNotice,
       }),
     );
   }
@@ -1603,6 +1632,8 @@ export class MapScene extends Phaser.Scene {
     }
     if (Phaser.Input.Keyboard.JustDown(this.skillKey) && this.hud.toggleSkills()) {
       this.hud.closeOverlaysExcept('skills');
+      // A fresh visit starts clean rather than on the complaint from last time.
+      this.panelNotice = null;
       this.refreshSkillPanel();
     }
   }
@@ -2026,6 +2057,7 @@ export class MapScene extends Phaser.Scene {
         points: availablePoints(prog.level, this.skills),
         skills: SKILLS,
         ranks: this.skills,
+        notice: this.panelNotice,
       }),
     );
   }

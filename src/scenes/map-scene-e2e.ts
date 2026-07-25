@@ -119,6 +119,12 @@ export interface E2EState {
    */
   readonly hintText: string;
   /**
+   * Feedback rendered inside the open skills panel or upgrade menu, or null
+   * (#356). Panel text is canvas text, so this is the only way a spec can prove
+   * a refusal landed in the panel instead of the toast queue.
+   */
+  readonly panelNotice: string | null;
+  /**
    * The board contract a first digit-press has armed and that a second press of
    * the same slot will accept, or null when nothing is armed (#321).
    */
@@ -183,6 +189,7 @@ export interface E2EHost {
   atHome(): boolean;
   boardContracts(): readonly Contract[];
   armedContractId(): string | null;
+  panelNotice(): string | null;
   regionFordUnlocked(): boolean;
   worldState(): Record<string, SettlementStatus>;
   courierLevel(): number;
@@ -350,6 +357,7 @@ function buildState(host: E2EHost): E2EState {
     boardVisible: hud.isBoardVisible(),
     toasts: hud.toastState(),
     hintText: hud.hintText(),
+    panelNotice: host.panelNotice(),
     armedContractId: host.armedContractId(),
     activeMissionId: e2eObjective?.mission.id ?? null,
     activeMissionStepId: e2eObjective?.step.id ?? null,
