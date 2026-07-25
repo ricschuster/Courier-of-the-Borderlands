@@ -21,6 +21,20 @@ export interface BoardTextInput {
   readonly reputation: number;
   /** Connection status per settlement, so a reconnected destination shows its premium. */
   readonly worldStatus: Record<string, SettlementStatus>;
+  /**
+   * Id of the contract a first digit-press has armed and which a second press of
+   * the same slot commits (#321), or null when nothing is armed. The armed row is
+   * marked and the confirm prompt is spelled out below, so the question lives on
+   * the board the player is reading instead of in the toast queue (#376).
+   */
+  readonly armedContractId?: string | null;
+  /**
+   * Feedback about the last key pressed at the board, or null. Board refusals
+   * render here rather than as toasts for the same reason the skills and upgrade
+   * panels do (#356): the board is the surface the player is looking at, and a
+   * toast would cost a dismiss press per refused key under the #327 queue.
+   */
+  readonly notice?: string | null;
 }
 
 /**
@@ -75,15 +89,42 @@ export function boardText(input: BoardTextInput): string {
     const mult = reconnectionRewardMultiplier(input.worldStatus[contract.destinationId]);
     const reward = Math.round(contract.reward * mult);
     const reconnectTag = mult > 1 ? `  (+${Math.round((mult - 1) * 100)}% reconnected)` : '';
+    // The armed row is marked in place, so the slot awaiting a confirming press
+    // is visible on the row itself and not only in the prompt below.
+    const marker = contract.id === input.armedContractId ? '> ' : '  ';
     lines.push(
-      `  [${i + 1}] ${contract.title}  -  ${reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>${reconnectTag}`,
+      `${marker}[${i + 1}] ${contract.title}  -  ${reward}c, +${contract.reputation} rep${locked}  <${cargoTag}>${reconnectTag}`,
     );
     const bonus = bonusFor(contract.id);
     if (bonus !== undefined) {
       lines.push(`      ${describeBonus(bonus)}`);
     }
   });
+  const prompt = armedPrompt(input);
+  if (prompt !== null) {
+    lines.push('', `> ${prompt}`);
+  } else if (input.notice) {
+    lines.push('', `> ${input.notice}`);
+  }
   return lines.join('\n');
+}
+
+/**
+ * The confirm prompt for the armed slot, or null when nothing is armed. Names
+ * both the slot and the title: the board renumbers between visits, so the guard
+ * is only useful if the player can see which contract the remembered digit is
+ * about to commit them to (#321).
+ */
+function armedPrompt(input: BoardTextInput): string | null {
+  if (!input.armedContractId) {
+    return null;
+  }
+  const index = input.contracts.findIndex((c) => c.id === input.armedContractId);
+  const contract = input.contracts[index];
+  if (contract === undefined) {
+    return null;
+  }
+  return `Press ${index + 1} again to commit to ${contract.title}.`;
 }
 
 export interface SummaryTextInput {
