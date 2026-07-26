@@ -47,12 +47,10 @@ import {
 } from '../systems/save-system';
 import {
   speedMultiplier,
-  purchase,
   revealRadius,
   cheapestUnpurchased,
   terrainSpeedFactor,
   countReliefUpgrades,
-  type Upgrade,
 } from '../systems/upgrade-system';
 import {
   wearPerTile,
@@ -73,7 +71,6 @@ import {
   type WagonTuning,
   type Difficulty,
 } from '../systems/wagon-condition';
-import { skillPanelText, upgradeMenuText } from '../systems/panel-text';
 import { modalHintText, worldHintText } from '../systems/hint-text';
 import { restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
@@ -90,13 +87,10 @@ import {
   newlyFound,
   type Discovery,
 } from '../systems/discovery';
-import { totalXp, levelForXp, levelProgress } from '../systems/experience';
+import { totalXp, levelForXp } from '../systems/experience';
 import {
-  SKILLS,
   availablePoints,
   shouldNudgeUnspentSkills,
-  canRankUp,
-  rankUp,
   rankOf,
   skillSpeedBonus,
   skillRevealBonus,
@@ -136,6 +130,7 @@ import {
 } from './panel-input-controller';
 import { MilestoneController, type MilestoneHost, type RunStats } from './milestone-controller';
 import { BoardInputController, type BoardInputHost } from './board-input-controller';
+import { SpendController, type SpendHost } from './spend-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -301,6 +296,9 @@ export class MapScene extends Phaser.Scene {
   // The contract board: whether it is up, what it draws, and the arm/confirm
   // state machine behind accepting a contract (#392).
   private board!: BoardInputController;
+  // Spending: skill points into ranks, coins into fitted upgrades, and the two
+  // panels that report the result (#392).
+  private spend!: SpendController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
@@ -321,12 +319,6 @@ export class MapScene extends Phaser.Scene {
   // blocked" hint fires once per approach instead of every frame. Reset when the
   // courier steps away (see docs/design/05_playtest_notes.md).
   private atLockedFordHinted = false;
-  // Feedback about the last key pressed inside the skills panel or upgrade menu
-  // (#356). These refusals can only fire while their panel is open, so they
-  // render in the panel the player is already reading rather than as toasts,
-  // which would cost a dismiss press each under the #327 queue. Cleared when a
-  // panel opens, so a fresh visit never starts on a stale complaint.
-  private panelNotice: string | null = null;
   // Set once per page-load session after the player has been told their progress
   // is not being saved, so a failing autosave warns at most once rather than
   // every tick. Not reset across scene restarts: one warning per visit is enough.
@@ -378,6 +370,33 @@ export class MapScene extends Phaser.Scene {
       acceptContract: (contract) => this.acceptContract(contract),
     };
     this.board = new BoardInputController(boardHost);
+    const spendHost: SpendHost = {
+      getHud: () => this.hud,
+      getAudio: () => this.audio,
+      getJuice: () => this.juice,
+      getNumberKeys: () => this.numberKeys,
+      justDown: (key) => Phaser.Input.Keyboard.JustDown(key),
+      upgradesForSale: () => UPGRADES_GREYBRIDGE,
+      courierLevel: () => this.courierLevel(),
+      courierXp: () => this.courierXp(),
+      getSkills: () => this.skills,
+      setSkills: (skills) => {
+        this.skills = skills;
+      },
+      getCoins: () => this.state.ledger.coins,
+      getPurchasedUpgrades: () => this.state.upgrades,
+      // The ledger and the fitted set are read across half the file, so they stay
+      // owned by the scene and are written back through here (#392).
+      applyPurchase: (purchased, coins) => {
+        this.state.upgrades = new Set(purchased);
+        this.state.ledger = { ...this.state.ledger, coins };
+      },
+      refreshGatedColliders: () => this.refreshGatedColliders(),
+      refreshWallet: () => this.refreshWallet(),
+      refreshAchievements: () => this.milestones.refreshAchievements(true),
+      save: () => this.save(),
+    };
+    this.spend = new SpendController(spendHost);
     // Apply the chosen difficulty before restoring state: a fresh game derives
     // the starting tank size from this tuning, and a loaded condition is clamped
     // to the max it affords, so the profile must be in place first.
@@ -502,13 +521,11 @@ export class MapScene extends Phaser.Scene {
       // allocated in setupInput() and never change afterwards.
       getKeys: () => panelKeys,
       atHome: () => this.atSettlement(this.region.home),
-      clearPanelNotice: () => {
-        this.panelNotice = null;
-      },
+      clearPanelNotice: () => this.spend.clearNotice(),
       redrawMinimap: () => this.redrawMinimap(),
       refreshJournal: () => this.refreshJournal(),
-      refreshSkillPanel: () => this.refreshSkillPanel(),
-      refreshUpgradeMenu: () => this.refreshUpgradeMenu(),
+      refreshSkillPanel: () => this.spend.refreshSkillPanel(),
+      refreshUpgradeMenu: () => this.spend.refreshUpgradeMenu(),
       // The dismissal state belongs to the milestone controller, which owns both
       // panels; the panel input controller only routes the Esc that triggers it.
       isCapstoneDismissed: () => this.milestones.isCapstoneDismissed(),
@@ -704,7 +721,7 @@ export class MapScene extends Phaser.Scene {
       atHome: () => this.atSettlement(this.region.home),
       boardContracts: () => this.boardContracts(),
       armedContractId: () => this.board.armed(),
-      panelNotice: () => this.panelNotice,
+      panelNotice: () => this.spend.currentNotice(),
       regionFordUnlocked: () => this.regionFordUnlocked(),
       worldState: () => this.worldState(),
       courierLevel: () => this.courierLevel(),
@@ -757,8 +774,8 @@ export class MapScene extends Phaser.Scene {
     if (this.hud.isBlockingOverlayOpen()) {
       this.courier.setVelocity(0, 0);
       this.audio.settleBed();
-      this.handleSkillInput();
-      this.handleUpgradeInput();
+      this.spend.handleSkillInput();
+      this.spend.handleUpgradeInput();
       this.panelInput.handleUpgradeToggle();
       this.panelInput.handleToggles();
       // After the toggles, so a panel opened this frame is the one that pages.
@@ -869,8 +886,8 @@ export class MapScene extends Phaser.Scene {
     this.updateDelivery();
     this.checkArrival();
     this.handleFordHint();
-    this.handleSkillInput();
-    this.handleUpgradeInput();
+    this.spend.handleSkillInput();
+    this.spend.handleUpgradeInput();
     this.board.handleInput();
     this.panelInput.handleUpgradeToggle();
     this.handleRepairInput();
@@ -1431,106 +1448,6 @@ export class MapScene extends Phaser.Scene {
     this.save();
   }
 
-  /** Spend skill points while the skill panel is open (number keys rank skills). */
-  private handleSkillInput(): void {
-    if (!this.hud.isSkillPanelVisible()) {
-      return;
-    }
-    const level = this.courierLevel();
-    for (let i = 0; i < SKILLS.length && i < this.numberKeys.length; i++) {
-      const key = this.numberKeys[i];
-      const skill = SKILLS[i];
-      if (key === undefined || skill === undefined || !Phaser.Input.Keyboard.JustDown(key)) {
-        continue;
-      }
-      if (canRankUp(this.skills, skill.id, level)) {
-        this.skills = rankUp(this.skills, skill.id);
-        // The rank itself is real progress, so it stays a toast: the player will
-        // want it in the journal's recent log, and it outlives the panel.
-        this.hud.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
-        this.audio.skillRanked();
-        this.panelNotice = null;
-        // A new rank may grant a terrain capability (Off-road 2 opens the deep
-        // mire); open any tiles it now unlocks so the route is drivable at once.
-        this.refreshGatedColliders();
-        this.refreshSkillPanel();
-        this.refreshWallet();
-        this.save();
-      } else {
-        // A refusal is feedback about the key just pressed, not news about the
-        // world, and the panel is on screen to carry it (#356).
-        this.panelNotice =
-          availablePoints(level, this.skills) > 0
-            ? `${skill.name} is already at its highest rank.`
-            : 'No skill point banked yet. Deliver, explore, and cover ground to earn one.';
-        this.audio.panelRefused();
-        this.refreshSkillPanel();
-      }
-    }
-  }
-
-  /** Buy an upgrade by number key while the upgrade menu is open. */
-  private handleUpgradeInput(): void {
-    if (!this.hud.isUpgradeMenuVisible()) {
-      return;
-    }
-    for (let i = 0; i < UPGRADES_GREYBRIDGE.length && i < this.numberKeys.length; i++) {
-      const key = this.numberKeys[i];
-      const upgrade = UPGRADES_GREYBRIDGE[i];
-      if (key === undefined || upgrade === undefined || !Phaser.Input.Keyboard.JustDown(key)) {
-        continue;
-      }
-      this.buyUpgrade(upgrade);
-    }
-  }
-
-  /**
-   * Attempt to fit one upgrade. Refusals render in the menu the player is
-   * reading rather than as toasts (#356): the menu is the only way to reach this
-   * code, and under the #327 queue each refused key would otherwise cost its own
-   * dismiss press. The purchase itself stays a toast, because it is real
-   * progress that outlives the menu.
-   */
-  private buyUpgrade(upgrade: Upgrade): void {
-    if (this.state.upgrades.has(upgrade.id)) {
-      this.panelNotice = `${upgrade.name} is already fitted.`;
-      this.audio.panelRefused();
-      this.refreshUpgradeMenu();
-      return;
-    }
-    const result = purchase(this.state.upgrades, this.state.ledger.coins, upgrade);
-    if (!result.ok) {
-      const short = upgrade.cost - this.state.ledger.coins;
-      this.panelNotice = `Not enough coins for ${upgrade.name}: ${upgrade.cost}c, ${short} short.`;
-      this.audio.panelRefused();
-      this.refreshUpgradeMenu();
-      return;
-    }
-    this.state.upgrades = new Set(result.purchased);
-    this.state.ledger = { ...this.state.ledger, coins: result.coins };
-    this.panelNotice = null;
-    this.hud.showToast(`Fitted ${upgrade.name}. ${upgrade.description}`);
-    this.juice.upgradeFitted();
-    this.audio.upgradeFitted();
-    // A new upgrade may grant a terrain capability (Marsh Treads opens the deep
-    // mire); open any tiles it now unlocks so the route is drivable at once.
-    this.refreshGatedColliders();
-    this.refreshWallet();
-    this.refreshUpgradeMenu();
-    this.milestones.refreshAchievements(true);
-    this.save();
-  }
-
-  private refreshUpgradeMenu(): void {
-    this.hud.setUpgradeText(
-      upgradeMenuText({
-        coins: this.state.ledger.coins,
-        upgrades: UPGRADES_GREYBRIDGE,
-        purchased: this.state.upgrades,
-        notice: this.panelNotice,
-      }),
-    );
-  }
 
   private handleResetInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.newGameKey)) {
@@ -1857,20 +1774,6 @@ export class MapScene extends Phaser.Scene {
     this.hud.drawMinimap(model, this.currentPath);
   }
 
-  private refreshSkillPanel(): void {
-    const prog = levelProgress(this.courierXp());
-    this.hud.setSkillText(
-      skillPanelText({
-        level: prog.level,
-        xpIntoLevel: prog.xpIntoLevel,
-        xpForNextLevel: prog.xpForNextLevel,
-        points: availablePoints(prog.level, this.skills),
-        skills: SKILLS,
-        ranks: this.skills,
-        notice: this.panelNotice,
-      }),
-    );
-  }
 
   /** The active objective as re-readable text for the journal, or null. */
   private journalObjective(): { title: string; detail: string } | null {
