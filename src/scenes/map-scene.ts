@@ -76,9 +76,7 @@ import {
 import {
   boardText,
   boardInteractable,
-  summaryText,
   skillPanelText,
-  capstoneText,
   upgradeMenuText,
 } from '../systems/panel-text';
 import { modalHintText, worldHintText } from '../systems/hint-text';
@@ -120,13 +118,7 @@ import {
   formatDistance,
   type TripLog,
 } from '../systems/trip-log';
-import { recordRun, type RunMilestone } from '../systems/telemetry';
-import {
-  ACHIEVEMENTS,
-  earnedAchievements,
-  courierTitle,
-  type AchievementStat,
-} from '../systems/achievements';
+import { ACHIEVEMENTS } from '../systems/achievements';
 import { weatherByIndex, pickWeather, weatherEffectLabel, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
 import {
@@ -147,6 +139,7 @@ import {
   type PanelInputHost,
   type PanelKeys,
 } from './panel-input-controller';
+import { MilestoneController, type MilestoneHost, type RunStats } from './milestone-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -274,11 +267,6 @@ export class MapScene extends Phaser.Scene {
   /** Times the wagon hit 0 condition (stranded) this session, for telemetry (#220). */
   private strandEvents = 0;
   /**
-   * Region ids whose "cleared" telemetry milestone has already been captured this
-   * session, so refreshing after a clear does not record the same region twice.
-   */
-  private telemetryRecorded = new Set<string>();
-  /**
    * True once the low-condition warning has fired for the current low spell, so
    * it toasts once on the way down and re-arms only after a repair lifts the
    * wagon back above the low threshold (#182).
@@ -294,7 +282,6 @@ export class MapScene extends Phaser.Scene {
   private wagonTuning: WagonTuning = WAGON_TUNING.standard;
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
-  private achievements = new Set<string>();
   // Presentation layer for the map markers (settlements, gateways, signpost).
   private markers!: MapMarkers;
   // Chosen courier skill ranks. Experience and level are derived from play
@@ -322,6 +309,10 @@ export class MapScene extends Phaser.Scene {
   // Panel and overlay input: the keys that open, close, page, and dismiss a
   // surface (#392). Constructed fresh each create(), like the dialogue subsystem.
   private panelInput!: PanelInputController;
+  // Achievements, the region-cleared summary, the end-of-arc capstone, and the
+  // telemetry milestones (#392). Owns the session state all four share. Built at
+  // the top of create(), because restoreState() hands it the loaded save.
+  private milestones!: MilestoneController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
@@ -342,20 +333,6 @@ export class MapScene extends Phaser.Scene {
   // blocked" hint fires once per approach instead of every frame. Reset when the
   // courier steps away (see docs/design/05_playtest_notes.md).
   private atLockedFordHinted = false;
-  // The region-cleared summary panel blocks the centre of the screen, so the
-  // player dismisses it with Esc; it then stays hidden for the session instead
-  // of re-showing on every refresh (see docs/design/05_playtest_notes.md).
-  // Keyed by region id: the summary is per-region content, so dismissing one
-  // region's panel must not suppress another's. Reset on a new game (#291).
-  private summaryDismissedRegions = new Set<string>();
-  // The end-of-arc capstone shows once, the session the courier breaks the
-  // blockade. capstoneDismissed hides it after Esc within that session;
-  // blockadeBrokenAtLoad records whether the flag was already set when the scene
-  // loaded, so the panel never re-appears on a later load or after travel (the
-  // save already carries the flag by then). This gives show-once with no new
-  // save field. See docs/design/05_playtest_notes.md.
-  private capstoneDismissed = false;
-  private blockadeBrokenAtLoad = false;
   // Feedback about the last key pressed inside the skills panel or upgrade menu
   // (#356). These refusals can only fire while their panel is open, so they
   // render in the panel the player is already reading rather than as toasts,
@@ -392,6 +369,20 @@ export class MapScene extends Phaser.Scene {
     const snapshot = loadSave();
     const regionId = data?.regionId ?? snapshot?.regionId ?? DEFAULT_REGION_ID;
     this.region = getRegion(regionId);
+    // Built before restoreState, which hands it the loaded achievements and the
+    // blockade flag. Its host reads through closures, so the HUD and audio it
+    // needs are allowed to arrive later in create().
+    const milestoneHost: MilestoneHost = {
+      getHud: () => this.hud,
+      getAudio: () => this.audio,
+      getRegion: () => this.region,
+      runStats: () => this.runStats(),
+      baseContractCounts: () => this.baseContractCounts(),
+      gatewayDestinationNames: () => this.gatewayDestinationNames(),
+      blockadeBroken: () => hasFlag(this.storyFlags, FLAG_BLOCKADE_BROKEN),
+      isAutomated: () => isE2E(),
+    };
+    this.milestones = new MilestoneController(milestoneHost);
     // Apply the chosen difficulty before restoring state: a fresh game derives
     // the starting tank size from this tuning, and a loaded condition is clamped
     // to the max it affords, so the profile must be in place first.
@@ -523,17 +514,12 @@ export class MapScene extends Phaser.Scene {
       refreshJournal: () => this.refreshJournal(),
       refreshSkillPanel: () => this.refreshSkillPanel(),
       refreshUpgradeMenu: () => this.refreshUpgradeMenu(),
-      isCapstoneDismissed: () => this.capstoneDismissed,
-      dismissCapstone: () => {
-        this.capstoneDismissed = true;
-        this.hud.setCapstone(null);
-      },
-      isSummaryDismissable: () =>
-        !this.summaryDismissedRegions.has(this.region.id) && this.regionCleared(),
-      dismissSummary: () => {
-        this.summaryDismissedRegions.add(this.region.id);
-        this.hud.setSummary(null);
-      },
+      // The dismissal state belongs to the milestone controller, which owns both
+      // panels; the panel input controller only routes the Esc that triggers it.
+      isCapstoneDismissed: () => this.milestones.isCapstoneDismissed(),
+      dismissCapstone: () => this.milestones.dismissCapstone(),
+      isSummaryDismissable: () => this.milestones.isSummaryDismissable(),
+      dismissSummary: () => this.milestones.dismissSummary(),
     };
     this.panelInput = new PanelInputController(panelHost);
     this.refreshWallet();
@@ -541,8 +527,8 @@ export class MapScene extends Phaser.Scene {
     this.refreshFordStatus();
     this.refreshHint();
     this.refreshBoard();
-    this.refreshCapstone();
-    this.refreshSummary();
+    this.milestones.refreshCapstone();
+    this.milestones.refreshSummary();
 
     // Pick an ambient road condition for this run via a seeded RNG. Seeding
     // from the clock keeps weather varied between runs while routing the roll
@@ -552,7 +538,7 @@ export class MapScene extends Phaser.Scene {
 
     // Reveal the area around the spawn so the player is not fully blind.
     this.revealAroundCourier();
-    this.refreshAchievements(false);
+    this.milestones.refreshAchievements(false);
 
     // Autosave periodically so exploration progress persists.
     this.time.addEvent({ delay: 2000, loop: true, callback: () => this.save() });
@@ -595,11 +581,10 @@ export class MapScene extends Phaser.Scene {
     this.completed = run.completed;
     this.visited = run.visited;
     this.trip = run.trip;
-    this.achievements = run.achievements;
     this.skills = run.skills;
     this.storyFlags = run.storyFlags;
     this.wagonCondition = run.wagonCondition;
-    this.blockadeBrokenAtLoad = run.blockadeBrokenAtLoad;
+    this.milestones.restore(run.achievements, run.blockadeBrokenAtLoad);
     this.fogByRegion = run.fogByRegion;
     this.fogDimsByRegion = run.fogDimsByRegion;
     this.activeContract = run.activeContract;
@@ -622,9 +607,7 @@ export class MapScene extends Phaser.Scene {
       // session-scoped panel and telemetry dedup state belongs to the previous
       // playthrough, so a re-cleared region or re-broken blockade shows its
       // panel and records its milestone again (#291).
-      this.summaryDismissedRegions = new Set();
-      this.capstoneDismissed = false;
-      this.telemetryRecorded = new Set();
+      this.milestones.resetForNewRun();
     }
   }
 
@@ -666,7 +649,7 @@ export class MapScene extends Phaser.Scene {
       distanceTiles: this.trip.distanceTiles,
       deliveries: this.trip.deliveries,
       wagonCondition: this.wagonCondition,
-      achievements: [...this.achievements],
+      achievements: [...this.milestones.achievementIds()],
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
       courierTile: this.courierTile(),
@@ -917,7 +900,7 @@ export class MapScene extends Phaser.Scene {
     this.refreshBoard();
     // Detect the blockade breaking, which happens through a dialogue choice
     // rather than a delivery, so it is checked each frame once dialogue closes.
-    this.refreshCapstone();
+    this.milestones.refreshCapstone();
     if (this.hud.isMinimapVisible()) {
       this.redrawMinimap();
     }
@@ -1382,13 +1365,13 @@ export class MapScene extends Phaser.Scene {
     }
     this.refreshObjective();
     this.refreshWallet();
-    this.refreshSummary(true);
+    this.milestones.refreshSummary(true);
     // This delivery may have cleared the region's standing routes: capture a
     // telemetry milestone (once per region per session, ADR-free best-effort).
     if (this.regionCleared()) {
-      this.captureTelemetry('region');
+      this.milestones.captureTelemetry('region');
     }
-    this.refreshAchievements(true);
+    this.milestones.refreshAchievements(true);
     // The delivery reconnects this settlement: recolour its marker (and the
     // minimap if it is open) so the change to the world is immediately visible.
     this.markers.refreshSettlements(this.worldState());
@@ -1512,7 +1495,7 @@ export class MapScene extends Phaser.Scene {
     return boardInteractable({
       hasActiveContract: this.activeContract !== undefined,
       atHome: this.atSettlement(this.region.home),
-      capstoneVisible: this.shouldShowCapstone(),
+      capstoneVisible: this.milestones.shouldShowCapstone(),
       summaryVisible: this.hud.isSummaryVisible(),
       blockingOverlayOpen: this.hud.isBlockingOverlayOpen(),
     });
@@ -1638,7 +1621,7 @@ export class MapScene extends Phaser.Scene {
     this.refreshGatedColliders();
     this.refreshWallet();
     this.refreshUpgradeMenu();
-    this.refreshAchievements(true);
+    this.milestones.refreshAchievements(true);
     this.save();
   }
 
@@ -1877,7 +1860,7 @@ export class MapScene extends Phaser.Scene {
     this.juice.routeUnlocked(this.courier.sprite.x, this.courier.sprite.y);
     this.audio.routeUnlocked();
     this.hud.showToast('Shortcut unlocked: the ford is open.');
-    this.refreshAchievements(true);
+    this.milestones.refreshAchievements(true);
     this.save();
     return true;
   }
@@ -2034,7 +2017,7 @@ export class MapScene extends Phaser.Scene {
           fordUnlocked: this.regionFordUnlocked(),
           activeObjective: this.journalObjective(),
         },
-        title: courierTitle(this.achievementStat()),
+        title: this.milestones.title(),
         distanceText: formatDistance(this.trip.distanceTiles),
         mission: { missions: MISSIONS, state: this.missionState(), regionId: this.region.id },
         threads: {
@@ -2049,126 +2032,22 @@ export class MapScene extends Phaser.Scene {
         recentEvents: this.recentEvents,
         achievements: ACHIEVEMENTS.map((a) => ({
           name: a.name,
-          earned: this.achievements.has(a.id),
+          earned: this.milestones.hasAchievement(a.id),
         })),
       }),
     );
   }
 
   /**
-   * The finale shows once, the session the courier breaks the blockade, and only
-   * then. blockadeBrokenAtLoad excludes a save that was already broken, so the
-   * panel never re-appears on a later load or after travelling regions.
+   * The run numbers every milestone surface is derived from, gathered here where
+   * the fields live. One snapshot rather than a host accessor per statistic:
+   * achievements, both end-of-run panels, and the telemetry record all want the
+   * same figures.
    */
-  private shouldShowCapstone(): boolean {
-    return (
-      hasFlag(this.storyFlags, FLAG_BLOCKADE_BROKEN) &&
-      !this.blockadeBrokenAtLoad &&
-      !this.capstoneDismissed
-    );
-  }
-
-  private refreshCapstone(): void {
-    if (!this.shouldShowCapstone()) {
-      this.hud.setCapstone(null);
-      return;
-    }
-    // On the frame the finale first appears, clear the whole toast queue so no
-    // message crosses the panel, and retire the region-cleared summary it
-    // supersedes. Clear-all rather than one press: the finale takes the screen
-    // over wholesale, and there is no run left for a queued line to inform.
-    if (!this.hud.isCapstoneVisible()) {
-      this.hud.clearToasts();
-      // Louder than a stranding, and it cannot lose a collision to whatever was
-      // mid-flight when the finale took the screen (#384).
-      this.audio.capstone();
-      this.summaryDismissedRegions.add(this.region.id);
-      this.hud.setSummary(null);
-      // Rising edge of the finale: capture the arc-completion telemetry milestone.
-      this.captureTelemetry('arc');
-    }
-    this.hud.setCapstone(
-      capstoneText({
-        courierTitle: courierTitle(this.achievementStat()),
-        deliveries: this.trip.deliveries,
-        distanceText: formatDistance(this.trip.distanceTiles),
-        regionCount: Object.keys(REGIONS).length,
-      }),
-    );
-  }
-
-  /**
-   * Persist a gameplay-telemetry record for a run milestone (#220). Region
-   * clears are captured at most once per region per session; the arc capstone is
-   * only refreshed on its rising edge, so it too records once. Best-effort: a
-   * storage failure inside recordRun is swallowed and never interrupts play.
-   */
-  private captureTelemetry(milestone: RunMilestone): void {
-    if (milestone === 'region') {
-      if (this.telemetryRecorded.has(this.region.id)) {
-        return;
-      }
-      this.telemetryRecorded.add(this.region.id);
-    }
-    recordRun({
-      milestone,
-      // Every automated driver boots with `?e2e` and no human does, so this
-      // separates bot runs from real play at no extra plumbing cost (#264).
-      source: isE2E() ? 'auto' : 'play',
-      regionId: this.region.id,
-      regionName: this.region.name,
-      difficulty: this.difficulty,
-      coins: this.state.ledger.coins,
-      deliveries: this.trip.deliveries,
-      distanceTiles: this.trip.distanceTiles,
-      wagonWearTotal: this.wagonWearTotal,
-      wagonCondition: this.wagonCondition,
-      strandEvents: this.strandEvents,
-      upgradesOwned: this.state.upgrades.size,
-      totalReputation: totalReputation(this.state.ledger),
-    });
-  }
-
-  /**
-   * Show or hide the region-cleared summary. `announce` sounds the cue on the
-   * frame the panel first appears; create() passes false, because a save loaded
-   * into an already-cleared region has not just cleared it, and the same
-   * reasoning already gates refreshAchievements.
-   */
-  private refreshSummary(announce = false): void {
-    if (this.summaryDismissedRegions.has(this.region.id)) {
-      this.hud.setSummary(null);
-      return;
-    }
-    // The cleared panel fires on the standing (ungated) routes, so every region
-    // shows it at the natural end of its work. Basing it on in-play contracts
-    // suppressed the panel on the spokes, whose arc-gated contract is revealed
-    // and left undelivered as the mission climax (Session 5 playtest).
-    const base = this.baseContractCounts();
-    const wasVisible = this.hud.isSummaryVisible();
-    // summaryText returns null until the region is cleared, so setSummary(null)
-    // keeps the panel hidden in that case.
-    this.hud.setSummary(
-      summaryText({
-        regionName: this.region.name,
-        coins: this.state.ledger.coins,
-        totalReputation: totalReputation(this.state.ledger),
-        reputationTier: tierFor(totalReputation(this.state.ledger)).name,
-        delivered: base.delivered,
-        totalContracts: base.total,
-        fordUnlocked: this.regionFordUnlocked(),
-        upgradesOwned: this.state.upgrades.size,
-        distanceText: formatDistance(this.trip.distanceTiles),
-        gatewayNames: this.gatewayDestinationNames(),
-      }),
-    );
-    if (announce && !wasVisible && this.hud.isSummaryVisible()) {
-      this.audio.regionCleared();
-    }
-  }
-
-  private achievementStat(): AchievementStat {
+  private runStats(): RunStats {
     return {
+      coins: this.state.ledger.coins,
+      totalReputation: totalReputation(this.state.ledger),
       deliveries: this.trip.deliveries,
       distanceTiles: this.trip.distanceTiles,
       placesFound: this.visited.size,
@@ -2177,27 +2056,16 @@ export class MapScene extends Phaser.Scene {
       totalUpgrades: UPGRADES_GREYBRIDGE.length,
       fordUnlocked: this.regionFordUnlocked(),
       regionCleared: this.regionCleared(),
+      difficulty: this.difficulty,
+      wagonWearTotal: this.wagonWearTotal,
+      wagonCondition: this.wagonCondition,
+      strandEvents: this.strandEvents,
     };
   }
 
   /** Whether the active region's own ford is unlocked (false if it has none). */
   private regionFordUnlocked(): boolean {
     return this.region.fordUnlockId !== undefined && isUnlocked(this.state, this.region.fordUnlockId);
-  }
-
-  /** Recompute earned achievements; toast newly earned ones when announce is true. */
-  private refreshAchievements(announce: boolean): void {
-    for (const id of earnedAchievements(this.achievementStat())) {
-      if (this.achievements.has(id)) {
-        continue;
-      }
-      this.achievements.add(id);
-      if (announce) {
-        const def = ACHIEVEMENTS.find((a) => a.id === id);
-        this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`);
-        this.audio.achievementUnlocked();
-      }
-    }
   }
 
   private refreshFordStatus(): void {
@@ -2266,7 +2134,7 @@ export class MapScene extends Phaser.Scene {
     this.visited.add(settlement.id);
     this.logEvent(`${settlement.name}. ${settlement.note}`);
     this.audio.settlementFound();
-    this.refreshAchievements(true);
+    this.milestones.refreshAchievements(true);
     this.save();
   }
 }
