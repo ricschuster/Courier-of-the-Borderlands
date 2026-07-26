@@ -20,6 +20,7 @@
     "test:arc": "nice -n 19 playwright test full-arc --workers=1",
     "shot": "node scripts/shot.mjs",
     "autoplay": "node scripts/autoplay.mjs",
+    "measure:survey": "SURVEY_REPORT=1 vitest run tests/unit/survey-benefit-regions.test.ts --disable-console-intercept",
     "setup": "npm ci && npx playwright install --with-deps chromium",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

@@ -218,6 +218,23 @@ repairs at every home visit, so its wear reads low and its coin surplus high.
 `tests/e2e/travel-sink-measure.spec.ts` explains that caveat in full. A human
 playtest is the signal for tuning; this is the tool for seeing behaviour.
 
+### Pricing the Wayfinder survey ring
+
+```bash
+npm run measure:survey
+```
+
+Simulates every real contract route twice, identical but for the Wayfinder
+minimap survey ring, and reports what the ring saved in realised travel cost and
+in dead-end re-plans. Built for #361, which asked whether the ring earns its
+cost and had been stuck on the assumption that only a human could tell.
+
+The assertions run as part of the normal suite; this entry point just turns the
+report on. Read
+`tests/unit/survey-benefit-regions.test.ts` for the loadout caveat: the ring
+only reaches past the walked fog for a courier who has *not* bought the reveal
+upgrades.
+
 ## Project structure
 
 ```text
