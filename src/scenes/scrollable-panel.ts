@@ -124,6 +124,11 @@ export class ScrollablePanel {
     return this.offset;
   }
 
+  /** Rendered content. Canvas text, so this is the only way a spec can read it. */
+  get content(): string {
+    return this.text.text;
+  }
+
   /** Set content and reset scroll to the top, so reopening always starts at the header. */
   setText(text: string): void {
     this.text.setText(text);

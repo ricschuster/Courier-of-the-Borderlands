@@ -177,6 +177,13 @@ export interface E2EState {
    */
   readonly panelNotice: string | null;
   /**
+   * Journal contents while the journal is open, else null (#414). Canvas text,
+   * so this is the only way a spec can prove the journal lists the settlements
+   * the courier has actually visited: the pure builder is covered and the wiring
+   * to it was not.
+   */
+  readonly journalText: string | null;
+  /**
    * The board contract a first digit-press has armed and that a second press of
    * the same slot will accept, or null when nothing is armed (#321).
    */
@@ -440,6 +447,7 @@ function buildState(host: E2EHost): E2EState {
     toasts: hud.toastState(),
     hintText: hud.hintText(),
     panelNotice: host.panelNotice(),
+    journalText: hud.journalText(),
     armedContractId: host.armedContractId(),
     activeMissionId: e2eObjective?.mission.id ?? null,
     activeMissionStepId: e2eObjective?.step.id ?? null,

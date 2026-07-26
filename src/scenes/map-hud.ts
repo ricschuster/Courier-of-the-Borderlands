@@ -513,6 +513,16 @@ export class MapHud {
     return this.hint.text;
   }
 
+  /**
+   * Journal contents while it is open, else null. Canvas text, so this is the
+   * only way a spec can prove what the journal actually lists (#414): the pure
+   * builder in journal-text.ts is covered, but nothing checked that the scene
+   * hands it the right state.
+   */
+  journalText(): string | null {
+    return this.journalPanel.visible ? this.journalPanel.content : null;
+  }
+
   /** Ford status line: null when the region has no ford, else open/locked with colour. */
   setFordStatus(open: boolean | null): void {
     if (open === null) {
