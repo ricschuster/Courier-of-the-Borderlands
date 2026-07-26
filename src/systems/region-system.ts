@@ -31,6 +31,17 @@ export interface TileCoord {
 export interface RegionGateway {
   readonly tile: TileCoord;
   readonly to: string;
+  /**
+   * Upgrade id the courier must have fitted before this gateway will let them
+   * through (#362). Gates the *road out*, not the road back: a return gateway
+   * must never carry one, or a courier who travelled out and then spent down
+   * could be stranded in a spoke region.
+   *
+   * The requirement is a fitted upgrade rather than a coin price on purpose. An
+   * upgrade cannot be spent away once bought, so the gate can only ever be
+   * ahead of the player once.
+   */
+  readonly requiresUpgrade?: string;
 }
 
 export interface Region {
@@ -71,9 +82,15 @@ export const GREYBRIDGE_REGION: Region = {
   // on the main road to Saltreach (east map edge), and south down the east-bank
   // road to Fenmarch, whose gateway sits at the southern road terminus below
   // Southmill (not on the town, so its waymarker reads as a way out of the region).
+  // Both roads out require the Reinforced Wheels fitted (#362). The arc used to
+  // be completable having bought nothing at all, which contradicted the pillar
+  // that gold and upgrades must matter from the early game rather than be
+  // optional convenience. This makes exactly one purchase mandatory, at the
+  // cheapest upgrade in the game, before the frontier opens up. The return
+  // gateways in both spokes are deliberately ungated.
   gateways: [
-    { tile: { x: 29, y: 8 }, to: 'saltreach' },
-    { tile: { x: 21, y: 18 }, to: 'fenmarch' },
+    { tile: { x: 29, y: 8 }, to: 'saltreach', requiresUpgrade: 'reinforced-wheels' },
+    { tile: { x: 21, y: 18 }, to: 'fenmarch', requiresUpgrade: 'reinforced-wheels' },
   ],
   signpost: { x: 13, y: 14 },
   fordUnlockId: 'ford-crossing-greybridge',
@@ -132,6 +149,23 @@ export const DEFAULT_REGION_ID = 'greybridge';
 /** Region for an id, falling back to the default region for unknown ids. */
 export function getRegion(id: string): Region {
   return REGIONS[id] ?? GREYBRIDGE_REGION;
+}
+
+/**
+ * The upgrade a gateway is waiting on, or null when the courier may pass (#362).
+ *
+ * Returns the id rather than a boolean so the caller can name the missing part
+ * in its refusal. A gateway with no requirement always returns null, which is
+ * every return gateway and every gateway in a spoke region.
+ */
+export function gatewayBlockedBy(
+  gateway: RegionGateway,
+  fittedUpgrades: ReadonlySet<string>,
+): string | null {
+  if (gateway.requiresUpgrade === undefined) {
+    return null;
+  }
+  return fittedUpgrades.has(gateway.requiresUpgrade) ? null : gateway.requiresUpgrade;
 }
 
 /**

@@ -59,6 +59,19 @@ Arriving at the destination settlement while carrying cargo completes the contra
 
 Reaching a signpost near the southern crossing unlocks the ford. That second crossing links the south-west (Ironhollow) to the south-east (Southmill and Mirewatch), which the bridge detour reaches only the long way around. The signpost sits directly on the west approach to the ford, so the Ironhollow-to-Mirewatch secret run passes it: that late contract both needs the crossing and carries a "cross at the ford" bonus, so unlocking the ford pays off in a real delivery. Each region that has a ford unlocks it separately, through its own signpost, so opening one region's ford does not open another's. Coins can be spent on the Reinforced Wheels upgrade, which adds 25 percent speed across all terrain.
 
+### 7. Leaving the region
+
+Both roads out of Greybridge require the Reinforced Wheels fitted (#362). Until then, pressing T on a gateway refuses and names the upgrade and its price.
+
+This exists because the arc was previously completable having bought nothing at all, which contradicted the pillar that gold and upgrades matter from the early game rather than being optional convenience. The penalty for refusing to spend was already severe (a measured 2.2x wall time, seven strandings, 550 coins of forced rescues) but it was still only a penalty.
+
+Two rules keep the gate from becoming a dead end, and both are pinned by tests:
+
+- The requirement is an **upgrade fitted, not a coin price**. An upgrade cannot be spent away once bought, so the gate can only ever be ahead of the player once.
+- The gate never costs more than the region's smallest single delivery, so a courier standing at a closed gateway with nothing fitted is always one contract away from opening it. Greybridge's lowest-paying route was raised from 45 to 50 coins to hold this.
+
+Return gateways are never gated: a courier who travelled out and then spent down must always be able to get home, and the spoke regions have no shop.
+
 ## How the design pillars show up
 
 - **Exploration first.** The fog hides the terrain ahead. You learn routes by driving them.

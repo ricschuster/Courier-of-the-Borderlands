@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { bootE2E, collectErrors, readTick, travelTo, type Arrow } from './drive';
+import { bootE2E, collectErrors, readTick, seedUpgrades, travelTo, type Arrow } from './drive';
 
 // Input-driven travel test. Drives to a region gateway, travels with the "T"
 // key, and asserts the courier arrives standing on the return gateway (the
@@ -14,6 +14,11 @@ test('travels to a spoke and back, arriving at the return gateway each way', asy
 
   const errors = collectErrors(page);
 
+  // Both roads out of the hub need the Reinforced Wheels fitted (#362). This
+  // spec is about arrival geometry, so it starts past that gate rather than
+  // playing out a delivery and a shop visit first. gateway-gate.spec.ts covers
+  // the refusal itself.
+  await seedUpgrades(page, ['reinforced-wheels']);
   await bootE2E(page);
 
   const held = new Set<Arrow>();
@@ -71,6 +76,7 @@ test('reaches the Fenmarch spoke through its own gateway and returns to it', asy
 
   const errors = collectErrors(page);
 
+  await seedUpgrades(page, ['reinforced-wheels']);
   await bootE2E(page);
 
   const held = new Set<Arrow>();
