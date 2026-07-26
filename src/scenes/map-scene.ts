@@ -1142,13 +1142,21 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  private revealAroundCourier(): void {
-    const radius = effectiveRevealRadius(
+  /**
+   * The reveal radius in force right now: upgrades, Wayfinder ranks and the run's
+   * weather. The minimap survey ring is measured out from this (#361), so the two
+   * must not drift apart.
+   */
+  private revealRadiusNow(): number {
+    return effectiveRevealRadius(
       revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS),
       skillRevealBonus(this.skills),
       this.weather.revealBonus,
     );
-    const revealed = this.fogs.revealAround(this.courierTile(), radius);
+  }
+
+  private revealAroundCourier(): void {
+    const revealed = this.fogs.revealAround(this.courierTile(), this.revealRadiusNow());
     // A wayside discovery is found the moment its tile first reveals, so a
     // courier who invests in reveal is paid in lore, not just sight (#111).
     // Derived from the newly-revealed set, so it fires once and never on reload.
@@ -1689,7 +1697,7 @@ export class MapScene extends Phaser.Scene {
       // Wayfinder surveys terrain beyond the walked fog on the minimap only, a
       // route-planning payoff for the reveal build (#324). Recomputed from the
       // current position each redraw, so it is transient and never saved.
-      surveyRadius: wayfinderSurveyRadius(rankOf(this.skills, 'wayfinder')),
+      surveyRadius: wayfinderSurveyRadius(rankOf(this.skills, 'wayfinder'), this.revealRadiusNow()),
     });
     this.hud.drawMinimap(model, this.currentPath);
   }

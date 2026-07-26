@@ -66,7 +66,7 @@ function measure(regionId: string, rank: number, upgrades: ReadonlySet<string>) 
     skillRevealBonus(skills),
     0,
   );
-  const survey = wayfinderSurveyRadius(rank);
+  const survey = wayfinderSurveyRadius(rank, reveal);
 
   return routesFor(regionId).map((route) => {
     const keys = traversalKeys(route.unlocks, upgrades, skills);
@@ -132,7 +132,7 @@ describe('the Wayfinder survey ring, priced over every real contract route', () 
           skillRevealBonus({ wayfinder: rank }),
           0,
         );
-        const survey = wayfinderSurveyRadius(rank);
+        const survey = wayfinderSurveyRadius(rank, reveal);
         detail.push(
           `  ${loadout}, rank ${rank}: fog reveal ${reveal}, survey ring ${survey}` +
             (survey <= reveal ? '  <- ring inside the fog, can add nothing' : ''),
@@ -176,16 +176,20 @@ describe('the Wayfinder survey ring, priced over every real contract route', () 
   });
 
   // The measure's own guard. A tool that has only ever reported zero is
-  // indistinguishable from a broken tool, so this pins the one configuration
-  // where the ring provably reaches past the walked fog and must therefore be
-  // able to score. If this ever goes to zero, suspect the measure before the
-  // conclusion.
-  it('can detect a benefit where the ring reaches past the fog', () => {
-    const reveal = effectiveRevealRadius(
-      revealRadius(LOADOUTS['no reveal upgrades'], UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS),
-      skillRevealBonus({ wayfinder: 3 }),
-      0,
-    );
-    expect(wayfinderSurveyRadius(3)).toBeGreaterThan(reveal);
+  // indistinguishable from a broken tool, so this pins the property that makes
+  // scoring possible at all. Since #361's fix made the ring a margin on the fog
+  // rather than an absolute radius, it holds for every loadout instead of only
+  // the unfitted one.
+  it('leaves the ring able to score, at every loadout and rank', () => {
+    for (const upgrades of Object.values(LOADOUTS)) {
+      for (const rank of [1, 2, 3]) {
+        const reveal = effectiveRevealRadius(
+          revealRadius(upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS),
+          skillRevealBonus({ wayfinder: rank }),
+          0,
+        );
+        expect(wayfinderSurveyRadius(rank, reveal)).toBeGreaterThan(reveal);
+      }
+    }
   });
 });

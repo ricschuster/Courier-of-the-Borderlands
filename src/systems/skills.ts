@@ -22,7 +22,11 @@ export const SKILLS: readonly Skill[] = [
   {
     id: 'wayfinder',
     name: 'Wayfinder',
-    description: 'You read the land. +1 map reveal radius per rank.',
+    // The survey ring shipped in #341 and was never mentioned here, so the
+    // skill's headline payoff was invisible in the one place a player decides
+    // whether to buy it (#361).
+    description:
+      'You read the land. +1 map reveal radius per rank, and the minimap surveys terrain 2 tiles per rank beyond your fog.',
     maxRank: 3,
     perRank: { revealBonus: 1 },
   },

@@ -40,16 +40,37 @@ export interface MinimapInput {
   readonly surveyRadius?: number;
 }
 
-/** Tiles of minimap survey a Wayfinder grants around the courier, per rank. */
-export const SURVEY_TILES_PER_WAYFINDER_RANK = 3;
+/**
+ * Tiles of survey a Wayfinder rank adds *beyond the walked fog*.
+ *
+ * This is a margin, not an absolute radius (#361). It used to be absolute, which
+ * made the ring inert: walked fog reaches 2.5 base plus 3.5 from the two reveal
+ * upgrades plus 1 per Wayfinder rank, so an absolute 3-per-rank ring sat inside
+ * the fog at every rank for any courier who had bought the upgrades, and at rank
+ * 3 the two were exactly equal. The skill's headline payoff could not show a
+ * single tile the player could not already see. Measured at 0 of 69 routes
+ * changed; see docs/design/06_wayfinder_survey_ring.md.
+ */
+export const SURVEY_TILES_PER_WAYFINDER_RANK = 2;
 
 /**
- * Minimap survey radius (tiles) for a Wayfinder of the given rank. Rank 0 (no
- * Wayfinder) is 0, which disables the survey ring, so only a Wayfinder sees
- * terrain beyond the fog they have walked.
+ * Minimap survey radius (tiles) for a Wayfinder of the given rank.
+ *
+ * Rank 0 returns 0, which disables the ring entirely, so only a Wayfinder sees
+ * terrain beyond the fog they have walked. Every other rank returns the current
+ * reveal radius plus a margin, so the ring **always** shows ground the fog does
+ * not, whatever the courier has fitted and whatever the weather is doing.
+ *
+ * Pass the live reveal radius, weather included: when bad weather pulls the fog
+ * in, the survey comes with it. A courier who cannot see is not helped by a
+ * minimap that pretends otherwise.
  */
-export function wayfinderSurveyRadius(rank: number): number {
-  return Math.max(0, Math.floor(rank)) * SURVEY_TILES_PER_WAYFINDER_RANK;
+export function wayfinderSurveyRadius(rank: number, revealRadius: number): number {
+  const ranks = Math.max(0, Math.floor(rank));
+  if (ranks === 0) {
+    return 0;
+  }
+  return Math.max(0, revealRadius) + ranks * SURVEY_TILES_PER_WAYFINDER_RANK;
 }
 
 export interface MinimapModel {
