@@ -72,6 +72,7 @@ import {
 } from '../systems/skills';
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor } from '../systems/reputation-perks';
+import { deliveryNote } from '../systems/delivery-text';
 import { getCargoCategory } from '../systems/cargo-types';
 import { formatDistance } from '../systems/trip-log';
 import { ACHIEVEMENTS } from '../systems/achievements';
@@ -1234,19 +1235,16 @@ export class MapScene extends Phaser.Scene {
     this.activeContract = undefined;
     this.progress = undefined;
 
-    // Compare against the cargo-adjusted base so the perk note reflects a
-    // reputation boost, not the cargo pay modifier.
-    const perkNote = reward.payout > reward.baseReward ? ` (${perk.label})` : '';
-    const skillNote = reward.skillReward > 0 ? ` +${reward.skillReward} negotiated.` : '';
-    const cipherNote = reward.cipherReward > 0 ? ` +${reward.cipherReward} deciphered.` : '';
-    const bonusNote = reward.bonusCoins > 0 ? ` Bonus met: +${reward.bonusCoins} coins.` : '';
-    const cargoNote =
-      cargoCategory.payModifier !== 1 ? ` Carried as ${cargoCategory.tag}.` : '';
-    const reconnectNote = reward.reconnectPremium ? ' The reconnected road pays better.' : '';
     this.logEvent(
-      `Delivered ${contract.cargo} to ${settlementName}. ` +
-        `Reward: ${reward.payout + reward.skillReward + reward.cipherReward} coins${perkNote}, ` +
-        `+${contract.reputation} reputation.${skillNote}${cipherNote}${bonusNote}${cargoNote}${reconnectNote}`,
+      deliveryNote({
+        cargo: contract.cargo,
+        destinationName: settlementName,
+        reputation: contract.reputation,
+        reward,
+        perkLabel: perk.label,
+        cargoTag: cargoCategory.tag,
+        cargoPayModifier: cargoCategory.payModifier,
+      }),
     );
     this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
     // The bonus is a brighter delivery rather than a second voice on top of it:
