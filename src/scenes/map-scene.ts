@@ -26,15 +26,7 @@ import {
   type ObjectiveView,
 } from '../systems/objective';
 import { createGameState, isUnlocked, unlock, type GameState } from '../systems/game-state';
-import {
-  createFog,
-  revealAround,
-  revealedIndices,
-  revealIndices,
-  isRevealed,
-  fogDimsMatch,
-  type Fog,
-} from '../systems/fog-of-war';
+import { effectiveRevealRadius } from '../systems/fog-of-war';
 import { addCoins, addReputation, totalReputation, tierFor } from '../systems/economy';
 import {
   loadSave,
@@ -131,6 +123,7 @@ import {
 import { MilestoneController, type MilestoneHost, type RunStats } from './milestone-controller';
 import { BoardInputController, type BoardInputHost } from './board-input-controller';
 import { SpendController, type SpendHost } from './spend-controller';
+import { FogController, type FogHost } from './fog-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -209,10 +202,6 @@ interface MapSceneData {
 export class MapScene extends Phaser.Scene {
   private state: GameState = createGameState();
   private region!: Region;
-  private fogByRegion: Record<string, number[]> = {};
-  // Map size each region's saved fog was recorded against, so a resized region
-  // discards its stale (differently indexed) fog instead of revealing wrong tiles.
-  private fogDimsByRegion: Record<string, [number, number]> = {};
   private travelKey!: Phaser.Input.Keyboard.Key;
   private map!: TileMap;
   private mapOriginY = 0;
@@ -228,7 +217,8 @@ export class MapScene extends Phaser.Scene {
   // Cosmetic feedback only (#227). Never gates or changes a rule.
   private juice!: Juice;
   private audio!: Audio;
-  private fog!: Fog;
+  /** Owns the fog model and the persisted per-region reveal record (#392). */
+  private fogs!: FogController;
   private activeContract: Contract | undefined;
   private progress: ContractProgress | undefined;
   private completed = new Set<string>();
@@ -397,6 +387,16 @@ export class MapScene extends Phaser.Scene {
       save: () => this.save(),
     };
     this.spend = new SpendController(spendHost);
+    // Built before restoreState(), which hands it the saved reveal record. Every
+    // member reads through a closure because the map and terrain layer are built
+    // further down create() (ADR 0009).
+    const fogHost: FogHost = {
+      getMapSize: () => this.map,
+      getRegionId: () => this.region.id,
+      clearFogAt: (indices) => this.terrain.clearFogAt(indices),
+      clearFogAtTiles: (tiles) => this.terrain.clearFogAtTiles(tiles),
+    };
+    this.fogs = new FogController(fogHost);
     // Apply the chosen difficulty before restoring state: a fresh game derives
     // the starting tank size from this tuning, and a loaded condition is clamped
     // to the max it affords, so the profile must be in place first.
@@ -470,9 +470,8 @@ export class MapScene extends Phaser.Scene {
     this.markers.addGateways(this.region, this.map.width, this.map.height);
     this.refreshEncounterMarkers();
     // Fog is built after the markers so it draws over them.
-    this.fog = createFog(this.map.width, this.map.height);
     this.terrain.buildFog();
-    this.restoreFog();
+    this.fogs.beginRegion();
     this.setupInput();
     this.hud = new MapHud(this, terrainsPresent(this.map.tiles, TERRAIN_TYPES));
     // Fresh conversation subsystem per create(), so a scene restart (travel, new
@@ -597,8 +596,7 @@ export class MapScene extends Phaser.Scene {
     this.storyFlags = run.storyFlags;
     this.wagonCondition = run.wagonCondition;
     this.milestones.restore(run.achievements, run.blockadeBrokenAtLoad);
-    this.fogByRegion = run.fogByRegion;
-    this.fogDimsByRegion = run.fogDimsByRegion;
+    this.fogs.restore(run.fogByRegion, run.fogDimsByRegion);
     this.activeContract = run.activeContract;
     this.progress = run.progress;
 
@@ -622,29 +620,10 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Re-reveal the active region's previously explored tiles. */
-  private restoreFog(): void {
-    const indices = this.fogByRegion[this.region.id];
-    if (indices === undefined) {
-      return;
-    }
-    // Fog indices only mean the same tile on a same-sized map. If this region
-    // was resized since the save (or the save predates dimension tracking),
-    // drop the stale fog so exploration starts fresh rather than revealing the
-    // wrong tiles. save() re-records the current size on the next write.
-    if (!fogDimsMatch(this.fogDimsByRegion[this.region.id], this.map.width, this.map.height)) {
-      delete this.fogByRegion[this.region.id];
-      delete this.fogDimsByRegion[this.region.id];
-      return;
-    }
-    // Out-of-range indices are dropped by revealIndices, which returns exactly
-    // the tiles revealed so only those get their fog rectangle cleared.
-    this.terrain.clearFogAt(revealIndices(this.fog, indices));
-  }
-
   private save(): void {
-    this.fogByRegion[this.region.id] = revealedIndices(this.fog);
-    this.fogDimsByRegion[this.region.id] = [this.map.width, this.map.height];
+    // Records the active region's revealed tiles as a side effect, so this must
+    // run before the payload below reads the two maps back.
+    const fog = this.fogs.snapshot();
     const result = writeSave({
       coins: this.state.ledger.coins,
       reputation: { ...this.state.ledger.reputation },
@@ -653,8 +632,8 @@ export class MapScene extends Phaser.Scene {
       completed: [...this.completed],
       visited: [...this.visited],
       regionId: this.region.id,
-      fogByRegion: this.fogByRegion,
-      fogDimsByRegion: this.fogDimsByRegion,
+      fogByRegion: fog.fogByRegion,
+      fogDimsByRegion: fog.fogDimsByRegion,
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,
@@ -715,7 +694,7 @@ export class MapScene extends Phaser.Scene {
       deliveredInRegion: () => this.deliveredInRegion(),
       getWagonCondition: () => this.wagonCondition,
       getWagonWearTotal: () => this.wagonWearTotal,
-      getFog: () => this.fog,
+      getFog: () => this.fogs.current(),
       getActiveContract: () => this.activeContract,
       getProgress: () => this.progress,
       atHome: () => this.atSettlement(this.region.home),
@@ -1241,13 +1220,12 @@ export class MapScene extends Phaser.Scene {
   }
 
   private revealAroundCourier(): void {
-    const tile = this.courierTile();
-    const base =
-      revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS) +
-      skillRevealBonus(this.skills);
-    const radius = Math.max(1, base + this.weather.revealBonus);
-    const revealed = revealAround(this.fog, tile.x, tile.y, radius);
-    this.terrain.clearFogAtTiles(revealed);
+    const radius = effectiveRevealRadius(
+      revealRadius(this.state.upgrades, UPGRADES_GREYBRIDGE, FOG_REVEAL_RADIUS),
+      skillRevealBonus(this.skills),
+      this.weather.revealBonus,
+    );
+    const revealed = this.fogs.revealAround(this.courierTile(), radius);
     // A wayside discovery is found the moment its tile first reveals, so a
     // courier who invests in reveal is paid in lore, not just sight (#111).
     // Derived from the newly-revealed set, so it fires once and never on reload.
@@ -1755,7 +1733,7 @@ export class MapScene extends Phaser.Scene {
     const model = buildMinimap({
       width: this.map.width,
       height: this.map.height,
-      isRevealed: (x, y) => isRevealed(this.fog, x, y),
+      isRevealed: (x, y) => this.fogs.isRevealed(x, y),
       terrainColorAt: (x, y) => {
         const id = getTerrainIdAt(this.map, x, y);
         return id === undefined ? null : (getTerrain(id)?.color ?? null);
@@ -1825,7 +1803,7 @@ export class MapScene extends Phaser.Scene {
           flags: this.effectiveFlags(),
         },
         discoveries: {
-          found: foundDiscoveries(DISCOVERIES, this.region.id, this.fog),
+          found: foundDiscoveries(DISCOVERIES, this.region.id, this.fogs.current()),
           hasCipher: this.hasCipher(),
         },
         recentEvents: this.recentEvents,
