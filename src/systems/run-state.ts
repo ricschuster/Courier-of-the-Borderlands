@@ -17,7 +17,7 @@ import { ledgerFrom } from './economy';
 import { createTripLog, type TripLog } from './trip-log';
 import { levelForXp, totalXp } from './experience';
 import { sanitizeRanks, type SkillRanks } from './skills';
-import { emptyFlags, flagsFromArray, hasFlag, type StoryFlags } from './dialogue';
+import { emptyFlags, flagsFromArray, flagsToArray, hasFlag, type StoryFlags } from './dialogue';
 import { FLAG_BLOCKADE_BROKEN } from '../data/dialogue-content';
 import {
   clampCondition,
@@ -165,5 +165,61 @@ export function restoreRunState(input: RestoreRunStateInput): RunState {
     activeContract,
     progress,
     freshRun: false,
+  };
+}
+
+/** The live run, as the scene holds it, ready to be written out. */
+export interface BuildSnapshotInput {
+  readonly state: GameState;
+  readonly completed: ReadonlySet<string>;
+  readonly visited: readonly string[];
+  readonly trip: TripLog;
+  readonly regionId: string;
+  readonly fogByRegion: Record<string, number[]>;
+  readonly fogDimsByRegion: Record<string, [number, number]>;
+  readonly activeContract: Contract | undefined;
+  readonly progress: ContractProgress | undefined;
+  readonly wagonCondition: number;
+  readonly achievements: Iterable<string>;
+  readonly skills: SkillRanks;
+  readonly storyFlags: StoryFlags;
+  readonly courierTile: { readonly x: number; readonly y: number };
+}
+
+/**
+ * Build the snapshot to persist from the live run: the mirror of
+ * `restoreRunState`.
+ *
+ * The load direction has had a pure, tested home since #374 and the save
+ * direction did not, so the scene assembled an eighteen-field literal inline and
+ * nothing could check the two halves against each other. That asymmetry is why
+ * the round-trip is the interesting test: a field added to one side and not the
+ * other is silent otherwise, and every coverage hole this file has produced sat
+ * on the reload path rather than the path that creates the state.
+ *
+ * Copies every collection on the way out. The snapshot is handed to storage and
+ * must not alias live run state, or a later mutation would edit the "saved" data
+ * retroactively.
+ */
+export function buildSnapshot(input: BuildSnapshotInput): GameSnapshot {
+  return {
+    coins: input.state.ledger.coins,
+    reputation: { ...input.state.ledger.reputation },
+    unlocks: [...input.state.unlocks],
+    upgrades: [...input.state.upgrades],
+    completed: [...input.completed],
+    visited: [...input.visited],
+    regionId: input.regionId,
+    fogByRegion: input.fogByRegion,
+    fogDimsByRegion: input.fogDimsByRegion,
+    activeContractId: input.activeContract?.id ?? null,
+    contractStatus: input.progress?.status ?? null,
+    distanceTiles: input.trip.distanceTiles,
+    deliveries: input.trip.deliveries,
+    wagonCondition: input.wagonCondition,
+    achievements: [...input.achievements],
+    skills: { ...input.skills },
+    storyFlags: flagsToArray(input.storyFlags),
+    courierTile: { x: input.courierTile.x, y: input.courierTile.y },
   };
 }

@@ -46,7 +46,7 @@ import {
 } from '../systems/upgrade-system';
 import { wearPerTile, roughness, difficultyLabel } from '../systems/wagon-condition';
 import { modalHintText, worldHintText } from '../systems/hint-text';
-import { restoreRunState } from '../systems/run-state';
+import { buildSnapshot, restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
@@ -79,7 +79,6 @@ import { weatherByIndex, pickWeather, weatherEffectLabel, type Weather } from '.
 import { createRng } from '../systems/rng';
 import {
   setFlags,
-  flagsToArray,
   emptyFlags,
   hasFlag,
   type StoryFlags,
@@ -590,26 +589,24 @@ export class MapScene extends Phaser.Scene {
     // Records the active region's revealed tiles as a side effect, so this must
     // run before the payload below reads the two maps back.
     const fog = this.fogs.snapshot();
-    const result = writeSave({
-      coins: this.state.ledger.coins,
-      reputation: { ...this.state.ledger.reputation },
-      unlocks: [...this.state.unlocks],
-      upgrades: [...this.state.upgrades],
-      completed: [...this.completed],
-      visited: this.tripTracker.visitedIds(),
-      regionId: this.region.id,
-      fogByRegion: fog.fogByRegion,
-      fogDimsByRegion: fog.fogDimsByRegion,
-      activeContractId: this.activeContract?.id ?? null,
-      contractStatus: this.progress?.status ?? null,
-      distanceTiles: this.tripTracker.distanceTiles(),
-      deliveries: this.tripTracker.deliveries(),
-      wagonCondition: this.wagon.condition(),
-      achievements: [...this.milestones.achievementIds()],
-      skills: { ...this.skills },
-      storyFlags: flagsToArray(this.storyFlags),
-      courierTile: this.courierTile(),
-    });
+    const result = writeSave(
+      buildSnapshot({
+        state: this.state,
+        completed: this.completed,
+        visited: this.tripTracker.visitedIds(),
+        trip: this.tripTracker.log(),
+        regionId: this.region.id,
+        fogByRegion: fog.fogByRegion,
+        fogDimsByRegion: fog.fogDimsByRegion,
+        activeContract: this.activeContract,
+        progress: this.progress,
+        wagonCondition: this.wagon.condition(),
+        achievements: this.milestones.achievementIds(),
+        skills: this.skills,
+        storyFlags: this.storyFlags,
+        courierTile: this.courierTile(),
+      }),
+    );
     // Keep the persistent autosave indicator in step with the real write result.
     this.hud.setSaveState(result === 'ok');
     // Autosave runs every couple of seconds; if storage is unavailable or full,
