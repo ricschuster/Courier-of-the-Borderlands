@@ -143,6 +143,18 @@ game with `?e2e`, which attaches a small read-only `window.__courier` hook used
 only for reading state, pathfinding waypoints, and tile passability during
 tests. The hook is never attached in normal play.
 
+Every browser run builds the app first and serves it on port 4173. It will not
+reuse a server it did not start, so a suite can never quietly report on a stale
+build or on another checkout's code (#397). The build costs about three seconds.
+
+If the port is already in use the run fails immediately rather than borrowing the
+other server. To run a second checkout (a git worktree, or a parallel session)
+alongside the first, give it its own port:
+
+```bash
+PREVIEW_PORT=4273 npx playwright test --project=chromium
+```
+
 Lint the codebase:
 
 ```bash
