@@ -81,6 +81,24 @@ export function fogFromRevealed(width: number, height: number, indices: readonly
 }
 
 /**
+ * The reveal radius actually used for a sweep, combining every source and
+ * clamping the result.
+ *
+ * Three things add up: the base radius plus any reveal upgrades fitted, the
+ * Wayfinder skill bonus, and the run's weather, which can be negative in fog or
+ * rain. The floor of 1 is what stops bad weather from blinding the courier
+ * completely; without it a sufficiently negative weather bonus reveals nothing
+ * at all and the player cannot see the tile they are standing on.
+ */
+export function effectiveRevealRadius(
+  upgradeRadius: number,
+  skillBonus: number,
+  weatherBonus: number,
+): number {
+  return Math.max(1, upgradeRadius + skillBonus + weatherBonus);
+}
+
+/**
  * Reveal every tile within `radius` (Euclidean, in tiles) of the centre.
  * Mutates the fog and returns the tiles revealed by this call, so callers can
  * update only what changed. Tiles already revealed are not returned.

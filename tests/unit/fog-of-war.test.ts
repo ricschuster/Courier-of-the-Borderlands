@@ -7,6 +7,7 @@ import {
   revealIndices,
   fogFromRevealed,
   fogDimsMatch,
+  effectiveRevealRadius,
 } from '../../src/systems/fog-of-war';
 
 describe('fog-of-war', () => {
@@ -123,6 +124,26 @@ describe('fog-of-war', () => {
 
     it('treats a missing stored size (pre-dimension save) as stale', () => {
       expect(fogDimsMatch(undefined, 20, 11)).toBe(false);
+    });
+  });
+
+  // Extracted from MapScene.revealAroundCourier in #392, where it had no test:
+  // the three sources were summed and clamped inline.
+  describe('effectiveRevealRadius', () => {
+    it('sums the upgrade radius, the skill bonus, and the weather bonus', () => {
+      expect(effectiveRevealRadius(3, 1, 0)).toBe(4);
+      expect(effectiveRevealRadius(4.5, 2, 1)).toBeCloseTo(7.5);
+    });
+
+    it('lets bad weather cut the radius down', () => {
+      expect(effectiveRevealRadius(3, 0, -1)).toBe(2);
+    });
+
+    it('never falls below 1, so bad weather cannot blind the courier', () => {
+      // A base of 3 with a -5 weather bonus would otherwise reveal nothing at
+      // all, leaving the player unable to see the tile they are standing on.
+      expect(effectiveRevealRadius(3, 0, -5)).toBe(1);
+      expect(effectiveRevealRadius(0, 0, 0)).toBe(1);
     });
   });
 });
