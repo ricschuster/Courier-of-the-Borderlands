@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { tapKey, waitForFrames } from './drive';
 
 // Session 5 playtest: the spokes never showed the "Region Cleared" panel that
 // Greybridge shows. Cause: the panel was gated on in-play contracts, and each
@@ -73,6 +74,16 @@ test('shows the cleared panel on a spoke whose arc-gated contract is revealed bu
     state.audio.played,
     `boot into a cleared region should be silent: ${state.audio.played.join(', ')}`,
   ).not.toContain('region-cleared');
+
+  // Esc dismisses the panel, which blocks the centre of the screen, so the
+  // player can get back to driving. Added with the #392 extraction: neutralizing
+  // the dismissal left all 1120 unit tests and all 49 browser tests green, so
+  // the handler could have been deleted outright without a single failure. The
+  // capstone's Esc was covered (capstone.spec.ts) and the summary's was not.
+  await tapKey(page, 'Escape');
+  await waitForFrames(page, 2);
+  const dismissed = await page.evaluate(() => globalThis.__courier!.getState());
+  expect(dismissed.summaryVisible, 'Esc should dismiss the region-cleared panel').toBe(false);
 
   expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
 });
