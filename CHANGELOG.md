@@ -10,6 +10,23 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.8.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.7.0...courier-of-the-borderlands-v0.8.0) (2026-07-26)
+
+
+### Features
+
+* add a rolling movement bed, a master gain, and one cue voice per frame ([#387](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/387)) ([54589cd](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/54589cd9b3272d9800c23d0896b72a92afd594ce)), closes [#383](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/383)
+* add sound effects with a persisted mute key ([#382](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/382)) ([70dd165](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/70dd165b500959ba756e16e7141a99edbb618dd6)), closes [#226](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/226)
+* sound the world, story, and progression moments ([#388](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/388)) ([7e6f326](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7e6f32657a09f0c12eebba2d2b8e08154f116a9a)), closes [#384](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/384)
+* tick the UI, and give a refused press a sound ([#389](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/389)) ([18177ac](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/18177acd42e892b5e5f8b96bca27864ec56173fa)), closes [#385](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/385)
+
+
+### Documentation
+
+* add 2026-07-25 handoff v36 and record the SFX breadth pass ([#386](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/386)) ([b6ce5f3](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b6ce5f3323cda73bf8b5d399eb3251cbdcfc9f17))
+* add 2026-07-26 handoff v37 and record the audio breadth pass ([#390](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/390)) ([0d775a7](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/0d775a7d1ea7a80597c0e5f795eaeb267cfe43c4))
+* design the audio slice for [#226](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/226) ([#380](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/380)) ([4ddf020](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/4ddf020379e79ccede00472a740cfb670a668c9c))
+
 ## [0.7.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.6.0...courier-of-the-borderlands-v0.7.0) (2026-07-25)
 
 
