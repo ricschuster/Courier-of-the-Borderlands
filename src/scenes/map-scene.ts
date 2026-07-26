@@ -148,6 +148,12 @@ import { Juice } from './juice';
 import { Audio } from './audio';
 import { BED_REFERENCE_MULTIPLIER } from '../systems/audio-bed';
 import {
+  drivingAudioCues,
+  initialDrivingAudioMemory,
+  type DrivingAudioMemory,
+  type DrivingCue,
+} from '../systems/driving-audio';
+import {
   getRegion,
   arrivalTile,
   resumeTile,
@@ -187,11 +193,6 @@ const DEPTH_COURIER = 6;
 const ONBOARD_SKILLS = 'onboarding:skills';
 const ONBOARD_UPGRADES = 'onboarding:upgrades';
 const ONBOARD_OFFROAD = 'onboarding:offroad';
-
-// Frames between bump knocks while the wagon is pressed into an impassable edge
-// (#383). Driving into a mountain means holding the key, so without a rate limit
-// this would be a buzz rather than a knock. Half a second at 60fps.
-const BUMP_COOLDOWN_FRAMES = 30;
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -333,19 +334,9 @@ export class MapScene extends Phaser.Scene {
   // The most recent story messages, mirrored from their toasts so they can be
   // re-read in the journal after the toast fades (Session 2 playtest).
   private recentEvents: readonly string[] = [];
-  // Terrain under the wagon on the previous frame, so the driving cues fire on the
-  // crossing rather than every frame the wagon spends on the ground (#383).
-  // Undefined on the first frame of a scene, which is why the first frame fires
-  // nothing: spawning on a road is not "joining" one.
-  private prevTerrainId: string | undefined;
-  private prevTerrainKnown = false;
-  // True while the player is holding a movement key, so a bump can be told from
-  // the first frame of a press (velocity is set in update() but the body does not
-  // move until physics runs, so frame one always looks blocked).
-  private wasDriving = false;
-  // Frame the bump cue may next fire on. Driving into a mountain means holding the
-  // key down, and an unrated knock every frame would be a buzz (#383).
-  private bumpReadyFrame = 0;
+  // What the driving-cue rules remember between frames (#392). The rules
+  // themselves are pure, in systems/driving-audio.ts.
+  private drivingAudio: DrivingAudioMemory = initialDrivingAudioMemory();
 
   constructor() {
     super({ key: 'MapScene' });
@@ -980,12 +971,11 @@ export class MapScene extends Phaser.Scene {
     // Movement that actually happened, not movement that was asked for. Pressed
     // into a mountain these disagree, and that disagreement is the bump.
     const rolling = tilesMoved > 0;
-    const blocked = driving && this.wasDriving && !rolling;
-    if (blocked && this.frameNo >= this.bumpReadyFrame) {
-      this.audio.bumped();
-      this.bumpReadyFrame = this.frameNo + BUMP_COOLDOWN_FRAMES;
-    }
-    this.wasDriving = driving;
+    const { cues, memory } = drivingAudioCues(
+      { driving, rolling, frameNo: this.frameNo, terrainId },
+      this.drivingAudio,
+    );
+    this.drivingAudio = memory;
 
     this.audio.updateBed({
       speed: rolling ? Math.hypot(velocity.x, velocity.y) : 0,
@@ -995,29 +985,31 @@ export class MapScene extends Phaser.Scene {
       weatherId: this.weather.id,
     });
 
-    if (this.prevTerrainKnown && terrainId !== this.prevTerrainId) {
-      this.announceTerrainCrossing(this.prevTerrainId, terrainId);
+    // The rules decide what the frame earned; the scene only plays it. Requesting
+    // several is fine: the mix already keeps one voice per frame (#383).
+    for (const cue of cues) {
+      this.playDrivingCue(cue);
     }
-    this.prevTerrainId = terrainId;
-    this.prevTerrainKnown = true;
   }
 
-  /** One cue for a terrain crossing, or none when the change is unremarkable. */
-  private announceTerrainCrossing(from: string | undefined, to: string | undefined): void {
-    const paved = (id: string | undefined): boolean => id === 'road' || id === 'bridge';
-    if (paved(to) && !paved(from)) {
-      this.audio.roadJoined();
-    } else if (paved(from) && !paved(to)) {
-      this.audio.roadLeft();
-    }
-    // Gated ground is the terrain the base wagon could not enter at all, so
-    // reaching it means a capability opened it. Read off the unlock id rather
-    // than the terrain id so a new region's ford needs no change here.
-    const unlockId = to === undefined ? undefined : getTerrain(to)?.unlockId;
-    if (unlockId === 'mire-crossing' || unlockId === 'tidal-crossing') {
-      this.audio.gatedGround();
-    } else if (unlockId !== undefined) {
-      this.audio.fordCrossed();
+  /** Play one driving cue. The only place the cue names meet the Audio object. */
+  private playDrivingCue(cue: DrivingCue): void {
+    switch (cue) {
+      case 'bump':
+        this.audio.bumped();
+        break;
+      case 'road-joined':
+        this.audio.roadJoined();
+        break;
+      case 'road-left':
+        this.audio.roadLeft();
+        break;
+      case 'gated-ground':
+        this.audio.gatedGround();
+        break;
+      case 'ford-crossed':
+        this.audio.fordCrossed();
+        break;
     }
   }
 
