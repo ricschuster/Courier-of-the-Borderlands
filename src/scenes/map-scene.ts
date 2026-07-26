@@ -44,25 +44,7 @@ import {
   terrainSpeedFactor,
   countReliefUpgrades,
 } from '../systems/upgrade-system';
-import {
-  wearPerTile,
-  roughness,
-  applyWear,
-  limpMultiplier,
-  isStranded,
-  isLowCondition,
-  lowConditionWarning,
-  repair,
-  repairHelpText,
-  rescue,
-  maxConditionForLevel,
-  conditionFraction,
-  MAX_CONDITION,
-  WAGON_TUNING,
-  difficultyLabel,
-  type WagonTuning,
-  type Difficulty,
-} from '../systems/wagon-condition';
+import { wearPerTile, roughness, difficultyLabel } from '../systems/wagon-condition';
 import { modalHintText, worldHintText } from '../systems/hint-text';
 import { restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
@@ -124,13 +106,14 @@ import { MilestoneController, type MilestoneHost, type RunStats } from './milest
 import { BoardInputController, type BoardInputHost } from './board-input-controller';
 import { SpendController, type SpendHost } from './spend-controller';
 import { FogController, type FogHost } from './fog-controller';
+import { WagonController, type WagonHost } from './wagon-controller';
 import {
   activeObjective,
   stepRequirementCount,
   type MissionState,
 } from '../systems/mission-system';
 import { MISSIONS } from '../data/missions';
-import { MapHud, type WagonState } from './map-hud';
+import { MapHud } from './map-hud';
 import { MapMarkers } from './map-markers';
 import { Juice } from './juice';
 import { Audio } from './audio';
@@ -231,26 +214,12 @@ export class MapScene extends Phaser.Scene {
   private trip: TripLog = createTripLog();
   private prevX = 0;
   private prevY = 0;
-  /** Wagon condition (0-100), the travel sink (ADR 0005). Full until worn down. */
-  private wagonCondition = MAX_CONDITION;
-  /** Cumulative condition points worn away this session, for tuning telemetry. */
-  private wagonWearTotal = 0;
-  /** Times the wagon hit 0 condition (stranded) this session, for telemetry (#220). */
-  private strandEvents = 0;
   /**
-   * True once the low-condition warning has fired for the current low spell, so
-   * it toasts once on the way down and re-arms only after a repair lifts the
-   * wagon back above the low threshold (#182).
+   * Wagon condition, the difficulty profile that prices it, and the session wear
+   * telemetry (ADR 0005). Owned by the controller (#392); the scene reads through
+   * it rather than holding the numbers.
    */
-  private lowConditionWarned = false;
-  /** Chosen difficulty preset. Loaded from the persisted preference on boot. */
-  private difficulty: Difficulty = 'standard';
-  /**
-   * Difficulty profile for the travel sink. Selected from the difficulty preset
-   * on boot. The preset is picked on the title screen and locked for the run
-   * (#150), so this does not change again until a new game.
-   */
-  private wagonTuning: WagonTuning = WAGON_TUNING.standard;
+  private wagon!: WagonController;
   private currentPath: PathResult | null = null;
   private visited = new Set<string>();
   // Presentation layer for the map markers (settlements, gateways, signpost).
@@ -398,10 +367,12 @@ export class MapScene extends Phaser.Scene {
       clearFogAtTiles: (tiles) => this.terrain.clearFogAtTiles(tiles),
     };
     this.fogs = new FogController(fogHost);
+    const wagonHost: WagonHost = { courierLevel: () => this.courierLevel() };
+    this.wagon = new WagonController(wagonHost);
     // Apply the chosen difficulty before restoring state: a fresh game derives
     // the starting tank size from this tuning, and a loaded condition is clamped
     // to the max it affords, so the profile must be in place first.
-    this.applyDifficulty(loadDifficulty());
+    this.wagon.setDifficulty(loadDifficulty());
     this.restoreState(snapshot);
     // Baseline the standing tier the player already holds, so a tier-up notice
     // only fires on a genuine increase and never on a region-travel reload.
@@ -586,7 +557,7 @@ export class MapScene extends Phaser.Scene {
   private restoreState(snapshot: GameSnapshot | null): void {
     const run = restoreRunState({
       snapshot,
-      tuning: this.wagonTuning,
+      tuning: this.wagon.tuning(),
       regionContracts: this.region.contracts,
     });
     this.state = run.state;
@@ -595,7 +566,7 @@ export class MapScene extends Phaser.Scene {
     this.trip = run.trip;
     this.skills = run.skills;
     this.storyFlags = run.storyFlags;
-    this.wagonCondition = run.wagonCondition;
+    this.wagon.restore(run.wagonCondition);
     this.milestones.restore(run.achievements, run.blockadeBrokenAtLoad);
     this.fogs.restore(run.fogByRegion, run.fogDimsByRegion);
     this.activeContract = run.activeContract;
@@ -639,7 +610,7 @@ export class MapScene extends Phaser.Scene {
       contractStatus: this.progress?.status ?? null,
       distanceTiles: this.trip.distanceTiles,
       deliveries: this.trip.deliveries,
-      wagonCondition: this.wagonCondition,
+      wagonCondition: this.wagon.condition(),
       achievements: [...this.milestones.achievementIds()],
       skills: { ...this.skills },
       storyFlags: flagsToArray(this.storyFlags),
@@ -693,8 +664,8 @@ export class MapScene extends Phaser.Scene {
       getGameState: () => this.state,
       getTrip: () => this.trip,
       deliveredInRegion: () => this.deliveredInRegion(),
-      getWagonCondition: () => this.wagonCondition,
-      getWagonWearTotal: () => this.wagonWearTotal,
+      getWagonCondition: () => this.wagon.condition(),
+      getWagonWearTotal: () => this.wagon.wearTotal(),
       getFog: () => this.fogs.current(),
       getActiveContract: () => this.activeContract,
       getProgress: () => this.progress,
@@ -789,7 +760,7 @@ export class MapScene extends Phaser.Scene {
       upgradeModifier *
       this.weather.speedMultiplier *
       speedFactor() *
-      limpMultiplier(this.wagonCondition, this.wagonTuning);
+      this.wagon.limp();
     const velocity = computeVelocity(input, speed);
 
     // Wear per tile is computed off the RAW terrain roughness, so relief upgrades
@@ -801,7 +772,7 @@ export class MapScene extends Phaser.Scene {
       rawWearModifier,
       countReliefUpgrades(this.state.upgrades, UPGRADES_GREYBRIDGE),
       rankOf(this.skills, 'off-road'),
-      this.wagonTuning,
+      this.wagon.tuning(),
       this.region.wearMultiplier ?? 1,
     );
     this.courier.setVelocity(velocity.x, velocity.y);
@@ -902,7 +873,7 @@ export class MapScene extends Phaser.Scene {
         ? 'Terrain: unknown'
         : `Terrain: ${terrain.name} (${terrain.speedModifier.toFixed(2)}x)`;
     this.hud.setTerrain(terrainLabel);
-    this.hud.setWagonCondition(this.wagonCondition, this.wagonMax(), this.wagonState());
+    this.hud.setWagonCondition(this.wagon.condition(), this.wagon.max(), this.wagon.state());
     this.warnLowConditionOnce();
     this.refreshObjective();
     this.refreshHint();
@@ -934,14 +905,9 @@ export class MapScene extends Phaser.Scene {
       // trip distance and tilesSinceAccept still track so every other system
       // (via-ford bonus, objective progress) behaves exactly as in real play.
       if (!wearDisabled()) {
-        const wasStranded = isStranded(this.wagonCondition);
-        const worn = applyWear(this.wagonCondition, wearRate * tiles);
-        this.wagonWearTotal += this.wagonCondition - worn;
-        this.wagonCondition = worn;
-        // Count the rising edge into stranded (0 condition) for balance telemetry.
-        if (!wasStranded && isStranded(this.wagonCondition)) {
-          this.strandEvents++;
-        }
+        // The controller samples stranded-ness either side of the write, so the
+        // rising edge is counted where the numbers live.
+        this.wagon.wear(wearRate * tiles);
       }
       if (this.progress?.status === 'carrying') {
         this.tilesSinceAccept += tiles;
@@ -978,7 +944,7 @@ export class MapScene extends Phaser.Scene {
       speed: rolling ? Math.hypot(velocity.x, velocity.y) : 0,
       referenceSpeed: COURIER_SPEED * speedFactor() * BED_REFERENCE_MULTIPLIER,
       terrainId,
-      conditionFraction: conditionFraction(this.wagonCondition, this.wagonMax()),
+      conditionFraction: this.wagon.fraction(),
       weatherId: this.weather.id,
     });
 
@@ -1010,42 +976,14 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** The wagon's current maximum condition, which grows with courier level. */
-  private wagonMax(): number {
-    return maxConditionForLevel(this.courierLevel(), this.wagonTuning);
-  }
-
-  /** Apply a difficulty preset: store the key and swap in its tuning profile. */
-  private applyDifficulty(difficulty: Difficulty): void {
-    this.difficulty = difficulty;
-    this.wagonTuning = WAGON_TUNING[difficulty];
-  }
-
-  /** Wagon-condition band, driving the HUD meter's fill colour (#182/#203). */
-  private wagonState(): WagonState {
-    if (isStranded(this.wagonCondition)) {
-      return 'stranded';
-    }
-    if (isLowCondition(this.wagonCondition, this.wagonMax())) {
-      return 'low';
-    }
-    return 'healthy';
-  }
-
   /**
    * Toast once when the wagon first drops into the low band, so the player gets a
-   * salient heads-up before stranding (#182). Re-arms only after a repair lifts
-   * it back above the threshold, so it does not nag every frame while low.
+   * salient heads-up before stranding (#182). The arm/warn/re-arm latch lives in
+   * the controller; the scene only shows the toast.
    */
   private warnLowConditionOnce(): void {
-    // The arm/warn/re-arm rule is pure in wagon-condition.ts (#301); the scene
-    // only applies the transition and shows the toast.
-    const action = lowConditionWarning(this.wagonCondition, this.wagonMax(), this.lowConditionWarned);
-    if (action === 'warn') {
-      this.lowConditionWarned = true;
+    if (this.wagon.lowConditionAction() === 'warn') {
       this.hud.showToast('Wagon condition low. Repair at a town before it strands.');
-    } else if (action === 'rearm') {
-      this.lowConditionWarned = false;
     }
   }
 
@@ -1064,19 +1002,12 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     // Not at a settlement. Only meaningful when stranded: pay to be towed home.
-    if (!isStranded(this.wagonCondition)) {
+    const result = this.wagon.rescueWith(this.state.ledger.coins);
+    if (result.kind === 'not-stranded') {
       return;
     }
-    const result = rescue(this.state.ledger.coins, this.wagonTuning);
-    if (!result.ok) {
-      this.hud.showToast(
-        repairHelpText({
-          atSettlement: false,
-          condition: this.wagonCondition,
-          max: this.wagonMax(),
-          tuning: this.wagonTuning,
-        }),
-      );
+    if (result.kind === 'refused') {
+      this.hud.showToast(result.help);
       this.audio.repairRefused();
       return;
     }
@@ -1098,29 +1029,20 @@ export class MapScene extends Phaser.Scene {
 
   /** Repair the wagon here, spending coins. Reports the outcome to the player. */
   private repairAt(placeName: string): void {
-    const max = this.wagonMax();
-    if (this.wagonCondition >= max) {
+    const result = this.wagon.repairWith(this.state.ledger.coins);
+    if (result.kind === 'already-full') {
       this.hud.showToast('The wagon is in good repair.');
       return;
     }
-    const result = repair(this.wagonCondition, this.state.ledger.coins, max, this.wagonTuning);
-    if (!result.ok) {
-      this.hud.showToast(
-        repairHelpText({
-          atSettlement: true,
-          condition: this.wagonCondition,
-          max,
-          tuning: this.wagonTuning,
-        }),
-      );
+    if (result.kind === 'refused') {
+      this.hud.showToast(result.help);
       this.audio.repairRefused();
       return;
     }
-    this.wagonCondition = result.condition;
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     const note = result.full
       ? `Wagon repaired at ${placeName}.`
-      : `Wagon patched to ${Math.round(result.condition)}/${max} at ${placeName} (all your coin).`;
+      : `Wagon patched to ${Math.round(result.condition)}/${result.max} at ${placeName} (all your coin).`;
     this.hud.showToast(note);
     this.juice.repaired(this.courier.sprite.x, this.courier.sprite.y);
     this.audio.repaired();
@@ -1482,7 +1404,7 @@ export class MapScene extends Phaser.Scene {
       tierName: tierFor(reputation).name,
       level,
       skillPoints: availablePoints(level, this.skills),
-      difficulty: difficultyLabel(this.difficulty),
+      difficulty: difficultyLabel(this.wagon.difficulty()),
     });
   }
 
@@ -1527,9 +1449,9 @@ export class MapScene extends Phaser.Scene {
           here !== undefined && dialogueForSettlement(here.id) !== undefined ? here.name : null,
         wagon: {
           atSettlement: here !== undefined,
-          condition: this.wagonCondition,
-          max: this.wagonMax(),
-          tuning: this.wagonTuning,
+          condition: this.wagon.condition(),
+          max: this.wagon.max(),
+          tuning: this.wagon.tuning(),
         },
         travelTarget:
           gateway !== undefined && this.activeContract === undefined
@@ -1853,10 +1775,10 @@ export class MapScene extends Phaser.Scene {
       totalUpgrades: UPGRADES_GREYBRIDGE.length,
       fordUnlocked: this.regionFordUnlocked(),
       regionCleared: this.regionCleared(),
-      difficulty: this.difficulty,
-      wagonWearTotal: this.wagonWearTotal,
-      wagonCondition: this.wagonCondition,
-      strandEvents: this.strandEvents,
+      difficulty: this.wagon.difficulty(),
+      wagonWearTotal: this.wagon.wearTotal(),
+      wagonCondition: this.wagon.condition(),
+      strandEvents: this.wagon.strandEvents(),
     };
   }
 
@@ -1917,7 +1839,7 @@ export class MapScene extends Phaser.Scene {
       atHome: this.atSettlement(this.region.home),
       gatewayNames: this.gatewayDestinationNames(),
       gatewayTiles: this.region.gateways.map((g) => g.tile),
-      navReveal: navRevealFor(this.difficulty),
+      navReveal: navRevealFor(this.wagon.difficulty()),
     };
   }
 
