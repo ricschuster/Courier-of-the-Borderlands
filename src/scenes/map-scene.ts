@@ -73,12 +73,7 @@ import {
   type WagonTuning,
   type Difficulty,
 } from '../systems/wagon-condition';
-import {
-  boardText,
-  boardInteractable,
-  skillPanelText,
-  upgradeMenuText,
-} from '../systems/panel-text';
+import { skillPanelText, upgradeMenuText } from '../systems/panel-text';
 import { modalHintText, worldHintText } from '../systems/hint-text';
 import { restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
@@ -140,6 +135,7 @@ import {
   type PanelKeys,
 } from './panel-input-controller';
 import { MilestoneController, type MilestoneHost, type RunStats } from './milestone-controller';
+import { BoardInputController, type BoardInputHost } from './board-input-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -166,7 +162,6 @@ import { pushEvent } from '../systems/event-log';
 import { UPGRADES_GREYBRIDGE } from '../data/upgrades-greybridge';
 import {
   startContract,
-  canAccept,
   canPickUp,
   canDeliver,
   pickUp,
@@ -242,17 +237,6 @@ export class MapScene extends Phaser.Scene {
   private progress: ContractProgress | undefined;
   private completed = new Set<string>();
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
-  // The board contract a first digit-press has armed, awaiting a confirming
-  // second press of the same slot (#321). The board renumbers between visits, so
-  // a remembered digit would otherwise accept a different contract instantly and
-  // commit the whole next journey; arming names the contract first so a mispress
-  // is caught. Cleared whenever the board is not interactable.
-  private armedContractId: string | null = null;
-  // Feedback about the last digit pressed at the board (currently only the
-  // reputation refusal), rendered on the board itself for the same reason the
-  // skills and upgrade panels render theirs (#356). Cleared alongside the armed
-  // slot whenever the board stops being interactable.
-  private boardNotice: string | null = null;
   private newGameKey!: Phaser.Input.Keyboard.Key;
   private mapKey!: Phaser.Input.Keyboard.Key;
   private muteKey!: Phaser.Input.Keyboard.Key;
@@ -313,6 +297,9 @@ export class MapScene extends Phaser.Scene {
   // telemetry milestones (#392). Owns the session state all four share. Built at
   // the top of create(), because restoreState() hands it the loaded save.
   private milestones!: MilestoneController;
+  // The contract board: whether it is up, what it draws, and the arm/confirm
+  // state machine behind accepting a contract (#392).
+  private board!: BoardInputController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
@@ -383,6 +370,23 @@ export class MapScene extends Phaser.Scene {
       isAutomated: () => isE2E(),
     };
     this.milestones = new MilestoneController(milestoneHost);
+    // Built alongside the milestones, and for the same reason: restoreState()
+    // clears any armed slot, so the controller has to exist before it runs.
+    const boardHost: BoardInputHost = {
+      getHud: () => this.hud,
+      getAudio: () => this.audio,
+      getRegion: () => this.region,
+      getNumberKeys: () => this.numberKeys,
+      justDown: (key) => Phaser.Input.Keyboard.JustDown(key),
+      boardContracts: () => this.boardContracts(),
+      reputation: () => totalReputation(this.state.ledger),
+      worldState: () => this.worldState(),
+      hasActiveContract: () => this.activeContract !== undefined,
+      atHome: () => this.atSettlement(this.region.home),
+      capstoneVisible: () => this.milestones.shouldShowCapstone(),
+      acceptContract: (contract) => this.acceptContract(contract),
+    };
+    this.board = new BoardInputController(boardHost);
     // Apply the chosen difficulty before restoring state: a fresh game derives
     // the starting tank size from this tuning, and a loaded condition is clamped
     // to the max it affords, so the profile must be in place first.
@@ -526,7 +530,7 @@ export class MapScene extends Phaser.Scene {
     this.refreshObjective();
     this.refreshFordStatus();
     this.refreshHint();
-    this.refreshBoard();
+    this.board.refresh();
     this.milestones.refreshCapstone();
     this.milestones.refreshSummary();
 
@@ -594,8 +598,7 @@ export class MapScene extends Phaser.Scene {
     // that was in progress, not to the run.
     this.tilesSinceAccept = 0;
     this.usedFordThisContract = false;
-    this.armedContractId = null;
-    this.boardNotice = null;
+    this.board.reset();
     // wagonWearTotal is intentionally not reset here: it is session telemetry
     // (ADR 0005 tuning) that must accumulate across region-travel scene restarts,
     // and its field initializer already zeroes it once per scene construction.
@@ -709,7 +712,7 @@ export class MapScene extends Phaser.Scene {
       getProgress: () => this.progress,
       atHome: () => this.atSettlement(this.region.home),
       boardContracts: () => this.boardContracts(),
-      armedContractId: () => this.armedContractId,
+      armedContractId: () => this.board.armed(),
       panelNotice: () => this.panelNotice,
       regionFordUnlocked: () => this.regionFordUnlocked(),
       worldState: () => this.worldState(),
@@ -877,7 +880,7 @@ export class MapScene extends Phaser.Scene {
     this.handleFordHint();
     this.handleSkillInput();
     this.handleUpgradeInput();
-    this.handleBoardInput();
+    this.board.handleInput();
     this.panelInput.handleUpgradeToggle();
     this.handleRepairInput();
     this.handleResetInput();
@@ -897,7 +900,7 @@ export class MapScene extends Phaser.Scene {
     this.panelInput.handleToggles();
     // After the toggles, so a panel opened this frame is the one that pages.
     this.panelInput.handleScroll();
-    this.refreshBoard();
+    this.board.refresh();
     // Detect the blockade breaking, which happens through a dialogue choice
     // rather than a delivery, so it is checked each frame once dialogue closes.
     this.milestones.refreshCapstone();
@@ -1104,15 +1107,6 @@ export class MapScene extends Phaser.Scene {
     this.save();
   }
 
-  /**
-   * V toggles all audio and remembers the choice (#226). Runs before update()'s
-   * modal early-returns, so it works with a panel or a conversation open.
-   *
-   * The confirmation is a toast, which means muting costs a dismiss press. That is
-   * deliberate: it is the only feedback available for a change whose whole effect
-   * is that nothing can be heard, and unmuting would otherwise be indistinguishable
-   * from a game with no sound assets.
-   */
   /** Repair the wagon here, spending coins. Reports the outcome to the player. */
   private repairAt(placeName: string): void {
     const max = this.wagonMax();
@@ -1481,96 +1475,6 @@ export class MapScene extends Phaser.Scene {
         this.refreshSkillPanel();
       }
     }
-  }
-
-  /**
-   * Whether the contract board is currently on screen and interactable. The
-   * single source of truth for both drawing the board (refreshBoard) and
-   * accepting a digit (handleBoardInput): the two drifted apart before, letting
-   * a number key accept a contract hidden behind an overlay (#292 for the
-   * journal/skills case, #316 for the summary/capstone case). Dialogue is not
-   * checked here because update() early-returns while it is open.
-   */
-  private boardInteractable(): boolean {
-    return boardInteractable({
-      hasActiveContract: this.activeContract !== undefined,
-      atHome: this.atSettlement(this.region.home),
-      capstoneVisible: this.milestones.shouldShowCapstone(),
-      summaryVisible: this.hud.isSummaryVisible(),
-      blockingOverlayOpen: this.hud.isBlockingOverlayOpen(),
-    });
-  }
-
-  private handleBoardInput(): void {
-    if (!this.boardInteractable()) {
-      // Off the board, so drop any armed contract: a digit pressed on the next
-      // visit should arm afresh, not accept a contract from a stale board. The
-      // notice goes with it, so a fresh visit never opens on a stale refusal.
-      this.armedContractId = null;
-      this.boardNotice = null;
-      return;
-    }
-    const list = this.boardContracts();
-    const reputation = totalReputation(this.state.ledger);
-    for (let i = 0; i < this.numberKeys.length && i < list.length; i++) {
-      const key = this.numberKeys[i];
-      const contract = list[i];
-      if (key === undefined || contract === undefined) {
-        continue;
-      }
-      if (Phaser.Input.Keyboard.JustDown(key)) {
-        if (!canAccept(contract, reputation)) {
-          this.armedContractId = null;
-          this.boardNotice = `${contract.title} needs ${contract.minReputation} reputation.`;
-          this.audio.panelRefused();
-          this.refreshBoard();
-          return;
-        }
-        if (this.armedContractId === contract.id) {
-          // Confirmed: the same slot pressed twice in a row.
-          this.armedContractId = null;
-          this.boardNotice = null;
-          this.acceptContract(contract);
-        } else {
-          // First press: arm this contract, so a mispressed remembered digit is
-          // caught before it commits the journey (#321). The prompt is drawn on
-          // the board rather than toasted: the board is already on screen naming
-          // the slot, and a toast made the player dismiss a question they had
-          // just answered, costing a press per accept under the #327 queue (#376).
-          this.armedContractId = contract.id;
-          this.boardNotice = null;
-          this.audio.boardArmed();
-          this.refreshBoard();
-        }
-        return;
-      }
-    }
-  }
-
-  private refreshBoard(): void {
-    // The end-of-arc finale owns the screen; keep the home board from showing
-    // through it (the courier is at the home town when the blockade breaks).
-    // The board also yields to any blocking overlay (journal/skills/codex) or the
-    // run summary, so only one overlay shows at a time (D1 reserved region, #149).
-    // It likewise yields to an open dialogue (E at a settlement), so the
-    // postmaster conversation does not overlap the board (#181). boardInteractable
-    // carries every condition but dialogue, which only refreshBoard needs (input
-    // is already gated by update()'s early return while dialogue is open).
-    const show = this.boardInteractable() && !this.hud.isDialogueVisible();
-    if (!show) {
-      this.hud.setBoard(null);
-      return;
-    }
-    this.hud.setBoard(
-      boardText({
-        homeName: this.region.settlements[this.region.home]?.name ?? this.region.home,
-        contracts: this.boardContracts(),
-        reputation: totalReputation(this.state.ledger),
-        worldStatus: this.worldState(),
-        armedContractId: this.armedContractId,
-        notice: this.boardNotice,
-      }),
-    );
   }
 
   /** Buy an upgrade by number key while the upgrade menu is open. */
