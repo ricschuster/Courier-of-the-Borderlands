@@ -142,7 +142,11 @@ import {
   FLAG_BLOCKADE_BROKEN,
 } from '../data/dialogue-content';
 import { DialogueController, type DialogueHost } from './dialogue-controller';
-import { PanelInputController, type PanelInputHost } from './panel-input-controller';
+import {
+  PanelInputController,
+  type PanelInputHost,
+  type PanelKeys,
+} from './panel-input-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -491,21 +495,26 @@ export class MapScene extends Phaser.Scene {
       getNumberKeys: () => this.numberKeys,
     };
     this.dialogue = new DialogueController(host);
+    const panelKeys: PanelKeys = {
+      mute: this.muteKey,
+      buy: this.buyKey,
+      map: this.mapKey,
+      journal: this.journalKey,
+      legend: this.legendKey,
+      skill: this.skillKey,
+      escape: this.escapeKey,
+      dismiss: this.dismissKey,
+      pageUp: this.pageUpKey,
+      pageDown: this.pageDownKey,
+    };
     const panelHost: PanelInputHost = {
       getHud: () => this.hud,
       getAudio: () => this.audio,
-      getKeys: () => ({
-        mute: this.muteKey,
-        buy: this.buyKey,
-        map: this.mapKey,
-        journal: this.journalKey,
-        legend: this.legendKey,
-        skill: this.skillKey,
-        escape: this.escapeKey,
-        dismiss: this.dismissKey,
-        pageUp: this.pageUpKey,
-        pageDown: this.pageDownKey,
-      }),
+      // Built once, not per call: getKeys() runs up to six times a frame on the
+      // hot update path, and returning a fresh object literal each time would put
+      // needless allocation in the one loop that must not stutter. The keys are
+      // allocated in setupInput() and never change afterwards.
+      getKeys: () => panelKeys,
       atHome: () => this.atSettlement(this.region.home),
       clearPanelNotice: () => {
         this.panelNotice = null;
