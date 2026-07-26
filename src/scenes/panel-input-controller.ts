@@ -63,9 +63,14 @@ export class PanelInputController {
   constructor(private readonly host: PanelInputHost) {}
 
   /**
-   * Toggle sound. Called before every modal early-return in update(): a player
-   * who wants the room quiet should not have to close a panel or finish a
-   * conversation first (#226).
+   * V toggles all audio and remembers the choice (#226). Called before every
+   * modal early-return in update(), so it works with a panel or a conversation
+   * open: a player who wants the room quiet should not have to close one first.
+   *
+   * The confirmation is a toast, which means muting costs a dismiss press. That is
+   * deliberate: it is the only feedback available for a change whose whole effect
+   * is that nothing can be heard, and unmuting would otherwise be indistinguishable
+   * from a game with no sound assets.
    */
   handleMute(): void {
     if (!Phaser.Input.Keyboard.JustDown(this.host.getKeys().mute)) {
