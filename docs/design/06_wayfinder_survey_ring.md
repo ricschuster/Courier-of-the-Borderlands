@@ -2,6 +2,11 @@
 
 Analysis for #361, 2026-07-26. Reproduce with `npm run measure:survey`.
 
+> **Fixed 2026-07-26.** The ring is now a *margin on the walked fog* rather than
+> an absolute radius: `survey = reveal + 2 per rank`, so it always shows ground
+> the fog does not, at every loadout, rank and weather. The measurement below is
+> preserved as the diagnosis; see "After the fix" at the end for the new numbers.
+
 ## The question
 
 #341 added a minimap survey ring to the Wayfinder skill, which is what closed
@@ -85,16 +90,49 @@ other skill carries a second effect of that size.
 So even a fixed ring is competing against a skill that pays twice. That is a
 separate design call and is not settled here.
 
-## Options, if the ring is to be fixed
+## Options considered
 
-Cheapest first. None is a recommendation; #361 is an owner call.
+1. **Make the ring additive on the fog radius**: survey = reveal + `k` per rank.
+   Guarantees it always shows something at every loadout, which is what a player
+   assumes it does. **Chosen.**
+2. **Raise `SURVEY_TILES_PER_WAYFINDER_RANK`** while keeping it absolute. It would
+   need roughly 6 per rank to escape a fully-fitted courier's fog, and would still
+   be inert for an unfitted one at rank 1. Rejected: it fixes the symptom at one
+   loadout and leaves the same trap for any future reveal upgrade.
+3. **Give the ring a different job** than radius (hazards, crossings). Rejected
+   for now as a larger design change, but it remains the interesting option if
+   the ring still does not feel worth its cost after a playtest.
 
-1. **Make the ring additive on the fog radius** rather than an independent
-   radius: survey = reveal + `k` per rank. This guarantees it always shows
-   something, at every loadout, which is what a player would assume it does.
-2. **Raise `SURVEY_TILES_PER_WAYFINDER_RANK`** from 3 to clear the reveal
-   upgrades. It would need roughly 6 per rank to escape a fully-fitted courier's
-   fog, which is a large ring and may read as a minimap that just shows the map.
-3. **Give the ring a different job** than radius, for example marking route
-   hazards or crossings rather than raw terrain, so it stops competing with the
-   fog on the fog's own terms.
+## After the fix
+
+`survey = reveal + 2 per rank`. The margin is deliberately smaller than the old
+absolute 3, because it now stacks on a radius that is already 7 to 9 tiles for a
+fitted courier.
+
+| Loadout | Rank | Fog reveal | Survey ring |
+| --- | --- | --- | --- |
+| All upgrades | 1 | 7 | 9 |
+| All upgrades | 2 | 8 | 12 |
+| All upgrades | 3 | 9 | 15 |
+| No reveal upgrades | 1 | 3.5 | 5.5 |
+| No reveal upgrades | 2 | 4.5 | 8.5 |
+| No reveal upgrades | 3 | 5.5 | 11.5 |
+
+Re-priced over the same 69 routes:
+
+| Loadout | Routes changed | Travel cost saved | Dead ends avoided |
+| --- | --- | --- | --- |
+| All upgrades | 0 -> **28 of 69** | 0.00% -> **8.83%** | 0 -> 18 |
+| No reveal upgrades | 18 -> 31 of 69 | 5.18% -> 9.55% | 10 -> 31 |
+
+The ring stays minimap-only and transient. It does not clear world fog, is never
+saved, and does not trigger discoveries, which are still earned by walking
+(`newlyFound` reads the fog, not the survey). So exploration keeps its payoff in
+lore and reveal; what the Wayfinder buys is route intelligence.
+
+### Still open
+
+Whether 8.83 percent of travel cost is worth 43 percent more wear per delivery is
+a judgement a measurement cannot make. The ring is now real; whether it is *worth
+it* wants a playtest. The Off-road asymmetry above is untouched and is the more
+likely reason Wayfinder still loses.

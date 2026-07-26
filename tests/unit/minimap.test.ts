@@ -213,15 +213,38 @@ describe('buildMinimap', () => {
 
 describe('wayfinderSurveyRadius', () => {
   it('is 0 without Wayfinder so only a Wayfinder surveys', () => {
-    expect(wayfinderSurveyRadius(0)).toBe(0);
+    expect(wayfinderSurveyRadius(0, 9)).toBe(0);
   });
 
-  it('grows a fixed number of tiles per rank', () => {
-    expect(wayfinderSurveyRadius(1)).toBe(SURVEY_TILES_PER_WAYFINDER_RANK);
-    expect(wayfinderSurveyRadius(3)).toBe(3 * SURVEY_TILES_PER_WAYFINDER_RANK);
+  it('grows a fixed margin per rank beyond the fog', () => {
+    expect(wayfinderSurveyRadius(1, 6)).toBe(6 + SURVEY_TILES_PER_WAYFINDER_RANK);
+    expect(wayfinderSurveyRadius(3, 6)).toBe(6 + 3 * SURVEY_TILES_PER_WAYFINDER_RANK);
+  });
+
+  // The #361 regression guard, and the whole point of the change. The ring was
+  // an absolute radius, which put it *inside* the walked fog at every rank for a
+  // courier with the reveal upgrades fitted, so it could not show a single tile
+  // the player could not already see. Measured at 0 of 69 routes changed.
+  it('always reaches past the fog, at every rank and every reveal radius', () => {
+    for (const reveal of [2.5, 3.5, 5.5, 6, 9, 12]) {
+      for (const rank of [1, 2, 3]) {
+        expect(
+          wayfinderSurveyRadius(rank, reveal),
+          `rank ${rank} at reveal ${reveal} does not clear the fog`,
+        ).toBeGreaterThan(reveal);
+      }
+    }
+  });
+
+  it('shrinks with the fog when bad weather pulls sight in', () => {
+    expect(wayfinderSurveyRadius(2, 3)).toBeLessThan(wayfinderSurveyRadius(2, 8));
   });
 
   it('treats a negative rank as no survey', () => {
-    expect(wayfinderSurveyRadius(-2)).toBe(0);
+    expect(wayfinderSurveyRadius(-2, 9)).toBe(0);
+  });
+
+  it('never returns a negative radius on a nonsensical reveal', () => {
+    expect(wayfinderSurveyRadius(1, -5)).toBe(SURVEY_TILES_PER_WAYFINDER_RANK);
   });
 });
