@@ -83,6 +83,22 @@ test('completes a delivery and buys the cheapest upgrade at home', async ({ page
   const afterBuy = await readTick(page, home.tileX, home.tileY);
   expect(afterBuy.state.coins).toBe(coinsAfterDelivery - 40);
 
+  // 6b. Press the same key again with the upgrade already fitted. The refusal
+  //     renders in the menu (#356) and, since #385, also ticks: without a sound a
+  //     refused press is indistinguishable from an ignored one. This branch is
+  //     otherwise unreached by the suite, which is trap 1's function-with-no-caller.
+  await setUpgradeMenu(page, true);
+  await page.evaluate(() => globalThis.__courier?.clearAudioCue());
+  await pressUntil(page, '2', async () =>
+    ((await readTick(page, home.tileX, home.tileY)).state.panelNotice ?? '').includes(
+      'already fitted',
+    ),
+  );
+  const refused = await readTick(page, home.tileX, home.tileY);
+  expect(refused.state.panelNotice).toContain('already fitted');
+  expect(refused.state.audio.lastPlayed).toBe('panel-refused');
+  await setUpgradeMenu(page, false);
+
   // 7. The purchase must persist to the save.
   const save = await page.evaluate(() =>
     localStorage.getItem('courier-of-the-borderlands/save'),

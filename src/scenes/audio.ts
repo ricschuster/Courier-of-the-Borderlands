@@ -449,6 +449,40 @@ export class Audio {
     this.play('dialogue-choice');
   }
 
+  /** A panel opened: journal, skills, codex, minimap, upgrade shop. */
+  panelOpened(): void {
+    this.play('panel-open');
+  }
+
+  /** And closed again, by its own key or by Esc. */
+  panelClosed(): void {
+    this.play('panel-close');
+  }
+
+  /**
+   * A key the player pressed that did nothing. The strongest item in the UI
+   * batch: it is feedback about a press, and without it a refused key is
+   * indistinguishable from an ignored one.
+   */
+  panelRefused(): void {
+    this.play('panel-refused');
+  }
+
+  /** A message cleared off the queue. */
+  toastDismissed(): void {
+    this.play('toast-dismiss');
+  }
+
+  /** Starting over. Deliberate and rare, so not a tick. */
+  newGame(): void {
+    this.play('new-game');
+  }
+
+  /** The run is not being saved and will be lost when the tab closes. */
+  saveFailed(): void {
+    this.play('save-failed');
+  }
+
   /**
    * Muted comes first, so a muted game requests nothing and the e2e can prove it.
    * Recording before queueing means a browser that cannot make sound still shows
