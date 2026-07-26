@@ -13,9 +13,13 @@ Add an ADR when:
 
 ## Format
 
-Use one Markdown file per decision, named:
+Use one Markdown file per decision, named with a zero-padded sequence number:
 
-`YYYY-MM-DD_short-title.md`
+`NNNN-short-title.md`
+
+For example `0005-travel-sink-wagon-condition.md`. Take the next free number; the
+sequence is the reading order, and an ADR that supersedes another says so in its
+Status line rather than renumbering.
 
 Structure:
 
