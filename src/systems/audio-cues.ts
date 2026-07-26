@@ -32,7 +32,27 @@ export type AudioCueId =
   | 'gated-ground'
   | 'ford-crossed'
   | 'ford-blocked'
-  | 'bump';
+  | 'bump'
+  // World, story and progression (#384). Each one duplicates something already
+  // on screen; the design note's one rule is what decides whether a moment gets
+  // a cue at all, not how interesting it is.
+  | 'delivered-bonus'
+  | 'cargo-collected'
+  | 'board-armed'
+  | 'skill-ranked'
+  | 'standing-risen'
+  | 'achievement'
+  | 'settlement-found'
+  | 'discovery'
+  | 'region-travel'
+  | 'region-cleared'
+  | 'encounter-start'
+  | 'encounter-paid'
+  | 'encounter-gained'
+  | 'capstone'
+  | 'dialogue-open'
+  | 'dialogue-advance'
+  | 'dialogue-choice';
 
 /**
  * How often a cue fires, which is the same thing as how loud it may be (#383).
@@ -289,6 +309,209 @@ export const AUDIO_CUES: Readonly<Record<AudioCueId, AudioCue>> = {
     durationMs: 70,
     attackMs: 4,
     gain: 0.07,
+  },
+
+  // --- World, story and progression (#384) ---
+
+  // The end of the arc. The one cue allowed to be louder than a stranding,
+  // because it happens once in a playthrough where stranding happens all run:
+  // the teeth principle is about what the player meets repeatedly. Widest sweep
+  // and longest attack in the table, so it opens out rather than hits.
+  capstone: {
+    id: 'capstone',
+    tier: 'moment',
+    wave: 'triangle',
+    startHz: 330,
+    endHz: 1320,
+    durationMs: 400,
+    attackMs: 20,
+    gain: 0.32,
+  },
+  // The most dramatic interruption in the game, and until now completely silent.
+  // Falling, because an encounter is a problem arriving.
+  'encounter-start': {
+    id: 'encounter-start',
+    tier: 'event',
+    wave: 'sawtooth',
+    startHz: 300,
+    endHz: 190,
+    durationMs: 260,
+    attackMs: 24,
+    gain: 0.22,
+  },
+  // A hard cut today: the scene restarts and nothing marks it.
+  'region-travel': {
+    id: 'region-travel',
+    tier: 'event',
+    wave: 'triangle',
+    startHz: 300,
+    endHz: 600,
+    durationMs: 300,
+    attackMs: 16,
+    gain: 0.21,
+  },
+  // Rare, and it changes the payout rate, so it earns an event rather than a cue.
+  'standing-risen': {
+    id: 'standing-risen',
+    tier: 'event',
+    wave: 'sine',
+    startHz: 520,
+    endHz: 780,
+    durationMs: 260,
+    attackMs: 14,
+    gain: 0.2,
+  },
+  // Pairs with the summary panel. Settles rather than rises: the region's work is
+  // finished, not won.
+  'region-cleared': {
+    id: 'region-cleared',
+    tier: 'event',
+    wave: 'triangle',
+    startHz: 620,
+    endHz: 480,
+    durationMs: 280,
+    attackMs: 16,
+    gain: 0.2,
+  },
+  // Currently arrives inside a grouped toast panel with no sound of its own.
+  achievement: {
+    id: 'achievement',
+    tier: 'event',
+    wave: 'sine',
+    startHz: 780,
+    endHz: 1170,
+    durationMs: 220,
+    attackMs: 10,
+    gain: 0.19,
+  },
+  // A delivery that also met its bonus objective. Not a second voice layered over
+  // the delivery cue: the collision rule allows one voice per frame, and two
+  // cues in the same moment is the mud it exists to prevent. So the flourish is
+  // the delivery cue itself, brighter and reaching further.
+  'delivered-bonus': {
+    id: 'delivered-bonus',
+    tier: 'cue',
+    wave: 'sine',
+    startHz: 660,
+    endHz: 1320,
+    durationMs: 220,
+    attackMs: 6,
+    gain: 0.18,
+  },
+  // The reveal-build payoff (#111): sight invested, lore paid out.
+  discovery: {
+    id: 'discovery',
+    tier: 'cue',
+    wave: 'triangle',
+    startHz: 590,
+    endHz: 880,
+    durationMs: 240,
+    attackMs: 14,
+    gain: 0.16,
+  },
+  // Spending a point is a deliberate act, which is what separates this from the
+  // level-up that earned it.
+  'skill-ranked': {
+    id: 'skill-ranked',
+    tier: 'cue',
+    wave: 'square',
+    startHz: 300,
+    endHz: 450,
+    durationMs: 160,
+    attackMs: 8,
+    gain: 0.15,
+  },
+  // An encounter that paid: coins or standing gained.
+  'encounter-gained': {
+    id: 'encounter-gained',
+    tier: 'cue',
+    wave: 'sine',
+    startHz: 520,
+    endHz: 700,
+    durationMs: 180,
+    attackMs: 8,
+    gain: 0.15,
+  },
+  // First arrival somewhere. Serves "story through places".
+  'settlement-found': {
+    id: 'settlement-found',
+    tier: 'cue',
+    wave: 'triangle',
+    startHz: 420,
+    endHz: 630,
+    durationMs: 200,
+    attackMs: 12,
+    gain: 0.14,
+  },
+  // The two-leg contracts had a silent middle: accepting and delivering both
+  // spoke, collecting did not.
+  'cargo-collected': {
+    id: 'cargo-collected',
+    tier: 'cue',
+    wave: 'square',
+    startHz: 380,
+    endHz: 300,
+    durationMs: 130,
+    attackMs: 6,
+    gain: 0.13,
+  },
+  // An encounter that cost: a toll paid. Falls, where gaining rises.
+  'encounter-paid': {
+    id: 'encounter-paid',
+    tier: 'cue',
+    wave: 'square',
+    startHz: 340,
+    endHz: 240,
+    durationMs: 180,
+    attackMs: 10,
+    gain: 0.13,
+  },
+  // A conversation is many presses, so all three of its sounds are ticks. Taking
+  // a choice is the loudest of them: it is the only one that changes anything.
+  'dialogue-choice': {
+    id: 'dialogue-choice',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 560,
+    endHz: 660,
+    durationMs: 70,
+    attackMs: 5,
+    gain: 0.06,
+  },
+  // Confirms a commitment is armed but not yet made (#321). The confirming press
+  // was audible and the arming was not, which made the two-press flow lopsided.
+  'board-armed': {
+    id: 'board-armed',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 420,
+    endHz: 420,
+    durationMs: 60,
+    attackMs: 5,
+    gain: 0.05,
+  },
+  // Someone started talking.
+  'dialogue-open': {
+    id: 'dialogue-open',
+    tier: 'tick',
+    wave: 'triangle',
+    startHz: 480,
+    endHz: 540,
+    durationMs: 80,
+    attackMs: 8,
+    gain: 0.05,
+  },
+  // The next line. The quietest thing in the game, because a conversation is the
+  // densest run of presses in it.
+  'dialogue-advance': {
+    id: 'dialogue-advance',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 500,
+    endHz: 500,
+    durationMs: 50,
+    attackMs: 4,
+    gain: 0.04,
   },
 };
 

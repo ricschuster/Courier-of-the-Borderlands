@@ -26,7 +26,7 @@ import type { Region } from '../systems/region-system';
 import type { MapHud } from './map-hud';
 import type { DialogueController } from './dialogue-controller';
 import type { Juice } from './juice';
-import type { Audio } from './audio';
+import { playedCueLog, requestedCueLog, type Audio } from './audio';
 
 // Read-only snapshot of live scene state, exposed to end-to-end tests so a
 // headless browser can drive the courier and assert on the delivery loop.
@@ -106,6 +106,18 @@ export interface E2EState {
      * no device, a suppressed cue and a played cue are the same silence.
      */
     readonly lastPlayed: string | null;
+    /**
+     * Every cue played since the last clear, oldest first, capped. Document-
+     * lifetime, so unlike `lastPlayed` it survives the scene restart that region
+     * travel performs, which is the only way that cue can be seen at all.
+     */
+    readonly played: readonly string[];
+    /**
+     * Every cue *requested* since the last clear, whether or not it was heard.
+     * The question "does this call site fire" needs this rather than `played`:
+     * cues share frames routinely, and only one of a frame is ever played.
+     */
+    readonly requested: readonly string[];
     readonly muted: boolean;
     /**
      * The rolling bed's current profile. A continuous voice has no "last cue" to
@@ -331,6 +343,8 @@ function audioSnapshot(audio: Audio): E2EState['audio'] {
   return {
     lastCue: audio.lastRequestedCue(),
     lastPlayed: audio.lastPlayedCue(),
+    played: [...playedCueLog()],
+    requested: [...requestedCueLog()],
     muted: audio.isMuted(),
     bed: {
       gain: bed.gain,

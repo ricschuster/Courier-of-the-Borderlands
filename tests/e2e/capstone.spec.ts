@@ -75,6 +75,10 @@ test('breaking the blockade at Greywater shows the end-of-arc capstone', async (
   // Step away from the resolution node; the capstone panel then appears.
   await pressUntil(page, 'Escape', async () => !(await read()).state.dialogueOpen);
   await expect.poll(async () => (await read()).state.capstoneVisible).toBe(true);
+  // The largest beat in the game, and the only cue allowed to be louder than a
+  // stranding (#384). It appears on the frame that clears the whole toast queue,
+  // so anything mid-flight is competing with it; this is the live proof it wins.
+  expect((await read()).state.audio.lastPlayed).toBe('capstone');
 
   // Esc again dismisses the capstone, and it stays gone.
   await pressUntil(page, 'Escape', async () => !(await read()).state.capstoneVisible);

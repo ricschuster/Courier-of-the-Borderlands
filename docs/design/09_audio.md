@@ -246,6 +246,48 @@ same reason. A scene teardown settles it to zero rather than tearing the graph
 down, so travelling through a gateway lets the wheels trail off across the
 rebuild instead of hanging at their last gain.
 
+## The breadth, as built (#384)
+
+Seventeen more cues, all of them on moments that were already on screen and
+silent. Sorted into the tiers above rather than tuned one at a time.
+
+| moment | tier | already on screen |
+|---|---|---|
+| Blockade broken (capstone) | moment | the finale panel |
+| Encounter starts | event | the dialogue opens |
+| Region travel | event | the scene changes region |
+| Standing risen | event | toast, wallet tier |
+| Region cleared | event | the summary panel |
+| Achievement unlocked | event | toast |
+| Delivery with its bonus met | cue | toast names the bonus |
+| Discovery found | cue | toast, journal |
+| Skill rank invested | cue | toast, panel redraws |
+| Encounter paid / gained | cue | toast, wallet |
+| First arrival at a settlement | cue | toast, marker |
+| Cargo collected | cue | objective changes |
+| Dialogue choice / open / advance | tick | the panel itself |
+| Board slot armed | tick | the board says so |
+
+Three decisions inside that:
+
+1. **The capstone is the one cue louder than a stranding.** Decision 4 above is
+   about what the player meets repeatedly; breaking the blockade happens once in a
+   playthrough. It also clears the whole toast queue when it appears, so it must
+   not be able to lose a frame collision, and being the loudest cue in the top
+   tier is what guarantees that.
+2. **The bonus objective is a brighter delivery, not a layer.** One voice per
+   frame is the rule, so a flourish over the delivery cue would be exactly the mud
+   the rule prevents. `delivered-bonus` reaches an octave higher instead. Coins
+   gained stay folded into the delivery for the same reason.
+3. **Encounter outcomes follow what actually moved.** The ledger clamps at zero,
+   so a broke courier pays less than the toll asked for; a cue read off the
+   nominal outcome would say "you paid" when nothing left the purse.
+
+The collision rule earns its keep immediately. An encounter opens a dialogue, so
+both cues are requested in one frame and the encounter wins. Arriving at a new
+town to collect cargo requests both, and the first arrival wins, which is right:
+the bigger news is the place, and the player hears one thing rather than two.
+
 ### Measured, not assumed
 
 Rendered through a real `OfflineAudioContext`, the way #382 established:

@@ -32,10 +32,18 @@ import {
 } from '../systems/encounter-system';
 import { settlementAtTileIn, type Region } from '../systems/region-system';
 import type { MapHud } from './map-hud';
+import type { Audio } from './audio';
 
 /** The services the dialogue controller needs from its host scene. */
 export interface DialogueHost {
   getHud(): MapHud;
+  /**
+   * Sound effects (#384). A conversation is the densest run of presses in the
+   * game, so every one of its own cues is a tick; the encounter cues are not,
+   * because an encounter is the most dramatic interruption there is. Nothing
+   * here carries information: each cue sits beside a panel that already said it.
+   */
+  getAudio(): Audio;
   getRegion(): Region;
   courierTile(): { readonly x: number; readonly y: number };
   /** Persisted story flags plus flags derived from the live world. */
@@ -131,6 +139,9 @@ export class DialogueController {
     // apply outcomes to the next (settlement) conversation.
     if (this.openDialogue(encounter.dialogue)) {
       this.activeEncounter = encounter;
+      // Requested in the same frame as openDialogue's tick. Both are wanted, and
+      // the collision rule plays the louder one, which is exactly what it is for.
+      this.host.getAudio().encounterStart();
     }
   }
 
@@ -163,6 +174,7 @@ export class DialogueController {
     // message survives the conversation instead of being dropped (#327).
     this.activeDialogue = dialogue;
     this.dialogueNodeId = start.id;
+    this.host.getAudio().dialogueOpened();
     this.showDialogueNode();
     return true;
   }
@@ -197,6 +209,7 @@ export class DialogueController {
     // story progress survives a reload mid-conversation.
     const result = chooseOption(this.host.getStoryFlags(), choice);
     this.host.setStoryFlags(result.flags);
+    this.host.getAudio().dialogueChose();
     // Apply any encounter outcome (coins, reputation) before persisting, so the
     // ledger change is saved in the same write as the resolution flag.
     this.applyEncounterOutcomes(choice);
@@ -206,6 +219,7 @@ export class DialogueController {
       return;
     }
     this.dialogueNodeId = result.next;
+    this.host.getAudio().dialogueAdvanced();
     this.showDialogueNode();
   }
 
@@ -238,6 +252,8 @@ export class DialogueController {
 
   private applyEncounterOutcome(outcome: EncounterOutcome): void {
     const parts: string[] = [];
+    let coinsMoved = 0;
+    let reputationMoved = false;
     if (outcome.coins !== undefined && outcome.coins !== 0) {
       // Report the coins actually moved, not the nominal amount: addCoins clamps
       // at zero, so a broke courier who pays a toll loses only what they have,
@@ -245,6 +261,7 @@ export class DialogueController {
       const before = this.host.getLedger().coins;
       this.host.setLedger(addCoins(this.host.getLedger(), outcome.coins));
       const delta = this.host.getLedger().coins - before;
+      coinsMoved = delta;
       if (delta !== 0) {
         parts.push(delta > 0 ? `+${delta} coins` : `${delta} coins`);
       }
@@ -258,9 +275,18 @@ export class DialogueController {
         addReputation(this.host.getLedger(), outcome.reputationId, outcome.reputation),
       );
       const name = this.host.getRegion().settlements[outcome.reputationId]?.name ?? outcome.reputationId;
+      reputationMoved = true;
       parts.push(`+${outcome.reputation} reputation with ${name}`);
     }
     this.host.refreshWallet();
+    // Follows what actually moved, not the nominal outcome: the ledger clamps at
+    // zero, so a broke courier pays less than the toll asked for, and a cue that
+    // read the nominal amount would say "you paid" when nothing left the purse.
+    if (coinsMoved < 0) {
+      this.host.getAudio().encounterPaid();
+    } else if (coinsMoved > 0 || reputationMoved) {
+      this.host.getAudio().encounterGained();
+    }
     if (parts.length > 0) {
       const title = this.activeEncounter?.title;
       this.host.logEvent(title === undefined ? parts.join(', ') : `${title}: ${parts.join(', ')}`);

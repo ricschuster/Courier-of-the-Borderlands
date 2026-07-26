@@ -65,5 +65,14 @@ test('shows the cleared panel on a spoke whose arc-gated contract is revealed bu
   // ...and the cleared panel is shown anyway.
   expect(state.summaryVisible).toBe(true);
 
+  // The panel is up, but nothing was cleared just now: this save loaded into an
+  // already-finished region. The cue is announce-gated for exactly that reason
+  // (#384), the same way achievements are, so booting must be silent. Without
+  // the gate every reload of a finished region would congratulate the player.
+  expect(
+    state.audio.played,
+    `boot into a cleared region should be silent: ${state.audio.played.join(', ')}`,
+  ).not.toContain('region-cleared');
+
   expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
 });

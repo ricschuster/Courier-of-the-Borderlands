@@ -102,6 +102,48 @@ export function synthesizeCue(ctx: CueContext, cue: AudioCue, output?: AudioNode
   osc.stop(end);
 }
 
+/**
+ * The cues that have actually played, most recent last, capped at the last
+ * handful. Module-level rather than per-Audio, and that is the whole point:
+ * `lastPlayedCue()` lives on an instance, and the instance is replaced when the
+ * scene restarts.
+ *
+ * Region travel is exactly that case (#384). Its cue is requested and flushed on
+ * the frame that calls `scene.restart`, so by the time a spec can read anything,
+ * the Audio that played it is gone and its record with it. Without a document-
+ * lifetime log, the one call site whose timing is genuinely unusual would be the
+ * one call site no browser test could see, which is trap 1 pointed at the
+ * riskiest line in the change.
+ */
+const PLAYED_LOG_LIMIT = 24;
+let playedLog: AudioCueId[] = [];
+let requestedLog: AudioCueId[] = [];
+
+/** The recent played cues, for the e2e hook. Survives a scene restart. */
+export function playedCueLog(): readonly AudioCueId[] {
+  return playedLog;
+}
+
+/**
+ * The recent *requested* cues, which is deliberately not the same list.
+ *
+ * "Did this call site fire" and "what did the player hear" became different
+ * questions the moment cues started sharing frames (#384): the first delivery of
+ * a run requests the delivery cue and is heard as the achievement it earned, and
+ * arriving somewhere new to collect cargo requests both and is heard as the
+ * arrival. A spec proving a call site exists has to ask the first question, and
+ * only this log answers it.
+ */
+export function requestedCueLog(): readonly AudioCueId[] {
+  return requestedLog;
+}
+
+/** Append to a capped log, newest last. */
+function record(log: AudioCueId[], id: AudioCueId): AudioCueId[] {
+  log.push(id);
+  return log.length > PLAYED_LOG_LIMIT ? log.slice(-PLAYED_LOG_LIMIT) : log;
+}
+
 /** A bed profile that makes no sound, used while muted and on scene teardown. */
 const SILENT_BED: BedProfile = {
   gain: 0,
@@ -180,10 +222,16 @@ export class Audio {
     return this.lastPlayed;
   }
 
-  /** Clear both records, so a spec can assert that the next action requested nothing. */
+  /**
+   * Clear every record, so a spec can assert that the next action requested
+   * nothing. That includes the document-level played log, which is what makes
+   * "these cues, and only these, since I cleared" an assertable statement.
+   */
   clearLastRequestedCue(): void {
     this.lastCue = null;
     this.lastPlayed = null;
+    playedLog = [];
+    requestedLog = [];
   }
 
   /**
@@ -201,6 +249,7 @@ export class Audio {
       return;
     }
     this.lastPlayed = winner;
+    playedLog = record(playedLog, winner);
     this.output?.play(cueFor(winner));
   }
 
@@ -312,6 +361,95 @@ export class Audio {
   }
 
   /**
+   * A delivery that also met its bonus objective. One cue rather than a flourish
+   * layered over `delivered()`: two voices in a frame is exactly the mud the
+   * collision rule exists to prevent, so the brighter delivery *is* the flourish.
+   */
+  deliveredWithBonus(): void {
+    this.play('delivered-bonus');
+  }
+
+  /** Cargo picked up. The two-leg contracts used to have a silent middle. */
+  cargoCollected(): void {
+    this.play('cargo-collected');
+  }
+
+  /** A board slot armed by the first digit press, awaiting its confirmation. */
+  boardArmed(): void {
+    this.play('board-armed');
+  }
+
+  /** A skill point spent. Deliberate, unlike the level that earned it. */
+  skillRanked(): void {
+    this.play('skill-ranked');
+  }
+
+  /** Standing risen to a new tier, which changes what deliveries pay. */
+  standingRisen(): void {
+    this.play('standing-risen');
+  }
+
+  /** An achievement unlocked, which otherwise arrives inside a grouped toast. */
+  achievementUnlocked(): void {
+    this.play('achievement');
+  }
+
+  /** First arrival at a settlement. */
+  settlementFound(): void {
+    this.play('settlement-found');
+  }
+
+  /** A wayside discovery revealed. */
+  discoveryFound(): void {
+    this.play('discovery');
+  }
+
+  /** Crossing a region gateway, which is otherwise a silent hard cut. */
+  regionTravel(): void {
+    this.play('region-travel');
+  }
+
+  /** The region's standing work is finished, alongside the summary panel. */
+  regionCleared(): void {
+    this.play('region-cleared');
+  }
+
+  /** A road encounter opened. */
+  encounterStart(): void {
+    this.play('encounter-start');
+  }
+
+  /** An encounter outcome that cost the courier. */
+  encounterPaid(): void {
+    this.play('encounter-paid');
+  }
+
+  /** An encounter outcome that paid the courier. */
+  encounterGained(): void {
+    this.play('encounter-gained');
+  }
+
+  /** The blockade broken: the end of the arc, and the fullest thing in the mix. */
+  capstone(): void {
+    this.play('capstone');
+  }
+
+  /** Someone started talking. */
+  dialogueOpened(): void {
+    this.play('dialogue-open');
+  }
+
+  /** The next line of a conversation. */
+  dialogueAdvanced(): void {
+    this.play('dialogue-advance');
+  }
+
+  /** A conversation choice taken. */
+  dialogueChose(): void {
+    this.play('dialogue-choice');
+  }
+
+  /**
    * Muted comes first, so a muted game requests nothing and the e2e can prove it.
    * Recording before queueing means a browser that cannot make sound still shows
    * the call site firing.
@@ -321,6 +459,7 @@ export class Audio {
       return;
     }
     this.lastCue = id;
+    requestedLog = record(requestedLog, id);
     this.pending.push(id);
   }
 

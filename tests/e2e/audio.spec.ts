@@ -67,11 +67,22 @@ test('game moments request their cues, and V silences them', async ({ page }) =>
   }
   const delivered = (await readTick(page, 0, 0)).state;
   expect(delivered.deliveries, 'the delivery should have landed').toBeGreaterThan(0);
-  expect(delivered.audio.lastCue).toBe('delivered');
-  // An arrival stacks several requests into one frame, and exactly one of them is
-  // heard (#383). This is the live proof that the flush runs at all: without it
-  // nothing would ever play, and `lastCue` above would still be green.
-  expect(delivered.audio.lastPlayed, 'the delivery lost its own frame').toBe('delivered');
+  // The requested log, not lastCue and not lastPlayed. An arrival stacks several
+  // cues into one frame (#384): arriving somewhere new requests its own cue right
+  // after the delivery, and the first delivery of a run earns an achievement that
+  // is louder than either. So the delivery is neither the last thing requested
+  // nor the thing heard, and the question this spec asks is only whether its call
+  // site fired.
+  expect(
+    delivered.audio.requested,
+    `cues requested on the delivery: ${delivered.audio.requested.join(', ')}`,
+  ).toContain('delivered');
+  // Exactly one of that pile was heard, which is the live proof the flush runs at
+  // all: without it nothing would ever play and every assertion above would pass.
+  expect(delivered.audio.played.length).toBeGreaterThan(0);
+  for (const cue of delivered.audio.played) {
+    expect(delivered.audio.requested).toContain(cue);
+  }
 
   // Mute, and prove the next moment requests nothing rather than merely storing a
   // flag. Works with messages on screen, so no need to clear the queue first.
@@ -96,6 +107,13 @@ test('game moments request their cues, and V silences them', async ({ page }) =>
   const mutedAccept = (await readTick(page, 0, 0)).state;
   expect(mutedAccept.activeContractId, 'the accept itself must still work').not.toBeNull();
   expect(mutedAccept.audio.lastCue, 'a muted game requests no cue').toBeNull();
+  // And nothing else slipped through on the way there either: driving home passes
+  // road crossings, arrivals and possibly an encounter, all of which request cues
+  // in an unmuted game.
+  expect(
+    mutedAccept.audio.requested,
+    `a muted game requested: ${mutedAccept.audio.requested.join(', ')}`,
+  ).toEqual([]);
 
   // And V again brings it back, so the toggle is not one-way.
   await tapKey(page, 'V');

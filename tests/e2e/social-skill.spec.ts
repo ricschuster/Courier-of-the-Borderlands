@@ -57,6 +57,11 @@ test('spending a point on Cipher unlocks a gated dialogue line', async ({ page }
   // re-press could flip it back); "4" is a no-op once the point is spent.
   await setSkillPanel(page, true);
   await pressUntil(page, '4', async () => (await readTick(page, 0, 0)).state.skills.cipher === 1);
+  // Spending a point sounds, and it is a different cue from the level-up that
+  // earned it (#384): earning a point happens to you, spending one is a choice.
+  // Asserted here because this is the only spec that ranks a skill through real
+  // key presses, and a call site with no browser proof is trap 1.
+  expect((await readTick(page, 0, 0)).state.audio.lastPlayed).toBe('skill-ranked');
   expect((await readTick(page, 0, 0)).state.skills.cipher).toBe(1);
 
   // Close the panel before talking.
