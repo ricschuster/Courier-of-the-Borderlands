@@ -32,6 +32,14 @@ test('travels to a spoke and back, arriving at the return gateway each way', asy
   // to Greybridge (the return marker), not at the Saltreach spawn.
   const inSaltreach = await readTick(page, 0, 0);
   expect(inSaltreach.state.regionId).toBe('saltreach');
+  // Crossing a gateway was a silent hard cut until #384. Read from the played
+  // log rather than lastPlayed: the scene restarts on travel, so the Audio that
+  // played the cue no longer exists by the time this line runs, which is exactly
+  // why the log is document-lifetime.
+  expect(
+    inSaltreach.state.audio.played,
+    `cues played across the gateway: ${inSaltreach.state.audio.played.join(', ')}`,
+  ).toContain('region-travel');
   const saltBack = inSaltreach.state.gateways.find((g) => g.to === 'greybridge');
   expect(saltBack, 'saltreach should link back to greybridge').toBeDefined();
   expect({ x: inSaltreach.state.courier.tileX, y: inSaltreach.state.courier.tileY }).toEqual({

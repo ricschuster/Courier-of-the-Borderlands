@@ -41,6 +41,10 @@ test('a road encounter fires on its tile and a choice applies its outcome', asyn
   const opened = await readTick(page, ENCOUNTER_TILE.x, ENCOUNTER_TILE.y);
   expect(opened.state.activeEncounterId).toBe('greybridge-stranded');
   expect(opened.state.dialogueOpen).toBe(true);
+  // The most dramatic interruption in the game, and silent until #384. It shares
+  // its frame with the dialogue-open tick and has to win that collision, or the
+  // encounter would announce itself with the same sound as any conversation.
+  expect(opened.state.audio.lastPlayed).toBe('encounter-start');
   const coinsBefore = opened.state.coins;
   const reputationBefore = opened.state.reputation;
 
@@ -58,6 +62,10 @@ test('a road encounter fires on its tile and a choice applies its outcome', asyn
   expect(after.state.storyFlags).toContain('enc_stranded_helped');
   expect(after.state.coins).toBe(coinsBefore + 6);
   expect(after.state.reputation).toBe(reputationBefore + 2);
+  // The outcome paid, so it is the gaining cue rather than the paying one, and
+  // it beats the choice tick fired by the same press: what the player hears is
+  // the outcome, not the keystroke.
+  expect(after.state.audio.lastPlayed).toBe('encounter-gained');
 
   // 3. Close the conversation; the encounter clears.
   await pressUntil(

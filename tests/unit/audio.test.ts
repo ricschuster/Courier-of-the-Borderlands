@@ -127,6 +127,75 @@ describe('Audio', () => {
     audio.bumped();
     expect(audio.lastRequestedCue()).toBe('bump');
   });
+
+  it('requests a cue for each world, story and progression moment', () => {
+    const audio = new Audio(true);
+    const moments: readonly [() => void, string][] = [
+      [() => audio.deliveredWithBonus(), 'delivered-bonus'],
+      [() => audio.cargoCollected(), 'cargo-collected'],
+      [() => audio.boardArmed(), 'board-armed'],
+      [() => audio.skillRanked(), 'skill-ranked'],
+      [() => audio.standingRisen(), 'standing-risen'],
+      [() => audio.achievementUnlocked(), 'achievement'],
+      [() => audio.settlementFound(), 'settlement-found'],
+      [() => audio.discoveryFound(), 'discovery'],
+      [() => audio.regionTravel(), 'region-travel'],
+      [() => audio.regionCleared(), 'region-cleared'],
+      [() => audio.encounterStart(), 'encounter-start'],
+      [() => audio.encounterPaid(), 'encounter-paid'],
+      [() => audio.encounterGained(), 'encounter-gained'],
+      [() => audio.capstone(), 'capstone'],
+      [() => audio.dialogueOpened(), 'dialogue-open'],
+      [() => audio.dialogueAdvanced(), 'dialogue-advance'],
+      [() => audio.dialogueChose(), 'dialogue-choice'],
+    ];
+    for (const [fire, id] of moments) {
+      fire();
+      expect(audio.lastRequestedCue()).toBe(id);
+    }
+  });
+
+  it('has a method for every cue in the table', () => {
+    // A cue in the table with no method is a cue with no possible caller, which
+    // is trap 1's first shape sitting in plain sight. Fires every method and
+    // checks the set of ids they produce covers the table exactly.
+    const audio = new Audio(true);
+    const fired = new Set<string>();
+    // The zero-argument methods that are not cue triggers. Named rather than
+    // detected, because the interesting failure is a new cue with no method, and
+    // an over-clever filter would hide it. toggleMuted in particular must not be
+    // swept: it would silence the rest of the run and the set would come back
+    // empty rather than short.
+    const notCues = new Set([
+      'constructor',
+      'isMuted',
+      'toggleMuted',
+      'lastRequestedCue',
+      'lastPlayedCue',
+      'clearLastRequestedCue',
+      'flushFrame',
+      'settleBed',
+      'bedState',
+      'unlock',
+    ]);
+    const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(audio)).filter(
+      (name) => !notCues.has(name),
+    );
+    for (const name of methods) {
+      const fn = (audio as unknown as Record<string, unknown>)[name];
+      if (typeof fn !== 'function' || fn.length > 0) {
+        continue;
+      }
+      audio.clearLastRequestedCue();
+      (fn as () => void).call(audio);
+      const id = audio.lastRequestedCue();
+      if (id !== null) {
+        fired.add(id);
+      }
+    }
+    const inTable = allCues().map((c) => c.id).sort();
+    expect([...fired].sort()).toEqual(inTable);
+  });
 });
 
 describe('one cue voice per frame', () => {

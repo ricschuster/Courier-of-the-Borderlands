@@ -42,6 +42,23 @@ describe('the cue table', () => {
       'road-left',
       'ford-blocked',
       'bump',
+      'delivered-bonus',
+      'cargo-collected',
+      'board-armed',
+      'skill-ranked',
+      'standing-risen',
+      'achievement',
+      'settlement-found',
+      'discovery',
+      'region-travel',
+      'region-cleared',
+      'encounter-start',
+      'encounter-paid',
+      'encounter-gained',
+      'capstone',
+      'dialogue-open',
+      'dialogue-advance',
+      'dialogue-choice',
     ];
     for (const id of ids) {
       expect(cueFor(id).id).toBe(id);
@@ -103,17 +120,35 @@ describe('the tiers', () => {
 });
 
 describe('the mix', () => {
-  it('puts the loudest cue on the moment that hurt', () => {
+  it('puts the loudest recurring cue on the moment that hurt', () => {
     // The owner's standing direction is that the game should have teeth, and
     // juice.ts already puts its hardest effect on stranding rather than on a
     // delivery. This is the assertion that stops a later tweak from quietly
     // turning this into a rewards-lead mix.
+    //
+    // The capstone is the one exception, and it is a narrow one: breaking the
+    // blockade happens once in a playthrough where stranding happens all run, so
+    // the teeth principle (which is about what the player meets repeatedly) is
+    // untouched by it. Named here rather than filtered silently, so a second
+    // exception has to argue for itself.
     const stranded = cueFor('stranded');
-    const others = allCues().filter((c) => c.id !== 'stranded');
+    const others = allCues().filter((c) => c.id !== 'stranded' && c.id !== 'capstone');
     for (const cue of others) {
       expect(cue.gain, `${cue.id} should not be louder than stranding`).toBeLessThan(
         stranded.gain,
       );
+    }
+    expect(cueFor('capstone').gain).toBeGreaterThan(stranded.gain);
+  });
+
+  it('makes the capstone the fullest thing in the mix', () => {
+    // The largest beat in the game. It also clears the whole toast queue when it
+    // appears, so it must not be able to lose a frame collision to whatever was
+    // mid-flight: being the loudest cue in the top tier is what guarantees that.
+    const capstone = cueFor('capstone');
+    expect(capstone.tier).toBe('moment');
+    for (const cue of allCues().filter((c) => c.id !== 'capstone')) {
+      expect(cue.gain, `${cue.id} rivals the capstone`).toBeLessThan(capstone.gain);
     }
   });
 

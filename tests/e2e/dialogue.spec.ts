@@ -35,6 +35,10 @@ test('opens the postmaster dialogue and a choice sets a persisted story flag', a
     async () => (await readTick(page, home.tileX, home.tileY)).state.dialogueOpen,
   );
   expect((await readTick(page, home.tileX, home.tileY)).state.dialogueOpen).toBe(true);
+  // Opening a conversation ticks (#384). Asserted here because this is the only
+  // spec that opens the postmaster dialogue, and with no sound device in CI a
+  // call site that never fires looks exactly like one that does (trap 1).
+  expect((await readTick(page, home.tileX, home.tileY)).state.audio.lastCue).toBe('dialogue-open');
   // The home contract board yields to the open dialogue so the two do not
   // overlap (#181): while talking, the board is hidden.
   expect((await readTick(page, home.tileX, home.tileY)).state.boardVisible).toBe(false);
@@ -49,6 +53,10 @@ test('opens the postmaster dialogue and a choice sets a persisted story flag', a
   );
   const after = await readTick(page, home.tileX, home.tileY);
   expect(after.state.storyFlags).toContain('met_postmaster');
+  // Taking a choice ticks, and the line it leads to ticks again. Both are
+  // requested in the same frame, so the louder of the two is what plays.
+  expect(after.state.audio.lastCue).toBe('dialogue-advance');
+  expect(after.state.audio.lastPlayed).toBe('dialogue-choice');
   // The Act 1 reveal flag is NOT set yet: the region is not reconnected.
   expect(after.state.storyFlags).not.toContain('greybridge_reveal');
   // The conversation is still open on the next node.

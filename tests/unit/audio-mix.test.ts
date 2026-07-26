@@ -46,6 +46,23 @@ describe('chooseCue', () => {
     expect(chooseCue(['road-left', 'road-joined'])).toBe('road-left');
   });
 
+  it('lets an encounter beat the tick that opened its dialogue', () => {
+    // Both are wanted and both are requested in the same frame (#384): every
+    // conversation ticks, and an encounter is a conversation that arrived on its
+    // own. This is the collision the rule was written for.
+    expect(chooseCue(['dialogue-open', 'encounter-start'])).toBe('encounter-start');
+  });
+
+  it('never lets the capstone lose its frame', () => {
+    // The finale clears the whole toast queue when it appears, so whatever was
+    // mid-flight is competing with it. It has to win against everything,
+    // including a stranding on the same frame.
+    for (const cue of allCues().filter((c) => c.id !== 'capstone')) {
+      expect(chooseCue([cue.id, 'capstone']), `${cue.id} suppressed the capstone`).toBe('capstone');
+      expect(chooseCue(['capstone', cue.id])).toBe('capstone');
+    }
+  });
+
   it('never picks a cue that was not asked for', () => {
     // Sounds obvious; it is the failure a lookup-table refactor would introduce.
     for (const cue of allCues()) {

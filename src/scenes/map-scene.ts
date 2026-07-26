@@ -467,6 +467,7 @@ export class MapScene extends Phaser.Scene {
     // narrow, explicit coupling surface to the controller.
     const host: DialogueHost = {
       getHud: () => this.hud,
+      getAudio: () => this.audio,
       getRegion: () => this.region,
       courierTile: () => this.courierTile(),
       effectiveFlags: () => this.effectiveFlags(),
@@ -1236,6 +1237,7 @@ export class MapScene extends Phaser.Scene {
   private announceDiscovery(discovery: Discovery): void {
     const [title, ...body] = discoveryLines(discovery, this.hasCipher());
     this.logEvent(`You found ${title}. ${body.join(' ')}`);
+    this.audio.discoveryFound();
   }
 
   /** Courier experience, derived from cumulative play stats (not stored). */
@@ -1277,6 +1279,7 @@ export class MapScene extends Phaser.Scene {
     if (canPickUp(progress, contract, settlement.id)) {
       this.progress = pickUp(progress);
       this.logEvent(`Collected ${contract.cargo} at ${settlement.name}.`);
+      this.audio.cargoCollected();
       this.refreshObjective();
       this.save();
     } else if (canDeliver(progress, contract, settlement.id)) {
@@ -1328,10 +1331,16 @@ export class MapScene extends Phaser.Scene {
         `+${contract.reputation} reputation.${skillNote}${cipherNote}${bonusNote}${cargoNote}${reconnectNote}`,
     );
     this.juice.delivered(this.courier.sprite.x, this.courier.sprite.y);
-    this.audio.delivered();
+    // The bonus is a brighter delivery rather than a second voice on top of it:
+    // one cue per frame, so a flourish has to be the cue itself (#384).
+    if (reward.bonusCoins > 0) {
+      this.audio.deliveredWithBonus();
+    } else {
+      this.audio.delivered();
+    }
     this.refreshObjective();
     this.refreshWallet();
-    this.refreshSummary();
+    this.refreshSummary(true);
     // This delivery may have cleared the region's standing routes: capture a
     // telemetry milestone (once per region per session, ADR-free best-effort).
     if (this.regionCleared()) {
@@ -1428,6 +1437,7 @@ export class MapScene extends Phaser.Scene {
         // The rank itself is real progress, so it stays a toast: the player will
         // want it in the journal's recent log, and it outlives the panel.
         this.hud.showToast(`${skill.name} improved to rank ${rankOf(this.skills, skill.id)}.`);
+        this.audio.skillRanked();
         this.panelNotice = null;
         // A new rank may grant a terrain capability (Off-road 2 opens the deep
         // mire); open any tiles it now unlocks so the route is drivable at once.
@@ -1502,6 +1512,7 @@ export class MapScene extends Phaser.Scene {
           // just answered, costing a press per accept under the #327 queue (#376).
           this.armedContractId = contract.id;
           this.boardNotice = null;
+          this.audio.boardArmed();
           this.refreshBoard();
         }
         return;
@@ -1859,6 +1870,7 @@ export class MapScene extends Phaser.Scene {
       const gain =
         bonus > 0 ? `Deliveries now pay ${perk.label} (+${bonus}%).` : `You now hold ${perk.label}.`;
       this.hud.showToast(`Standing risen to ${tier.name}. ${gain}`);
+      this.audio.standingRisen();
     }
   }
 
@@ -1900,6 +1912,13 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.save();
+    // Requested and flushed in the same breath, which no other call site does.
+    // The restart replaces this Audio, so the frame that would normally play the
+    // cue never arrives: without the flush the one moment of travel stays the
+    // silent hard cut #384 set out to fix. The output graph is document-lifetime,
+    // so the cue survives the rebuild that follows it.
+    this.audio.regionTravel();
+    this.audio.flushFrame();
     this.scene.restart({
       regionId: gateway.to,
       fromRegionId: this.region.id,
@@ -2118,6 +2137,9 @@ export class MapScene extends Phaser.Scene {
     // over wholesale, and there is no run left for a queued line to inform.
     if (!this.hud.isCapstoneVisible()) {
       this.hud.clearToasts();
+      // Louder than a stranding, and it cannot lose a collision to whatever was
+      // mid-flight when the finale took the screen (#384).
+      this.audio.capstone();
       this.summaryDismissedRegions.add(this.region.id);
       this.hud.setSummary(null);
       // Rising edge of the finale: capture the arc-completion telemetry milestone.
@@ -2165,7 +2187,13 @@ export class MapScene extends Phaser.Scene {
     });
   }
 
-  private refreshSummary(): void {
+  /**
+   * Show or hide the region-cleared summary. `announce` sounds the cue on the
+   * frame the panel first appears; create() passes false, because a save loaded
+   * into an already-cleared region has not just cleared it, and the same
+   * reasoning already gates refreshAchievements.
+   */
+  private refreshSummary(announce = false): void {
     if (this.summaryDismissedRegions.has(this.region.id)) {
       this.hud.setSummary(null);
       return;
@@ -2175,6 +2203,7 @@ export class MapScene extends Phaser.Scene {
     // suppressed the panel on the spokes, whose arc-gated contract is revealed
     // and left undelivered as the mission climax (Session 5 playtest).
     const base = this.baseContractCounts();
+    const wasVisible = this.hud.isSummaryVisible();
     // summaryText returns null until the region is cleared, so setSummary(null)
     // keeps the panel hidden in that case.
     this.hud.setSummary(
@@ -2191,6 +2220,9 @@ export class MapScene extends Phaser.Scene {
         gatewayNames: this.gatewayDestinationNames(),
       }),
     );
+    if (announce && !wasVisible && this.hud.isSummaryVisible()) {
+      this.audio.regionCleared();
+    }
   }
 
   private achievementStat(): AchievementStat {
@@ -2221,6 +2253,7 @@ export class MapScene extends Phaser.Scene {
       if (announce) {
         const def = ACHIEVEMENTS.find((a) => a.id === id);
         this.hud.showToast(`Achievement unlocked: ${def?.name ?? id}`);
+        this.audio.achievementUnlocked();
       }
     }
   }
@@ -2290,6 +2323,7 @@ export class MapScene extends Phaser.Scene {
     }
     this.visited.add(settlement.id);
     this.logEvent(`${settlement.name}. ${settlement.note}`);
+    this.audio.settlementFound();
     this.refreshAchievements(true);
     this.save();
   }
