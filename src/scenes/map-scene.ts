@@ -61,7 +61,6 @@ import {
   newlyFound,
   type Discovery,
 } from '../systems/discovery';
-import { totalXp, levelForXp } from '../systems/experience';
 import {
   availablePoints,
   shouldNudgeUnspentSkills,
@@ -74,13 +73,7 @@ import {
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor } from '../systems/reputation-perks';
 import { getCargoCategory } from '../systems/cargo-types';
-import {
-  createTripLog,
-  addDistance,
-  recordDelivery,
-  formatDistance,
-  type TripLog,
-} from '../systems/trip-log';
+import { formatDistance } from '../systems/trip-log';
 import { ACHIEVEMENTS } from '../systems/achievements';
 import { weatherByIndex, pickWeather, weatherEffectLabel, type Weather } from '../systems/weather';
 import { createRng } from '../systems/rng';
@@ -105,6 +98,7 @@ import {
 import { MilestoneController, type MilestoneHost, type RunStats } from './milestone-controller';
 import { BoardInputController, type BoardInputHost } from './board-input-controller';
 import { SpendController, type SpendHost } from './spend-controller';
+import { TripTracker } from '../systems/trip-tracker';
 import { FogController, type FogHost } from './fog-controller';
 import { WagonController, type WagonHost } from './wagon-controller';
 import {
@@ -211,9 +205,11 @@ export class MapScene extends Phaser.Scene {
   private mapKey!: Phaser.Input.Keyboard.Key;
   private muteKey!: Phaser.Input.Keyboard.Key;
   private journalKey!: Phaser.Input.Keyboard.Key;
-  private trip: TripLog = createTripLog();
-  private prevX = 0;
-  private prevY = 0;
+  /**
+  * Distance, deliveries, settlements found, and the position sampler they are
+  * counted from. Owns the courier's experience and level (#392).
+  */
+  private tripTracker = new TripTracker();
   /**
    * Wagon condition, the difficulty profile that prices it, and the session wear
    * telemetry (ADR 0005). Owned by the controller (#392); the scene reads through
@@ -221,7 +217,6 @@ export class MapScene extends Phaser.Scene {
    */
   private wagon!: WagonController;
   private currentPath: PathResult | null = null;
-  private visited = new Set<string>();
   // Presentation layer for the map markers (settlements, gateways, signpost).
   private markers!: MapMarkers;
   // Chosen courier skill ranks. Experience and level are derived from play
@@ -409,8 +404,8 @@ export class MapScene extends Phaser.Scene {
     this.courier = new Courier(this, spawn.x, spawn.y);
     this.courier.sprite.setDepth(DEPTH_COURIER);
     this.physics.add.collider(this.courier.sprite, this.terrain.impassable);
-    this.prevX = spawn.x;
-    this.prevY = spawn.y;
+    // Spawn is not a drive: sync the sampler so arriving costs no distance.
+    this.tripTracker.syncTo(spawn.x, spawn.y);
 
     this.setupCamera();
     // Before the markers: the signpost registers an overlap callback that can
@@ -562,8 +557,7 @@ export class MapScene extends Phaser.Scene {
     });
     this.state = run.state;
     this.completed = run.completed;
-    this.visited = run.visited;
-    this.trip = run.trip;
+    this.tripTracker.restore(run.trip, run.visited);
     this.skills = run.skills;
     this.storyFlags = run.storyFlags;
     this.wagon.restore(run.wagonCondition);
@@ -602,14 +596,14 @@ export class MapScene extends Phaser.Scene {
       unlocks: [...this.state.unlocks],
       upgrades: [...this.state.upgrades],
       completed: [...this.completed],
-      visited: [...this.visited],
+      visited: this.tripTracker.visitedIds(),
       regionId: this.region.id,
       fogByRegion: fog.fogByRegion,
       fogDimsByRegion: fog.fogDimsByRegion,
       activeContractId: this.activeContract?.id ?? null,
       contractStatus: this.progress?.status ?? null,
-      distanceTiles: this.trip.distanceTiles,
-      deliveries: this.trip.deliveries,
+      distanceTiles: this.tripTracker.distanceTiles(),
+      deliveries: this.tripTracker.deliveries(),
       wagonCondition: this.wagon.condition(),
       achievements: [...this.milestones.achievementIds()],
       skills: { ...this.skills },
@@ -658,11 +652,10 @@ export class MapScene extends Phaser.Scene {
       placeCourier: (x, y) => {
         this.courier.setVelocity(0, 0);
         this.courier.sprite.setPosition(x, y);
-        this.prevX = x;
-        this.prevY = y;
+        this.tripTracker.syncTo(x, y);
       },
       getGameState: () => this.state,
-      getTrip: () => this.trip,
+      getTrip: () => this.tripTracker.log(),
       deliveredInRegion: () => this.deliveredInRegion(),
       getWagonCondition: () => this.wagon.condition(),
       getWagonWearTotal: () => this.wagon.wearTotal(),
@@ -894,13 +887,8 @@ export class MapScene extends Phaser.Scene {
    * that is not happening (#383).
    */
   private trackDistance(wearRate: number): number {
-    const dx = this.courier.sprite.x - this.prevX;
-    const dy = this.courier.sprite.y - this.prevY;
-    this.prevX = this.courier.sprite.x;
-    this.prevY = this.courier.sprite.y;
-    const tiles = Math.hypot(dx, dy) / TILE_SIZE;
+    const tiles = this.tripTracker.advance(this.courier.sprite.x, this.courier.sprite.y);
     if (tiles > 0) {
-      this.trip = addDistance(this.trip, tiles);
       // Skip only the condition-mutation when wear is disabled for the e2e arc;
       // trip distance and tilesSinceAccept still track so every other system
       // (via-ford bonus, objective progress) behaves exactly as in real play.
@@ -1016,8 +1004,8 @@ export class MapScene extends Phaser.Scene {
     const homeTile = home?.tile ?? this.region.spawn;
     const center = this.tileCenter(homeTile.x, homeTile.y);
     this.courier.sprite.setPosition(center.x, center.y);
-    this.prevX = center.x;
-    this.prevY = center.y;
+    // A tow is not a drive, so it books no distance and earns no experience.
+    this.tripTracker.syncTo(center.x, center.y);
     this.hud.showToast('A passing carter tows you home. Pay to repair before you set out again.');
     this.refreshWallet();
     // The tow has already moved the wagon home; the shake reads as the breakdown
@@ -1179,16 +1167,12 @@ export class MapScene extends Phaser.Scene {
 
   /** Courier experience, derived from cumulative play stats (not stored). */
   private courierXp(): number {
-    return totalXp({
-      deliveries: this.trip.deliveries,
-      distanceTiles: this.trip.distanceTiles,
-      discoveries: this.visited.size,
-    });
+    return this.tripTracker.xp();
   }
 
   /** Courier level from current experience. */
   private courierLevel(): number {
-    return levelForXp(this.courierXp());
+    return this.tripTracker.level();
   }
 
   /** Connection status per settlement, derived from delivery history. */
@@ -1249,7 +1233,7 @@ export class MapScene extends Phaser.Scene {
     this.completed.add(contract.id);
     this.state.ledger = addCoins(this.state.ledger, reward.total);
     this.state.ledger = addReputation(this.state.ledger, settlementId, contract.reputation);
-    this.trip = recordDelivery(this.trip);
+    this.tripTracker.recordDelivery();
     this.activeContract = undefined;
     this.progress = undefined;
 
@@ -1398,7 +1382,7 @@ export class MapScene extends Phaser.Scene {
     return {
       completedContractIds: [...this.completed],
       flags: this.effectiveFlags(),
-      visitedIds: [...this.visited],
+      visitedIds: this.tripTracker.visitedIds(),
     };
   }
 
@@ -1737,7 +1721,7 @@ export class MapScene extends Phaser.Scene {
             status: status[s.id] ?? 'silent',
             reconnectedNote: reconnectedNoteFor(s.id),
           })),
-          visitedIds: [...this.visited],
+          visitedIds: this.tripTracker.visitedIds(),
           delivered: this.deliveredInRegion(),
           totalContracts: this.contractsInPlayCount(),
           reputationTier: tierFor(totalReputation(this.state.ledger)).name,
@@ -1745,7 +1729,7 @@ export class MapScene extends Phaser.Scene {
           activeObjective: this.journalObjective(),
         },
         title: this.milestones.title(),
-        distanceText: formatDistance(this.trip.distanceTiles),
+        distanceText: formatDistance(this.tripTracker.distanceTiles()),
         mission: { missions: MISSIONS, state: this.missionState(), regionId: this.region.id },
         threads: {
           regions: Object.values(REGIONS).map((r) => ({ name: r.name, contracts: r.contracts })),
@@ -1775,9 +1759,9 @@ export class MapScene extends Phaser.Scene {
     return {
       coins: this.state.ledger.coins,
       totalReputation: totalReputation(this.state.ledger),
-      deliveries: this.trip.deliveries,
-      distanceTiles: this.trip.distanceTiles,
-      placesFound: this.visited.size,
+      deliveries: this.tripTracker.deliveries(),
+      distanceTiles: this.tripTracker.distanceTiles(),
+      placesFound: this.tripTracker.placesFound(),
       totalPlaces: totalSettlementCount(),
       upgradesOwned: this.state.upgrades.size,
       totalUpgrades: UPGRADES_GREYBRIDGE.length,
@@ -1855,10 +1839,9 @@ export class MapScene extends Phaser.Scene {
   private checkArrival(): void {
     const tile = this.courierTile();
     const settlement = settlementAtTileIn(this.region, tile.x, tile.y);
-    if (settlement === undefined || this.visited.has(settlement.id)) {
+    if (settlement === undefined || !this.tripTracker.visit(settlement.id)) {
       return;
     }
-    this.visited.add(settlement.id);
     this.logEvent(`${settlement.name}. ${settlement.note}`);
     this.audio.settlementFound();
     this.milestones.refreshAchievements(true);
