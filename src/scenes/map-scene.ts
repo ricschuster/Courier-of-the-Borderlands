@@ -143,6 +143,7 @@ import {
 } from '../systems/driving-audio';
 import {
   getRegion,
+  gatewayBlockedBy,
   arrivalTile,
   resumeTile,
   settlementAtTileIn,
@@ -558,7 +559,7 @@ export class MapScene extends Phaser.Scene {
     // Attach the test hook only when explicitly requested via `?e2e`.
     exposeE2EApi(this.e2eHost());
 
-    const homeName = this.region.settlements[this.region.home]?.name ?? this.region.home;
+    const homeName = this.homeName();
     // First-ever boot: introduce the premise and the goal. A cold player has no
     // other cue for what a courier does or where to go. Shown once ever (the flag
     // lives outside the save, so a new game does not repeat it); returning players
@@ -1604,6 +1605,11 @@ export class MapScene extends Phaser.Scene {
     this.save();
   }
 
+  /** Display name of this region's home settlement, where the shop is. */
+  private homeName(): string {
+    return this.region.settlements[this.region.home]?.name ?? this.region.home;
+  }
+
   /** Gateway at the given tile, if the courier is standing on one. */
   private gatewayAtTile(tile: { x: number; y: number }): RegionGateway | undefined {
     return this.region.gateways.find((g) => g.tile.x === tile.x && g.tile.y === tile.y);
@@ -1625,6 +1631,20 @@ export class MapScene extends Phaser.Scene {
     }
     if (this.activeContract !== undefined) {
       this.hud.showToast('Deliver your cargo before leaving the region.');
+      return;
+    }
+    // The road out can require a fitted upgrade (#362). Named, with its price,
+    // so the refusal tells the player exactly what to go and buy rather than
+    // reading as a dead end.
+    const missing = gatewayBlockedBy(gateway, this.state.upgrades);
+    if (missing !== null) {
+      const upgrade = UPGRADES_GREYBRIDGE.find((u) => u.id === missing);
+      this.hud.showToast(
+        upgrade === undefined
+          ? 'The road out is too rough for this wagon.'
+          : `The road out is too rough for this wagon. Fit the ${upgrade.name} (${upgrade.cost}c) at the ${this.homeName()} shop first.`,
+      );
+      this.audio.panelRefused();
       return;
     }
     this.save();

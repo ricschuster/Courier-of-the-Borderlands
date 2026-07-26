@@ -45,7 +45,13 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     cargo: "the magistrate's writ",
     pickupId: 'greywater',
     destinationId: 'northcairn',
-    reward: 45,
+    // Raised from 45 with #362's gate: this is the region's lowest-paying route,
+    // and the roads out now need the 50c Reinforced Wheels fitted. At 45 a
+    // courier down to nothing with only this contract left would finish it still
+    // 5c short of the gate, with no work remaining and no way on. Every
+    // Greybridge delivery now covers the gate on its own, which is what the
+    // region-system invariant test pins.
+    reward: 50,
     reputation: 3,
     minReputation: 5,
     note: "The magistrate's writ must reach the hill clans at Northcairn before the moor fog closes the passes. Ride the northern road.",

@@ -338,6 +338,40 @@ export async function driveToTile(
  * guard, not a travel-sink test, and under CI load a leg can drain the wagon to
  * limp speed mid-drive and read as a stall; the sink is unit tested separately.
  */
+/**
+ * Seed a fresh save with wagon upgrades already fitted, before the game boots.
+ *
+ * Exists for #362: the roads out of Greybridge require the Reinforced Wheels,
+ * so a spec whose subject is something else (travel geometry, say) would
+ * otherwise have to play out a delivery and a shop visit just to reach its
+ * actual test. Specs that are about the gate itself should not use this.
+ *
+ * Must be called before `bootE2E`, since it runs as an init script.
+ */
+export async function seedUpgrades(page: Page, upgrades: readonly string[]): Promise<void> {
+  await page.addInitScript((fitted: readonly string[]) => {
+    localStorage.setItem(
+      'courier-of-the-borderlands/save',
+      JSON.stringify({
+        version: 1,
+        coins: 100,
+        reputation: {},
+        unlocks: [],
+        upgrades: fitted,
+        completed: [],
+        visited: [],
+        regionId: 'greybridge',
+        fogByRegion: {},
+        activeContractId: null,
+        contractStatus: null,
+        distanceTiles: 0,
+        deliveries: 0,
+        achievements: [],
+      }),
+    );
+  }, upgrades);
+}
+
 export async function bootE2E(
   page: Page,
   options: { turbo?: boolean; noWear?: boolean } = {},
