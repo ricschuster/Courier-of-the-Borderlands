@@ -380,6 +380,14 @@ test('a delivery that meets its bonus objective sounds brighter', async ({ page 
   // the same frame is seeded away: top standing tier, every settlement visited,
   // every achievement already held. What is left is the delivery itself, and the
   // point of this test is that it is the brighter one.
+  //
+  // The bonus's slack is only 3 tiles, and a road encounter opening its modal
+  // mid-drive spends more than that on its own, which turns "missed the bonus"
+  // (correct, once an encounter fires) into a false read on this cue-only spec
+  // (#393). Both Greybridge encounters (greybridge-stranded, greybridge-rockfall
+  // in src/data/encounters.ts) are seeded resolved via their no-reward outcome
+  // flag, so the drive has one uncontrolled variable fewer, matching how this
+  // spec already seeds away every other collider.
   await page.addInitScript(() => {
     localStorage.setItem(
       'courier-of-the-borderlands/save',
@@ -405,12 +413,16 @@ test('a delivery that meets its bonus objective sounds brighter', async ({ page 
           'long-hauler',
           'borderland-courier',
         ],
-        storyFlags: [],
+        storyFlags: ['enc_stranded_passed', 'enc_rockfall_picked'],
       }),
     );
   });
 
-  await bootE2E(page, { turbo: true, noWear: true });
+  // No turbo on this one: the bonus's 3-tile slack leaves little room for the
+  // cornering overshoot that a doubled per-frame step adds under load (#393).
+  // The route is short, so running it at real wheel speed costs a few seconds,
+  // not the drive's correctness.
+  await bootE2E(page, { noWear: true });
   const held = new Set<Arrow>();
   const start = (await readTick(page, 0, 0)).state;
 
