@@ -142,6 +142,7 @@ import {
   FLAG_BLOCKADE_BROKEN,
 } from '../data/dialogue-content';
 import { DialogueController, type DialogueHost } from './dialogue-controller';
+import { PanelInputController, type PanelInputHost } from './panel-input-controller';
 import {
   activeObjective,
   stepRequirementCount,
@@ -314,6 +315,9 @@ export class MapScene extends Phaser.Scene {
   // dialogue state machine. Constructed fresh each create(), so a scene restart
   // starts with no conversation open.
   private dialogue!: DialogueController;
+  // Panel and overlay input: the keys that open, close, page, and dismiss a
+  // surface (#392). Constructed fresh each create(), like the dialogue subsystem.
+  private panelInput!: PanelInputController;
   // Per-contract bonus tracking (reset when a contract is accepted).
   private tilesSinceAccept = 0;
   // Monotonic update-frame counter for the e2e API. A plain field, so it keeps
@@ -487,6 +491,42 @@ export class MapScene extends Phaser.Scene {
       getNumberKeys: () => this.numberKeys,
     };
     this.dialogue = new DialogueController(host);
+    const panelHost: PanelInputHost = {
+      getHud: () => this.hud,
+      getAudio: () => this.audio,
+      getKeys: () => ({
+        mute: this.muteKey,
+        buy: this.buyKey,
+        map: this.mapKey,
+        journal: this.journalKey,
+        legend: this.legendKey,
+        skill: this.skillKey,
+        escape: this.escapeKey,
+        dismiss: this.dismissKey,
+        pageUp: this.pageUpKey,
+        pageDown: this.pageDownKey,
+      }),
+      atHome: () => this.atSettlement(this.region.home),
+      clearPanelNotice: () => {
+        this.panelNotice = null;
+      },
+      redrawMinimap: () => this.redrawMinimap(),
+      refreshJournal: () => this.refreshJournal(),
+      refreshSkillPanel: () => this.refreshSkillPanel(),
+      refreshUpgradeMenu: () => this.refreshUpgradeMenu(),
+      isCapstoneDismissed: () => this.capstoneDismissed,
+      dismissCapstone: () => {
+        this.capstoneDismissed = true;
+        this.hud.setCapstone(null);
+      },
+      isSummaryDismissable: () =>
+        !this.summaryDismissedRegions.has(this.region.id) && this.regionCleared(),
+      dismissSummary: () => {
+        this.summaryDismissedRegions.add(this.region.id);
+        this.hud.setSummary(null);
+      },
+    };
+    this.panelInput = new PanelInputController(panelHost);
     this.refreshWallet();
     this.refreshObjective();
     this.refreshFordStatus();
@@ -706,7 +746,7 @@ export class MapScene extends Phaser.Scene {
     this.audio.flushFrame();
     // Before every modal early-return below: a player who wants the room quiet
     // should not have to close a panel or finish a conversation first (#226).
-    this.handleMuteInput();
+    this.panelInput.handleMute();
     // A conversation is modal: freeze the wagon and take only dialogue input so
     // number keys pick choices instead of accepting contracts or spending points.
     if (this.hud.isDialogueVisible()) {
@@ -733,11 +773,11 @@ export class MapScene extends Phaser.Scene {
       this.audio.settleBed();
       this.handleSkillInput();
       this.handleUpgradeInput();
-      this.handleUpgradeToggle();
-      this.handleToggles();
+      this.panelInput.handleUpgradeToggle();
+      this.panelInput.handleToggles();
       // After the toggles, so a panel opened this frame is the one that pages.
-      this.handleScrollInput();
-      this.handleOverlayEscape();
+      this.panelInput.handleScroll();
+      this.panelInput.handleOverlayEscape();
       // Last, so a panel closed by the input above hands the line straight back
       // to the world hint on this same frame rather than a frame late.
       this.refreshModalHint();
@@ -846,13 +886,13 @@ export class MapScene extends Phaser.Scene {
     this.handleSkillInput();
     this.handleUpgradeInput();
     this.handleBoardInput();
-    this.handleUpgradeToggle();
+    this.panelInput.handleUpgradeToggle();
     this.handleRepairInput();
     this.handleResetInput();
-    this.handleDismissInput();
-    this.handleOverlayEscape();
-    this.handleCapstoneInput();
-    this.handleSummaryInput();
+    this.panelInput.handleDismiss();
+    this.panelInput.handleOverlayEscape();
+    this.panelInput.handleCapstone();
+    this.panelInput.handleSummary();
     this.handleTravelInput();
     this.dialogue.handleTalk();
     this.dialogue.handleEncounters();
@@ -862,9 +902,9 @@ export class MapScene extends Phaser.Scene {
     if (this.storyFlags.size !== this.encounterMarkerFlagCount) {
       this.refreshEncounterMarkers();
     }
-    this.handleToggles();
+    this.panelInput.handleToggles();
     // After the toggles, so a panel opened this frame is the one that pages.
-    this.handleScrollInput();
+    this.panelInput.handleScroll();
     this.refreshBoard();
     // Detect the blockade breaking, which happens through a dialogue choice
     // rather than a delivery, so it is checked each frame once dialogue closes.
@@ -1081,14 +1121,6 @@ export class MapScene extends Phaser.Scene {
    * is that nothing can be heard, and unmuting would otherwise be indistinguishable
    * from a game with no sound assets.
    */
-  private handleMuteInput(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.muteKey)) {
-      return;
-    }
-    const muted = this.audio.toggleMuted();
-    this.hud.showToast(muted ? 'Sound off. Press V for sound.' : 'Sound on. Press V to mute.');
-  }
-
   /** Repair the wagon here, spending coins. Reports the outcome to the player. */
   private repairAt(placeName: string): void {
     const max = this.wagonMax();
@@ -1549,31 +1581,6 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
-  /**
-   * B toggles the wagon upgrade menu at home (D3, #161). The old single-key "buy
-   * the cheapest" hid the choice and what each upgrade did; now B opens a
-   * selectable menu and the actual purchase happens by number key in
-   * handleUpgradeInput. Opening is gated to the home shop; closing works anywhere
-   * so a menu left open when travel restarts the scene is not sticky.
-   */
-  private handleUpgradeToggle(): void {
-    if (!Phaser.Input.Keyboard.JustDown(this.buyKey)) {
-      return;
-    }
-    if (!this.hud.isUpgradeMenuVisible() && !this.atSettlement(this.region.home)) {
-      return;
-    }
-    if (this.hud.toggleUpgrades()) {
-      this.hud.closeOverlaysExcept('upgrades');
-      // A fresh visit starts clean rather than on the complaint from last time.
-      this.panelNotice = null;
-      this.refreshUpgradeMenu();
-      this.audio.panelOpened();
-    } else {
-      this.audio.panelClosed();
-    }
-  }
-
   /** Buy an upgrade by number key while the upgrade menu is open. */
   private handleUpgradeInput(): void {
     if (!this.hud.isUpgradeMenuVisible()) {
@@ -1637,93 +1644,6 @@ export class MapScene extends Phaser.Scene {
     );
   }
 
-  private handleToggles(): void {
-    // Each toggle is written as a nested if rather than an && so that closing is
-    // reachable too: the old form ran the toggle inside the condition and only
-    // had a branch for "opened", which left the close half of the pair with
-    // nowhere to fire from (#385).
-    if (Phaser.Input.Keyboard.JustDown(this.mapKey)) {
-      if (this.hud.toggleMinimap()) {
-        this.redrawMinimap();
-        this.audio.panelOpened();
-      } else {
-        this.audio.panelClosed();
-      }
-    }
-    // Opening a blocking overlay closes the others, so only one is up at a time.
-    if (Phaser.Input.Keyboard.JustDown(this.journalKey)) {
-      if (this.hud.toggleJournal()) {
-        this.hud.closeOverlaysExcept('journal');
-        this.refreshJournal();
-        this.audio.panelOpened();
-      } else {
-        this.audio.panelClosed();
-      }
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
-      if (this.hud.toggleLegend()) {
-        this.hud.closeOverlaysExcept('legend');
-        this.audio.panelOpened();
-      } else {
-        this.audio.panelClosed();
-      }
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.skillKey)) {
-      if (this.hud.toggleSkills()) {
-        this.hud.closeOverlaysExcept('skills');
-        // A fresh visit starts clean rather than on the complaint from last time.
-        this.panelNotice = null;
-        this.refreshSkillPanel();
-        this.audio.panelOpened();
-      } else {
-        this.audio.panelClosed();
-      }
-    }
-  }
-
-  /**
-   * Close an open blocking overlay (journal, skills, codex, upgrade menu) with
-   * Esc, so every panel closes the way the dialogue's "Esc to step away" already
-   * teaches, not just with its own toggle key (#319). Runs before the capstone
-   * and summary handlers and consumes the key only when a panel was open, so a
-   * later Esc still falls through to those end-of-region panels.
-   */
-  private handleOverlayEscape(): void {
-    if (this.hud.isBlockingOverlayOpen() && Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
-      this.hud.closeBlockingOverlays();
-      this.audio.panelClosed();
-    }
-  }
-
-  /** Dismiss the end-of-arc capstone panel with Esc. Takes precedence over the summary. */
-  private handleCapstoneInput(): void {
-    if (
-      !this.capstoneDismissed &&
-      this.hud.isCapstoneVisible() &&
-      Phaser.Input.Keyboard.JustDown(this.escapeKey)
-    ) {
-      this.capstoneDismissed = true;
-      this.hud.setCapstone(null);
-    }
-  }
-
-  /** Dismiss the region-cleared summary panel with Esc so it stops blocking play. */
-  private handleSummaryInput(): void {
-    // Do not also dismiss the summary on the same Esc that closed the capstone;
-    // the capstone already suppresses the summary while it is up.
-    if (this.hud.isCapstoneVisible()) {
-      return;
-    }
-    if (
-      !this.summaryDismissedRegions.has(this.region.id) &&
-      this.regionCleared() &&
-      Phaser.Input.Keyboard.JustDown(this.escapeKey)
-    ) {
-      this.summaryDismissedRegions.add(this.region.id);
-      this.hud.setSummary(null);
-    }
-  }
-
   private handleResetInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.newGameKey)) {
       clearSave();
@@ -1736,35 +1656,6 @@ export class MapScene extends Phaser.Scene {
       // title screen (#150). BootScene sends real players to the picker and, under
       // the e2e hook, straight back into a fresh map.
       this.scene.start('BootScene');
-    }
-  }
-
-  /**
-   * Page the open journal, skills, or upgrade overlay with PgUp/PgDn, the keyboard
-   * equivalent of the mouse wheel (#274). The arrow keys cannot serve here because
-   * movement consumes them.
-   */
-  private handleScrollInput(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.pageDownKey)) {
-      this.hud.handleScrollPage(1);
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.pageUpKey)) {
-      this.hud.handleScrollPage(-1);
-    }
-  }
-
-  /**
-   * Advance the toast queue when the player presses the dismiss key (Space).
-   * One press clears one message and reveals the next, so a message queued
-   * behind another is never dismissed unread (#327).
-   */
-  private handleDismissInput(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.dismissKey) && this.hud.hasToasts()) {
-      this.hud.dismissToast();
-      // Muting is confirmed by a toast, and dismissing that toast makes no sound
-      // for the obvious reason: the game is muted. Unmuting's toast does tick,
-      // which is not a contradiction, it is the sound coming back on.
-      this.audio.toastDismissed();
     }
   }
 
