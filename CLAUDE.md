@@ -244,6 +244,20 @@ them, not after.
    reproduced the false progression-flatline signal that opened the roads-gate
    thread. If you add a script, give it an npm entry and a README line, or expect
    it to be wrong the next time someone trusts it.
+6. **A browser run can report on code that is not yours.** Playwright used to
+   reuse whatever was already serving the preview port, skipping the build
+   entirely, so a second checkout (a worktree, a parallel agent, a stale
+   `vite preview`) silently supplied the build under test. This is trap 1 pointing
+   the wrong way: the neutralized guard *passes*, which reads as "this code is
+   dead" rather than "this result is wrong". Fixed in #397 (never reuse a server
+   the run did not start; `PREVIEW_PORT` overrides). If a browser result ever
+   surprises you, confirm nothing else is on the port before believing it.
+7. **A test written against invented data ids is vacuous and usually silent.**
+   Unit tests for the driving cues (#401) first used terrain ids that do not
+   exist; `getTerrain` returned undefined and the assertions tested nothing. One
+   happened to fail, which is the only reason it was caught. Assert against real
+   ids from `src/data/`, and treat a new test that passes first time on
+   hand-written fixture ids as unproven until you have seen it fail.
 
 ## Git and commit expectations
 
