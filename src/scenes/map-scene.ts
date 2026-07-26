@@ -50,7 +50,7 @@ import { buildSnapshot, restoreRunState } from '../systems/run-state';
 import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
-import { computeWorldState, reconnectedFlag, type SettlementStatus } from '../systems/world-state';
+import { computeWorldState, type SettlementStatus } from '../systems/world-state';
 import { reconnectedNoteFor } from '../data/reconnection-notes';
 import { ENCOUNTERS } from '../data/encounters';
 import { activeEncounters } from '../systems/encounter-system';
@@ -67,11 +67,15 @@ import {
   rankOf,
   skillSpeedBonus,
   skillRevealBonus,
-  derivedSkillFlags,
   type SkillRanks,
 } from '../systems/skills';
 import { findPath, type PathResult } from '../systems/pathfinding';
 import { perkFor } from '../systems/reputation-perks';
+import {
+  baseContractCounts,
+  effectiveFlags,
+  isRegionCleared,
+} from '../systems/effective-flags';
 import { deliveryNote } from '../systems/delivery-text';
 import { getCargoCategory } from '../systems/cargo-types';
 import { formatDistance } from '../systems/trip-log';
@@ -86,7 +90,6 @@ import {
 } from '../systems/dialogue';
 import {
   dialogueForSettlement,
-  FLAG_HOME_RECONNECTED,
   FLAG_BLOCKADE_BROKEN,
 } from '../data/dialogue-content';
 import { DialogueController, type DialogueHost } from './dialogue-controller';
@@ -140,7 +143,6 @@ import {
   isDelivered,
   availableContracts,
   contractsInPlay,
-  baseContracts,
   type Contract,
   type ContractProgress,
 } from '../systems/contract-system';
@@ -1293,11 +1295,7 @@ export class MapScene extends Phaser.Scene {
 
   /** Delivered and total counts for the region's standing (ungated) routes. */
   private baseContractCounts(): { delivered: number; total: number } {
-    const base = baseContracts(this.region.contracts);
-    return {
-      delivered: base.filter((c) => this.completed.has(c.id)).length,
-      total: base.length,
-    };
+    return baseContractCounts(this.region.contracts, this.completed);
   }
 
   /**
@@ -1308,8 +1306,7 @@ export class MapScene extends Phaser.Scene {
    * opened new work.
    */
   private regionCleared(): boolean {
-    const { delivered, total } = this.baseContractCounts();
-    return total > 0 && delivered === total;
+    return isRegionCleared(this.region.contracts, this.completed);
   }
 
   private atSettlement(id: string): boolean {
@@ -1358,18 +1355,12 @@ export class MapScene extends Phaser.Scene {
    * (the home region being reconnected) without persisting a redundant flag.
    */
   private effectiveFlags(): StoryFlags {
-    const derived: string[] = [...derivedSkillFlags(this.skills)];
-    if (this.regionCleared()) {
-      derived.push(FLAG_HOME_RECONNECTED);
-    }
-    // A reconnected place emits its own flag, so second-wave work can open on the
-    // board the moment a region starts reviving (M5.4, Session 5).
-    for (const [id, status] of Object.entries(this.worldState())) {
-      if (status === 'reconnected') {
-        derived.push(reconnectedFlag(id));
-      }
-    }
-    return setFlags(this.storyFlags, derived);
+    return effectiveFlags({
+      storyFlags: this.storyFlags,
+      skills: this.skills,
+      regionCleared: this.regionCleared(),
+      worldState: this.worldState(),
+    });
   }
 
   /** Facts mission progress is derived from: completed contracts, flags, visits. */
