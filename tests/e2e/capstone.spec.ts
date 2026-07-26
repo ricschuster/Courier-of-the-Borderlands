@@ -86,3 +86,60 @@ test('breaking the blockade at Greywater shows the end-of-arc capstone', async (
 
   expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
 });
+
+// The finale shows once, the session it is earned. A save that already carries
+// the blockade-broken flag has seen it, so booting into that save must not put
+// the panel back up. This is what blockadeBrokenAtLoad exists for, and until the
+// #392 milestone extraction it had no coverage: neutralizing the load-time
+// restore left all 1120 unit tests and the whole browser suite green, because
+// every existing capstone assertion breaks the blockade live in-session rather
+// than loading a save that already had.
+test('booting a save that already broke the blockade does not re-show the capstone', async ({
+  page,
+}) => {
+  const errors = collectErrors(page);
+
+  await page.addInitScript((completed) => {
+    localStorage.setItem(
+      'courier-of-the-borderlands/save',
+      JSON.stringify({
+        version: 1,
+        coins: 400,
+        reputation: { greywater: 8, eastwatch: 6 },
+        unlocks: [],
+        upgrades: [],
+        completed,
+        visited: [...completed, 'greywater', 'eastwatch', 'southmill', 'ironhollow', 'northcairn', 'mirewatch'],
+        regionId: 'greybridge',
+        fogByRegion: {},
+        activeContractId: null,
+        contractStatus: null,
+        distanceTiles: 120,
+        deliveries: completed.length,
+        achievements: [],
+        // The arc is already finished in this save.
+        storyFlags: [
+          'met_postmaster',
+          'greybridge_reveal',
+          'saltreach_method',
+          'fenmarch_cost',
+          'blockade_broken',
+        ],
+      }),
+    );
+  }, GREYBRIDGE_STANDING);
+
+  await bootE2E(page);
+  const state = (await readTick(page, 0, 0)).state;
+
+  expect(state.storyFlags).toContain('blockade_broken');
+  expect(state.capstoneVisible, 'a finished save should not re-show the finale').toBe(false);
+  // The capstone is also the loudest cue in the game, so a re-show would be
+  // heard as well as seen.
+  expect(
+    state.audio.played,
+    `booting a finished save should be silent: ${state.audio.played.join(', ')}`,
+  ).not.toContain('capstone');
+
+  expect(errors, `runtime errors:\n${errors.join('\n')}`).toEqual([]);
+});
