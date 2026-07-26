@@ -59,6 +59,12 @@ describe('the cue table', () => {
       'dialogue-open',
       'dialogue-advance',
       'dialogue-choice',
+      'panel-open',
+      'panel-close',
+      'panel-refused',
+      'toast-dismiss',
+      'new-game',
+      'save-failed',
     ];
     for (const id of ids) {
       expect(cueFor(id).id).toBe(id);
@@ -104,6 +110,29 @@ describe('the tiers', () => {
     // fatiguing, and it fires on every panel and every press.
     for (const cue of allCues().filter((c) => c.tier === 'tick')) {
       expect(cue.gain, `${cue.id} pokes through the bed`).toBeLessThanOrEqual(BED_MAX_GAIN);
+    }
+  });
+
+  it('keeps every UI sound in the quietest tier bar the two that are not', () => {
+    // The whole point of the UI batch (#385) is that it lives at the bottom of
+    // the mix: these are the highest-frequency sounds in the game, so they are
+    // the ones most able to become fatiguing. The exceptions are deliberate and
+    // both rare: throwing a run away, and being told the run is not being saved.
+    for (const id of ['panel-open', 'panel-close', 'panel-refused', 'toast-dismiss'] as const) {
+      expect(cueFor(id).tier, `${id} should be a tick`).toBe('tick');
+    }
+    expect(cueFor('new-game').tier).toBe('cue');
+    expect(cueFor('save-failed').tier).toBe('event');
+  });
+
+  it('keeps a refused press at the top of the tick band', () => {
+    // A refusal is one of the few ticks that is news rather than confirmation: it
+    // says a key did nothing, which a player cannot otherwise tell from being
+    // ignored. It shares the top of the band with the other two (a blocked ford,
+    // an impassable edge), which are news for the same reason.
+    const refused = cueFor('panel-refused');
+    for (const cue of allCues().filter((c) => c.tier === 'tick' && c.id !== 'panel-refused')) {
+      expect(cue.gain, `${cue.id} rivals a refusal`).toBeLessThanOrEqual(refused.gain);
     }
   });
 

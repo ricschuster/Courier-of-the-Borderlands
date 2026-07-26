@@ -49,6 +49,10 @@ test('a refused upgrade shows in the menu and queues no toast', async ({ page })
   const after = (await readTick(page, 0, 0)).state;
   expect(after.panelNotice).toContain('Not enough coins');
   expect(after.panelNotice).toContain('short');
+  // The refusal makes a sound too (#385). The strongest item in that batch: this
+  // is feedback about a key the player just pressed, and without it a refused
+  // press is indistinguishable from an ignored one.
+  expect(after.audio.lastPlayed).toBe('panel-refused');
   // The queue is untouched: seven refusals cost zero dismiss presses.
   expect(after.toasts.pending).toBe(before.toasts.pending);
   expect(after.toasts.current).toBe(before.toasts.current);
@@ -79,6 +83,7 @@ test('a refused skill rank shows in the panel and queues no toast', async ({ pag
 
   const after = (await readTick(page, 0, 0)).state;
   expect(after.panelNotice).toContain('No skill point banked');
+  expect(after.audio.lastPlayed).toBe('panel-refused');
   expect(after.toasts.pending).toBe(before.toasts.pending);
   expect(after.toasts.current).toBe(before.toasts.current);
   expect(errors).toEqual([]);

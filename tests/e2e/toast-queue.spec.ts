@@ -41,8 +41,14 @@ test('a burst of toasts shares one panel and one dismiss press', async ({ page }
   // otherwise), so the queue starts busy.
   const boot = (await readTick(page, 0, 0)).state;
   expect(boot.toasts.current).not.toBeNull();
+  await page.evaluate(() => globalThis.__courier?.clearAudioCue());
   await tapKey(page, 'Space');
   await waitForFrames(page, 2);
+  // Clearing a message ticks (#385). Cheap now that a burst shares one press
+  // (#378), which is what made it affordable at all. Asserted here because this
+  // is the spec that owns the dismiss key, and with no sound device a call site
+  // that never fires looks exactly like one that does (trap 1).
+  expect((await readTick(page, 0, 0)).state.audio.lastPlayed).toBe('toast-dismiss');
 
   // Arriving at home raises its settlement note and the upgrade-shop teach in the
   // same frame. That is the burst this change exists for: both are on screen at

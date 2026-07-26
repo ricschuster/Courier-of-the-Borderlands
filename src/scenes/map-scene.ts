@@ -634,6 +634,7 @@ export class MapScene extends Phaser.Scene {
           ? 'This browser is not saving progress (private mode or storage is disabled).'
           : 'Could not save progress (browser storage may be full).';
       this.hud.showToast(`${reason} Your run will be lost when you close the tab.`);
+      this.audio.saveFailed();
     }
   }
 
@@ -1452,6 +1453,7 @@ export class MapScene extends Phaser.Scene {
           availablePoints(level, this.skills) > 0
             ? `${skill.name} is already at its highest rank.`
             : 'No skill point banked yet. Deliver, explore, and cover ground to earn one.';
+        this.audio.panelRefused();
         this.refreshSkillPanel();
       }
     }
@@ -1496,6 +1498,7 @@ export class MapScene extends Phaser.Scene {
         if (!canAccept(contract, reputation)) {
           this.armedContractId = null;
           this.boardNotice = `${contract.title} needs ${contract.minReputation} reputation.`;
+          this.audio.panelRefused();
           this.refreshBoard();
           return;
         }
@@ -1565,6 +1568,9 @@ export class MapScene extends Phaser.Scene {
       // A fresh visit starts clean rather than on the complaint from last time.
       this.panelNotice = null;
       this.refreshUpgradeMenu();
+      this.audio.panelOpened();
+    } else {
+      this.audio.panelClosed();
     }
   }
 
@@ -1593,6 +1599,7 @@ export class MapScene extends Phaser.Scene {
   private buyUpgrade(upgrade: Upgrade): void {
     if (this.state.upgrades.has(upgrade.id)) {
       this.panelNotice = `${upgrade.name} is already fitted.`;
+      this.audio.panelRefused();
       this.refreshUpgradeMenu();
       return;
     }
@@ -1600,6 +1607,7 @@ export class MapScene extends Phaser.Scene {
     if (!result.ok) {
       const short = upgrade.cost - this.state.ledger.coins;
       this.panelNotice = `Not enough coins for ${upgrade.name}: ${upgrade.cost}c, ${short} short.`;
+      this.audio.panelRefused();
       this.refreshUpgradeMenu();
       return;
     }
@@ -1630,22 +1638,46 @@ export class MapScene extends Phaser.Scene {
   }
 
   private handleToggles(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.mapKey) && this.hud.toggleMinimap()) {
-      this.redrawMinimap();
+    // Each toggle is written as a nested if rather than an && so that closing is
+    // reachable too: the old form ran the toggle inside the condition and only
+    // had a branch for "opened", which left the close half of the pair with
+    // nowhere to fire from (#385).
+    if (Phaser.Input.Keyboard.JustDown(this.mapKey)) {
+      if (this.hud.toggleMinimap()) {
+        this.redrawMinimap();
+        this.audio.panelOpened();
+      } else {
+        this.audio.panelClosed();
+      }
     }
     // Opening a blocking overlay closes the others, so only one is up at a time.
-    if (Phaser.Input.Keyboard.JustDown(this.journalKey) && this.hud.toggleJournal()) {
-      this.hud.closeOverlaysExcept('journal');
-      this.refreshJournal();
+    if (Phaser.Input.Keyboard.JustDown(this.journalKey)) {
+      if (this.hud.toggleJournal()) {
+        this.hud.closeOverlaysExcept('journal');
+        this.refreshJournal();
+        this.audio.panelOpened();
+      } else {
+        this.audio.panelClosed();
+      }
     }
-    if (Phaser.Input.Keyboard.JustDown(this.legendKey) && this.hud.toggleLegend()) {
-      this.hud.closeOverlaysExcept('legend');
+    if (Phaser.Input.Keyboard.JustDown(this.legendKey)) {
+      if (this.hud.toggleLegend()) {
+        this.hud.closeOverlaysExcept('legend');
+        this.audio.panelOpened();
+      } else {
+        this.audio.panelClosed();
+      }
     }
-    if (Phaser.Input.Keyboard.JustDown(this.skillKey) && this.hud.toggleSkills()) {
-      this.hud.closeOverlaysExcept('skills');
-      // A fresh visit starts clean rather than on the complaint from last time.
-      this.panelNotice = null;
-      this.refreshSkillPanel();
+    if (Phaser.Input.Keyboard.JustDown(this.skillKey)) {
+      if (this.hud.toggleSkills()) {
+        this.hud.closeOverlaysExcept('skills');
+        // A fresh visit starts clean rather than on the complaint from last time.
+        this.panelNotice = null;
+        this.refreshSkillPanel();
+        this.audio.panelOpened();
+      } else {
+        this.audio.panelClosed();
+      }
     }
   }
 
@@ -1659,6 +1691,7 @@ export class MapScene extends Phaser.Scene {
   private handleOverlayEscape(): void {
     if (this.hud.isBlockingOverlayOpen() && Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
       this.hud.closeBlockingOverlays();
+      this.audio.panelClosed();
     }
   }
 
@@ -1694,6 +1727,11 @@ export class MapScene extends Phaser.Scene {
   private handleResetInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.newGameKey)) {
       clearSave();
+      // Flushed here rather than on the next frame, for the same reason region
+      // travel is: the scene is about to be replaced and there is no next frame
+      // for this Audio to flush on.
+      this.audio.newGame();
+      this.audio.flushFrame();
       // Route back through BootScene so a new game re-picks difficulty at the
       // title screen (#150). BootScene sends real players to the picker and, under
       // the e2e hook, straight back into a fresh map.
@@ -1723,6 +1761,10 @@ export class MapScene extends Phaser.Scene {
   private handleDismissInput(): void {
     if (Phaser.Input.Keyboard.JustDown(this.dismissKey) && this.hud.hasToasts()) {
       this.hud.dismissToast();
+      // Muting is confirmed by a toast, and dismissing that toast makes no sound
+      // for the obvious reason: the game is muted. Unmuting's toast does tick,
+      // which is not a contradiction, it is the sound coming back on.
+      this.audio.toastDismissed();
     }
   }
 

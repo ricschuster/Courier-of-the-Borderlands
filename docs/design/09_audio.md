@@ -2,10 +2,10 @@
 
 Status: designed 2026-07-25. Phase 1 (eight synthesized cues) built the same day
 in #382. The owner then asked for far more of them, which is "The breadth pass"
-below. #383 built the rolling bed, the master gain, the tier discipline and the
-one-cue-per-frame rule; #384 and #385 add the remaining cues on top of it. Real
-samples and music are still owed; see "Placeholder first, samples second".
-Tracks #226.
+below, built the same day across #383 (the rolling bed, the master gain, the tier
+discipline and the one-cue-per-frame rule), #384 (world, story and progression)
+and #385 (UI). Thirty-seven cues plus the bed. Real samples and music are still
+owed; see "Placeholder first, samples second". Tracks #226.
 
 Scope of this note: sound effects. Music is deliberately out of the first slice
 (see "Music, and why it is not here yet").
@@ -288,14 +288,52 @@ both cues are requested in one frame and the encounter wins. Arriving at a new
 town to collect cargo requests both, and the first arrival wins, which is right:
 the bigger news is the place, and the player hears one thing rather than two.
 
+## The UI, as built (#385)
+
+Six more, and the batch is defined by living at the bottom of the mix: these are
+the highest-frequency sounds in the game, so they are the ones most able to
+become fatiguing.
+
+| moment | tier | notes |
+|---|---|---|
+| Panel open / close | tick | One pair between the journal, skills, codex, minimap and upgrade shop, not ten distinct sounds. Inverted, so the pair reads as a direction. |
+| Panel refused | tick | The loudest tick, shared with the other two that are news rather than confirmation (a blocked ford, an impassable edge). |
+| Toast dismissed | tick | Affordable only because a burst now shares one press (#378). |
+| New game | cue | Deliberate and rare: the one UI press that throws a run away. |
+| Save failed | event | The only non-tick, and the only one the player must not miss. |
+
+**The refusal is the point of this batch.** Only the repair refusal made a sound
+before; the skills panel, the upgrade menu and the board all render their
+refusals as panel notices (#356, #359, #376) and were silent, so a refused press
+was indistinguishable from an ignored one. That is feedback about a key the player
+just pressed, which is the strongest case for a sound anywhere in the game.
+
+Adding the close half of the panel pair required restructuring `handleToggles`:
+each toggle was written as `JustDown(key) && this.hud.toggleX()`, which only has a
+branch for "opened", so closing had nowhere to fire from.
+
+**Deliberately still silent.** Scroll fires per wheel notch and per PgUp/PgDn
+repeat, so it would buzz rather than tick; making it work needs a rate limit and a
+gain under the bed, which is a bigger change than it looks. Fog reveal fires
+constantly while driving and the bed already carries the sense of motion. Both are
+decisions, not omissions.
+
+**The mute key stays silent, and resolves itself.** Muting is confirmed by a
+toast, and dismissing that toast makes no sound because the game is muted.
+Unmuting's toast does tick, which is not a contradiction: it is the sound coming
+back on.
+
 ### Measured, not assumed
 
 Rendered through a real `OfflineAudioContext`, the way #382 established:
 
-- Cue peaks land at 0.9x their table gain, within 2-6%. That confirms the master
-  gain is in the path rather than merely defined.
-- Audible spans run to about 70% of nominal duration, which is the exponential
-  decay dropping below the audibility floor and is the same figure #382 measured.
+- All 37 cues render without throwing, and every peak lands within 20% of 0.9x
+  its table gain (ratios of 0.88 to 1.00 against that target; the shortfall is
+  the attack and decay shape, not the graph). That confirms the master gain is in
+  the path rather than merely defined.
+- Audible spans run to 62-71% of nominal duration, which is the exponential decay
+  dropping below the audibility floor and is the same figure #382 measured. It is
+  correct, and it is what caught out #382's first harness.
 - The bed peaks at 0.021 (road) to 0.030 (limping) despite commanding up to 0.08,
   because bandpass-filtered noise carries far less peak energy than its envelope
   ceiling. **The commanded numbers are the ones the issue specified and the ones

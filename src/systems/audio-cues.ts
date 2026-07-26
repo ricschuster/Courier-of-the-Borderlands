@@ -52,7 +52,15 @@ export type AudioCueId =
   | 'capstone'
   | 'dialogue-open'
   | 'dialogue-advance'
-  | 'dialogue-choice';
+  | 'dialogue-choice'
+  // UI (#385). The highest-frequency sounds in the game, and therefore the ones
+  // most able to become fatiguing, which is why every one of them is a tick.
+  | 'panel-open'
+  | 'panel-close'
+  | 'panel-refused'
+  | 'toast-dismiss'
+  | 'new-game'
+  | 'save-failed';
 
 /**
  * How often a cue fires, which is the same thing as how loud it may be (#383).
@@ -501,7 +509,7 @@ export const AUDIO_CUES: Readonly<Record<AudioCueId, AudioCue>> = {
     attackMs: 8,
     gain: 0.05,
   },
-  // The next line. The quietest thing in the game, because a conversation is the
+  // The next line. Joint quietest in the game, because a conversation is the
   // densest run of presses in it.
   'dialogue-advance': {
     id: 'dialogue-advance',
@@ -510,6 +518,83 @@ export const AUDIO_CUES: Readonly<Record<AudioCueId, AudioCue>> = {
     startHz: 500,
     endHz: 500,
     durationMs: 50,
+    attackMs: 4,
+    gain: 0.04,
+  },
+
+  // --- UI (#385) ---
+
+  // Rare and genuinely important: the run will be lost when the tab closes. The
+  // only thing in this batch that is not a tick, and it falls like the other
+  // failures do.
+  'save-failed': {
+    id: 'save-failed',
+    tier: 'event',
+    wave: 'sawtooth',
+    startHz: 260,
+    endHz: 180,
+    durationMs: 260,
+    attackMs: 20,
+    gain: 0.2,
+  },
+  // Starting over. A reset is deliberate and rare, so it is a cue rather than a
+  // tick: this is the one UI press that throws a run away.
+  'new-game': {
+    id: 'new-game',
+    tier: 'cue',
+    wave: 'triangle',
+    startHz: 260,
+    endHz: 520,
+    durationMs: 260,
+    attackMs: 16,
+    gain: 0.12,
+  },
+  // A key the player pressed that did nothing. The loudest tick, because it is
+  // the only one that is news: without it a refused press is indistinguishable
+  // from an ignored one. The panel notice beside it says why (#356, #359).
+  'panel-refused': {
+    id: 'panel-refused',
+    tier: 'tick',
+    wave: 'square',
+    startHz: 240,
+    endHz: 200,
+    durationMs: 90,
+    attackMs: 5,
+    gain: 0.07,
+  },
+  // One open and one close between all five surfaces (journal, skills, codex,
+  // minimap, upgrade shop), not ten distinct sounds. The pair is inverted so it
+  // reads as a direction rather than as two unrelated blips.
+  'panel-open': {
+    id: 'panel-open',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 620,
+    endHz: 700,
+    durationMs: 60,
+    attackMs: 5,
+    gain: 0.05,
+  },
+  'panel-close': {
+    id: 'panel-close',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 700,
+    endHz: 620,
+    durationMs: 60,
+    attackMs: 5,
+    gain: 0.04,
+  },
+  // Clearing a message. Much cheaper than it used to be now that a burst of
+  // toasts shares one press (#378), so this is no longer a click per message on
+  // every arrival.
+  'toast-dismiss': {
+    id: 'toast-dismiss',
+    tier: 'tick',
+    wave: 'sine',
+    startHz: 440,
+    endHz: 440,
+    durationMs: 45,
     attackMs: 4,
     gain: 0.04,
   },

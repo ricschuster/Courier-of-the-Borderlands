@@ -155,6 +155,22 @@ describe('Audio', () => {
     }
   });
 
+  it('requests a cue for each UI moment', () => {
+    const audio = new Audio(true);
+    audio.panelOpened();
+    expect(audio.lastRequestedCue()).toBe('panel-open');
+    audio.panelClosed();
+    expect(audio.lastRequestedCue()).toBe('panel-close');
+    audio.panelRefused();
+    expect(audio.lastRequestedCue()).toBe('panel-refused');
+    audio.toastDismissed();
+    expect(audio.lastRequestedCue()).toBe('toast-dismiss');
+    audio.newGame();
+    expect(audio.lastRequestedCue()).toBe('new-game');
+    audio.saveFailed();
+    expect(audio.lastRequestedCue()).toBe('save-failed');
+  });
+
   it('has a method for every cue in the table', () => {
     // A cue in the table with no method is a cue with no possible caller, which
     // is trap 1's first shape sitting in plain sight. Fires every method and
