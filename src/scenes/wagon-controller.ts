@@ -34,11 +34,15 @@ export type RepairOutcome =
   | { readonly kind: 'refused'; readonly help: string }
   | { readonly kind: 'repaired'; readonly condition: number; readonly max: number; readonly coins: number; readonly full: boolean };
 
-/** What a rescue press did. A tow is the scene's to perform. */
+/**
+ * What a rescue press did. A tow is the scene's to perform.
+ *
+ * There is no refusal: the tow charges what the courier can pay (#432), so the
+ * only press that does nothing is one made while not stranded.
+ */
 export type RescueOutcome =
   | { readonly kind: 'not-stranded' }
-  | { readonly kind: 'refused'; readonly help: string }
-  | { readonly kind: 'towed'; readonly coins: number };
+  | { readonly kind: 'towed'; readonly coins: number; readonly paid: number };
 
 /**
  * Owns the wagon's condition, the difficulty profile that prices it, and the
@@ -194,11 +198,9 @@ export class WagonController {
     if (!isStranded(this.condition_)) {
       return { kind: 'not-stranded' };
     }
+    // Never refuses: the tow takes what the courier has (#432).
     const result = rescue(coins, this.tuning_);
-    if (!result.ok) {
-      return { kind: 'refused', help: this.helpText(false) };
-    }
-    return { kind: 'towed', coins: result.coins };
+    return { kind: 'towed', coins: result.coins, paid: result.paid };
   }
 
   /** Guidance for a press that cannot pay for itself (#317). */

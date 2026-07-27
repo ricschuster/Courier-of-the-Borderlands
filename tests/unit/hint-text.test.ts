@@ -122,11 +122,13 @@ describe('wagonHintText', () => {
     expect(away).not.toContain('R:');
   });
 
-  it('offers the rescue price when stranded in the open', () => {
+  it('quotes the tow as a ceiling when stranded in the open', () => {
     const text = wagonHintText({ ...HEALTHY, condition: 0 });
-    expect(text).toBe(`R: pay ${TUNING.rescueCost}c rescue (or limp to a town)`);
-    // The limp is the free exit, so the line has to name it next to the price.
-    expect(text).toContain('limp');
+    expect(text).toBe(`R: tow home, up to ${TUNING.rescueCost}c`);
+    // "up to", not a flat price (#432). A broke courier can always take the
+    // tow now, and a fixed figure would read as unaffordable to exactly them.
+    expect(text).toContain('up to');
+    expect(text).not.toContain('limp');
   });
 
   it('offers a repair, not a rescue, when stranded inside a town', () => {
