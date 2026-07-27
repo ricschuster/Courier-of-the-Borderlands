@@ -10,6 +10,46 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.9.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.8.0...courier-of-the-borderlands-v0.9.0) (2026-07-27)
+
+
+### Features
+
+* make the Wayfinder survey ring a margin on the walked fog ([#411](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/411)) ([d3e0e2d](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d3e0e2d2d8d035ab113361063042d12fcb12344c)), closes [#361](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/361)
+* measure whether the Wayfinder survey ring buys a better route ([#410](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/410)) ([22226c9](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/22226c98c82cd6175f39d16a6a0292978dafd9b2)), closes [#361](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/361)
+* require the Reinforced Wheels to leave Greybridge ([#407](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/407)) ([e5cacf4](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e5cacf400abc65a43158dabec89f997553240dc0)), closes [#362](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/362)
+* stop Demanding charging a repair premium on top of the wear ([#429](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/429)) ([83b0912](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/83b09129f4f723f1fe658874befc34bb73b2deee)), closes [#424](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/424)
+
+
+### Bug Fixes
+
+* never reuse a preview server the test run did not start ([#400](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/400)) ([43e9c83](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/43e9c837972b7f3b6ea2faeeeb8e0eeabc8fe406)), closes [#397](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/397)
+* stop the audio-moments bonus spec losing its budget to a road encounter ([#398](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/398)) ([5304209](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/530420924fe4d88a27bf95ac15b10a63da89df10))
+
+
+### Refactoring
+
+* dissolve the contract cluster's dependency cycle ([#418](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/418)) ([1ec24d0](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1ec24d08f10c5e81660f976a0e454017b45d7b41)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract panel and overlay input into a controller ([#394](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/394)) ([a6d4466](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a6d4466c5270a0dae34846417e3f0e90598fd464)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract spending into a controller ([#402](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/402)) ([68257e4](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/68257e4ea99c687cbd7e2544c5bbd4b93438ed2a)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract the contract board into a controller ([#399](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/399)) ([1fd5e54](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1fd5e54ec506f3425a45cbc9486f5b98cdacc427)), closes [#397](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/397)
+* extract the delivery note, and test it for the first time ([#417](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/417)) ([fddcc33](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/fddcc33ebbf8a86b13aa587fbe289fb3933f413f)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract the fog cluster into a controller ([#406](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/406)) ([cf293fc](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/cf293fc1710831310418e7892f449d09db258bb3))
+* extract the milestone surfaces into a controller ([#396](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/396)) ([969f941](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/969f9414b64b02870e3c63ec7c7027071290c011)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract the trip cluster into a pure tracker ([#413](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/413)) ([91593b4](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/91593b498aa5a3daddb8850d80971d18bab707f0)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* extract the wagon condition cluster into a controller ([#409](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/409)) ([b063d3b](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/b063d3b8e73bdb833bf93dd8c48e87c61b88d48a)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* give the save direction a pure home, and test the round-trip ([#415](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/415)) ([e6f4822](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/e6f4822f9219876ecbd847bc9ef7f2addcf077a6)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+* make the driving cue rules a pure system ([#401](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/401)) ([7d89376](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/7d89376376a2d355bbee7f3040ae8504c4d7cc77)), closes [#392](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/392)
+
+
+### Documentation
+
+* add 2026-07-26 handoff v40, closing out the session ([#404](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/404)) ([a06cc82](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/a06cc829a7daa582758fc9a46be0a822302033ad))
+* add 2026-07-26 handoff v41 ([#408](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/408)) ([6cb697d](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/6cb697d9731cc5e86eaca02d8fa53fb3498ffb22))
+* add 2026-07-26 handoff v42 ([#419](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/419)) ([144b49e](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/144b49e0f112e31ecd8c382809cee6cbd868dbf4))
+* record the first human playtest pass on 0.8.0 ([#405](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/405)) ([1b857f0](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/1b857f0651d51e3ce6765d4fbea8a50f68a8d5ab)), closes [#363](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/363)
+* record the MapScene decomposition rules as ADR 0009 ([#403](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/403)) ([207d215](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/207d215b43c414464ca1947b3116fd405b9d8258))
+
 ## [0.8.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.7.0...courier-of-the-borderlands-v0.8.0) (2026-07-26)
 
 
