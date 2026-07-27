@@ -335,11 +335,23 @@ describe('difficulty presets', () => {
     expect(WAGON_TUNING.standard).toBe(DEFAULT_WAGON_TUNING);
   });
 
-  it('demanding wears faster and costs more than standard', () => {
+  it('demanding wears faster and starts with a smaller tank than standard', () => {
     expect(wearPerTile(marsh, 0, 0, WAGON_TUNING.demanding)).toBeGreaterThan(
       wearPerTile(marsh, 0, 0, WAGON_TUNING.standard),
     );
-    expect(repairCost(0, 100, WAGON_TUNING.demanding)).toBeGreaterThan(
+    expect(WAGON_TUNING.demanding.startingMaxCondition).toBeLessThan(
+      WAGON_TUNING.standard.startingMaxCondition,
+    );
+  });
+
+  it('charges demanding the standard repair rate, so wear is the whole difficulty', () => {
+    // #424: wear, price and tank size all moved against the player at once and
+    // compounded to 2.34x coin drain, stranding a careful courier after two
+    // regions. The price premium came off; the fragility above stayed. This
+    // pins the intent, because a future tuning pass that quietly restores the
+    // premium would rebuild the same stack.
+    expect(WAGON_TUNING.demanding.costPerPercent).toBe(WAGON_TUNING.standard.costPerPercent);
+    expect(repairCost(0, 100, WAGON_TUNING.demanding)).toBe(
       repairCost(0, 100, WAGON_TUNING.standard),
     );
   });

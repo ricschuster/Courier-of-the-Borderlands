@@ -73,8 +73,8 @@ export const DEFAULT_WAGON_TUNING: WagonTuning = {
  * 'demanding' scale the two primary knobs (wear and repair price) down and up.
  * The player picks one on the title screen when starting a fresh game (#150),
  * which stores the chosen key and passes the matching profile into the scene.
- * The off-standard profiles are illustrative starting points, not yet balanced
- * by playtest.
+ * 'demanding' was eased once against a human playtest (#424); 'relaxed' is
+ * still an illustrative starting point that no playtest has touched.
  */
 export type Difficulty = 'relaxed' | 'standard' | 'demanding';
 
@@ -109,11 +109,20 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
     limpSpeed: 0.25,
   },
   standard: DEFAULT_WAGON_TUNING,
+  // Repair price deliberately matches standard. The preset originally stacked
+  // 1.67x wear on 1.4x price on a 36% smaller tank, and those compound: 2.34x
+  // coin drain per tile, with repairs falling due 2.6x as often, each one a
+  // detour costing its own travel and wear. A careful courier playing
+  // efficiently was stranded without coins after two of three regions
+  // (playtest 2026-07-26, #424).
+  //
+  // The premium came off and the fragility stayed. Demanding is still 1.67x
+  // wear on a 16-point tank, so the wagon breaks just as fast and needs the
+  // shop just as often; it no longer also charges more each time it gets there.
   demanding: {
     ...DEFAULT_WAGON_TUNING,
     wearBase: 0.1,
     wearCoef: 2.5,
-    costPerPercent: 7,
     startingMaxCondition: 16,
     limpSpeed: 0.1,
   },
