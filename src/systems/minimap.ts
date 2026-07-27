@@ -127,3 +127,72 @@ export function buildMinimap(input: MinimapInput): MinimapModel {
 
   return { width, height, cells };
 }
+
+/**
+ * How a surveyed-but-unwalked cell is drawn, kept here beside the model rather
+ * than as loose numbers in the renderer.
+ *
+ * #425: the ring shipped at 0.4 alpha with no other distinction, and a player who
+ * owned Wayfinder, saw the band, and had read the skill description still could
+ * not name it after a full arc. Over the near-black fog base that reads as
+ * "slightly less dark", not as "terrain I know about but have not driven".
+ *
+ * Two changes, because alpha alone cannot fix it. Raising the alpha makes the
+ * terrain colour legible, but on its own it just makes surveyed ground look like
+ * walked ground, trading one confusion for a worse one. So the band is also
+ * inset, leaving a dark gutter around every surveyed cell: walked ground is
+ * solid and continuous, surveyed ground is a field of separated tiles. That
+ * distinction survives at any colour, and it does not depend on the player
+ * comparing two brightnesses from memory.
+ */
+export const SURVEYED_ALPHA = 0.75;
+
+/** Gutter in pixels left around a surveyed cell, on top of the usual 1px grid gap. */
+export const SURVEYED_INSET = 1;
+
+/**
+ * Whether a survey ring of this radius would show any unwalked, on-map tile from
+ * this position: the moment the skill first has something to say.
+ *
+ * The trigger for the "name it once" teach (#425). It deliberately does NOT take
+ * a MinimapModel, because the minimap starts hidden (`map-hud.ts`) and its model
+ * is only built while it is open. The whole failure being fixed is a player who
+ * owned Wayfinder and never saw the band, so a teach that waited for the minimap
+ * to be open would reach mostly the people who did not need it.
+ *
+ * Scans only the ring's bounding box rather than the grid, so it stays cheap
+ * enough to call every frame with the minimap closed.
+ *
+ * The rule matches `surveyed` in buildMinimap: unwalked, in bounds, and inside
+ * the radius. In-bounds is what stands in for the model's `terrainColorAt`
+ * check, which returns null exactly off-map.
+ */
+export function surveyWouldShowUnwalked(input: {
+  readonly width: number;
+  readonly height: number;
+  readonly isRevealed: (x: number, y: number) => boolean;
+  readonly courier: { readonly x: number; readonly y: number };
+  readonly surveyRadius: number;
+}): boolean {
+  const { width, height, isRevealed, courier, surveyRadius } = input;
+  if (surveyRadius <= 0) {
+    return false;
+  }
+  const reach = Math.ceil(surveyRadius);
+  const top = Math.max(0, courier.y - reach);
+  const bottom = Math.min(height - 1, courier.y + reach);
+  const left = Math.max(0, courier.x - reach);
+  const right = Math.min(width - 1, courier.x + reach);
+
+  for (let y = top; y <= bottom; y++) {
+    for (let x = left; x <= right; x++) {
+      if (isRevealed(x, y)) {
+        continue;
+      }
+      if (Math.hypot(x - courier.x, y - courier.y) <= surveyRadius) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

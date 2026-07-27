@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildMinimap,
+  surveyWouldShowUnwalked,
   wayfinderSurveyRadius,
   SURVEY_TILES_PER_WAYFINDER_RANK,
 } from '../../src/systems/minimap';
@@ -208,6 +209,64 @@ describe('buildMinimap', () => {
       expect(cell!.surveyed).toBe(false);
       expect(cell!.color).toBeNull();
     });
+  });
+
+});
+
+// #425: the trigger for the one-time teach that names the ring. It takes raw
+// state rather than a MinimapModel on purpose, because the minimap is hidden by
+// default and its model only exists while it is open; the player who needs the
+// teach is the one who never opened it.
+describe('surveyWouldShowUnwalked', () => {
+  const base = {
+    width: 4,
+    height: 3,
+    courier: { x: 0, y: 0 },
+    // Matches makeInput: x in [1,2], y in [0,1] is walked.
+    isRevealed: (x: number, y: number) => x >= 1 && x <= 2 && y >= 0 && y <= 1,
+  };
+
+  it('is false with no Wayfinder, since there is no ring', () => {
+    expect(surveyWouldShowUnwalked({ ...base, surveyRadius: 0 })).toBe(false);
+  });
+
+  it('is true once the ring reaches unwalked ground', () => {
+    expect(surveyWouldShowUnwalked({ ...base, surveyRadius: 2 })).toBe(true);
+  });
+
+  // The case that separates "owns the skill" from "the ring is showing
+  // something". Naming the band here would point at an empty map.
+  it('is false when everything inside the ring has already been walked', () => {
+    expect(
+      surveyWouldShowUnwalked({ ...base, surveyRadius: 2, isRevealed: () => true }),
+    ).toBe(false);
+  });
+
+  // Off-map tiles are not surveyable, matching buildMinimap, where
+  // terrainColorAt returns null exactly out of bounds. A 1x1 world with a fully
+  // walked single tile has nothing to survey however large the ring is.
+  it('does not count tiles off the edge of the map', () => {
+    expect(
+      surveyWouldShowUnwalked({
+        width: 1,
+        height: 1,
+        courier: { x: 0, y: 0 },
+        isRevealed: () => true,
+        surveyRadius: 10,
+      }),
+    ).toBe(false);
+  });
+
+  // The predicate has to agree with what the minimap actually draws, or the
+  // teach names a band that is not there (or stays silent while one is).
+  it('agrees with buildMinimap over the same state', () => {
+    for (const surveyRadius of [0, 1, 2, 5]) {
+      const model = buildMinimap(makeInput({ ...base, surveyRadius }));
+      expect(
+        surveyWouldShowUnwalked({ ...base, surveyRadius }),
+        `radius ${surveyRadius}`,
+      ).toBe(model.cells.some((c) => c.surveyed));
+    }
   });
 });
 

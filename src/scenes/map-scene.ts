@@ -47,7 +47,7 @@ import {
 import { wearPerTile, roughness, difficultyLabel } from '../systems/wagon-condition';
 import { modalHintText, worldHintText } from '../systems/hint-text';
 import { buildSnapshot, restoreRunState } from '../systems/run-state';
-import { buildMinimap, wayfinderSurveyRadius } from '../systems/minimap';
+import { buildMinimap, surveyWouldShowUnwalked, wayfinderSurveyRadius } from '../systems/minimap';
 import { terrainsPresent } from '../systems/legend';
 import { buildJournalText } from '../systems/journal-text';
 import { computeWorldState, type SettlementStatus } from '../systems/world-state';
@@ -160,6 +160,7 @@ const DEPTH_COURIER = 6;
 const ONBOARD_SKILLS = 'onboarding:skills';
 const ONBOARD_UPGRADES = 'onboarding:upgrades';
 const ONBOARD_OFFROAD = 'onboarding:offroad';
+const ONBOARD_SURVEY = 'onboarding:survey';
 
 interface WasdKeys {
   readonly W: Phaser.Input.Keyboard.Key;
@@ -1151,6 +1152,49 @@ export class MapScene extends Phaser.Scene {
     for (const discovery of newlyFound(DISCOVERIES, this.region.id, revealed)) {
       this.announceDiscovery(discovery);
     }
+    this.teachSurveyRing();
+  }
+
+  /**
+   * Name the survey ring once, the first time it has something to show (#425).
+   *
+   * The ring was live, correct, and reaching past the fog for a whole arc, and a
+   * player who owned Wayfinder still could not name it. Two reasons, and this
+   * addresses the second: the band was drawn too quietly (fixed in the renderer,
+   * see SURVEYED_ALPHA), and nothing ever told the player it existed. The
+   * minimap is hidden by default, so the ring can go a whole run unseen.
+   *
+   * It hangs off the fog refresh rather than the minimap redraw so it fires with
+   * the minimap closed, which is the state the player who needs it is in. The
+   * message therefore has to say where to look, not just what it is.
+   */
+  private teachSurveyRing(): void {
+    if (hasFlag(this.storyFlags, ONBOARD_SURVEY)) {
+      return;
+    }
+    const surveyRadius = wayfinderSurveyRadius(
+      rankOf(this.skills, 'wayfinder'),
+      this.revealRadiusNow(),
+    );
+    // Owning Wayfinder is not the same as the ring having anything to survey: a
+    // band lying entirely on already-walked ground shows nothing, and naming it
+    // then would point at an empty map.
+    const showing = surveyWouldShowUnwalked({
+      width: this.map.width,
+      height: this.map.height,
+      isRevealed: (x, y) => this.fogs.isRevealed(x, y),
+      courier: this.courierTile(),
+      surveyRadius,
+    });
+    if (!showing) {
+      return;
+    }
+    this.teachOnce(
+      ONBOARD_SURVEY,
+      'Your Wayfinder eye reads the land ahead. Open the map (M): the inset ' +
+        'tiles are surveyed ground, terrain you know of but have not driven. ' +
+        'Use it to choose a route before you commit the wagon to it.',
+    );
   }
 
   /** True once the courier can read the coded cipher lines (Cipher skill owned). */

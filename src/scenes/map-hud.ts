@@ -17,6 +17,7 @@ import { buildLegend, type LegendTerrain } from '../systems/legend';
 import type { ModalSurface } from '../systems/hint-text';
 import type { SettlementStatus } from '../systems/world-state';
 import type { MinimapModel } from '../systems/minimap';
+import { SURVEYED_ALPHA, SURVEYED_INSET } from '../systems/minimap';
 import type { PathResult } from '../systems/pathfinding';
 import {
   EMPTY_TOAST_QUEUE,
@@ -835,11 +836,14 @@ export class MapHud {
       const fill = c.revealed ? (c.color ?? 0x6fa24a) : 0x1c1c1c;
       g.fillStyle(fill, 1);
       g.fillRect(px, py, cell - 1, cell - 1);
-      // Surveyed-but-unwalked tiles (a Wayfinder survey) show their terrain as a
-      // dim tint over the fog base, so they read as "known, not yet visited".
+      // Surveyed-but-unwalked tiles (a Wayfinder survey) show their terrain over
+      // the fog base, inset so a dark gutter separates them. Walked ground reads
+      // as solid and continuous; surveyed ground reads as a field of separated
+      // tiles. See SURVEYED_ALPHA / SURVEYED_INSET for why both are needed (#425).
       if (!c.revealed && c.surveyed && c.color !== null) {
-        g.fillStyle(c.color, 0.4);
-        g.fillRect(px, py, cell - 1, cell - 1);
+        const inset = SURVEYED_INSET;
+        g.fillStyle(c.color, SURVEYED_ALPHA);
+        g.fillRect(px + inset, py + inset, cell - 1 - inset * 2, cell - 1 - inset * 2);
       }
       if (c.marker === 'settlement') {
         g.fillStyle(STATUS_COLOR[c.settlementStatus ?? 'silent'], 1);
