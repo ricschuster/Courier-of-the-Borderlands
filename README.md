@@ -22,11 +22,11 @@ https://ricschuster.github.io/Courier-of-the-Borderlands/telemetry.html
 
 ## Status
 
-Playable and deployed, with grey-box art. Three regions are open (Greybridge, Saltreach, and Fenmarch), connected by travel. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
+Playable and deployed, with grey-box art. Four regions are open (Greybridge, Saltreach, Fenmarch, and Ashmoor), connected by travel into a ring. The core courier loop works end to end: accept contracts, plan routes across terrain, reveal the map, deliver, and grow.
 
 Features so far:
 
-- Three regions with travel between them, each with its own map, settlements, and contracts
+- Four regions with travel between them, each with its own map, settlements, and contracts, linked in a ring so a destination can be reached more than one way
 - Smooth top-down driving with terrain-based speed (roads and bridges fast, forest slow, water and mountains impassable)
 - Fog-of-war exploration, tracked per region
 - Reputation-gated contract board, with optional bonus objectives for extra pay
@@ -404,6 +404,7 @@ Placeholder art is acceptable. A broken core loop is not.
 - M5 RPG and narrative layer: courier skills, settlement dialogue, story threads, missions, road encounters, and a wagon-condition travel sink. Done.
 - M6 Art and polish: Phase 2 art skin (Kenney CC0 tiles behind a data layer) and a UI pass. Done.
 - M7 Tooling and delivery: gameplay telemetry, release versioning, and per-PR preview deploys. Done.
+- M8 Open world: a fourth region (Ashmoor) that closes the world into a ring rather than a hub with dead-end spokes, so a destination can be reached more than one way. In progress; see `docs/design/10_open_world_expansion.md`.
 - Later: more regions and content, audio and juice, and player-facing documentation.
 
 ## Contributing
