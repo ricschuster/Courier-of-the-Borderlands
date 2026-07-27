@@ -123,7 +123,6 @@ import {
 } from '../systems/driving-audio';
 import {
   getRegion,
-  gatewayBlockedBy,
   arrivalTile,
   resumeTile,
   settlementAtTileIn,
@@ -1534,20 +1533,9 @@ export class MapScene extends Phaser.Scene {
       this.hud.showToast('Deliver your cargo before leaving the region.');
       return;
     }
-    // The road out can require a fitted upgrade (#362). Named, with its price,
-    // so the refusal tells the player exactly what to go and buy rather than
-    // reading as a dead end.
-    const missing = gatewayBlockedBy(gateway, this.state.upgrades);
-    if (missing !== null) {
-      const upgrade = UPGRADES_GREYBRIDGE.find((u) => u.id === missing);
-      this.hud.showToast(
-        upgrade === undefined
-          ? 'The road out is too rough for this wagon.'
-          : `The road out is too rough for this wagon. Fit the ${upgrade.name} (${upgrade.cost}c) at the ${this.homeName()} shop first.`,
-      );
-      this.audio.panelRefused();
-      return;
-    }
+    // No capability check here, deliberately. A gateway is access, and access is
+    // never gated (docs/design/10_open_world_expansion.md): the map is open and
+    // the wilds do the gating. Shortcuts still gate, through terrain unlocks.
     this.save();
     // Requested and flushed in the same breath, which no other call site does.
     // The restart replaces this Audio, so the frame that would normally play the

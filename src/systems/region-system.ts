@@ -27,21 +27,21 @@ export interface TileCoord {
   readonly y: number;
 }
 
-/** A tile that travels to another region, and the region id it leads to. */
+/**
+ * A tile that travels to another region, and the region id it leads to.
+ *
+ * Deliberately carries no capability requirement. Gateways used to support a
+ * `requiresUpgrade` field (#362), and removing it is the point rather than an
+ * omission: a gateway is *access*, and the rule is to gate shortcuts and never
+ * access (docs/design/10_open_world_expansion.md). The map stays open and the
+ * wilds do the gating, so the absence of the field is what enforces it.
+ *
+ * Shortcuts are still gated, through `terrain.unlockId` and `isPassableWith`,
+ * which is a different mechanism because it leaves a longer way round.
+ */
 export interface RegionGateway {
   readonly tile: TileCoord;
   readonly to: string;
-  /**
-   * Upgrade id the courier must have fitted before this gateway will let them
-   * through (#362). Gates the *road out*, not the road back: a return gateway
-   * must never carry one, or a courier who travelled out and then spent down
-   * could be stranded in a spoke region.
-   *
-   * The requirement is a fitted upgrade rather than a coin price on purpose. An
-   * upgrade cannot be spent away once bought, so the gate can only ever be
-   * ahead of the player once.
-   */
-  readonly requiresUpgrade?: string;
 }
 
 export interface Region {
@@ -82,15 +82,15 @@ export const GREYBRIDGE_REGION: Region = {
   // on the main road to Saltreach (east map edge), and south down the east-bank
   // road to Fenmarch, whose gateway sits at the southern road terminus below
   // Southmill (not on the town, so its waymarker reads as a way out of the region).
-  // Both roads out require the Reinforced Wheels fitted (#362). The arc used to
-  // be completable having bought nothing at all, which contradicted the pillar
-  // that gold and upgrades must matter from the early game rather than be
-  // optional convenience. This makes exactly one purchase mandatory, at the
-  // cheapest upgrade in the game, before the frontier opens up. The return
-  // gateways in both spokes are deliberately ungated.
+  // Both roads out are open from the first minute (#434). They briefly required
+  // the Reinforced Wheels (#362), which was an exit lock: an invisible wall on
+  // the only way to anywhere else. The wheels are a pure speed upgrade with no
+  // roughness relief, so it was a toll rather than a capability the road needed.
+  // The world should be enterable everywhere and survivable only in places, so
+  // the wilds do this job. See docs/design/10_open_world_expansion.md.
   gateways: [
-    { tile: { x: 29, y: 8 }, to: 'saltreach', requiresUpgrade: 'reinforced-wheels' },
-    { tile: { x: 21, y: 18 }, to: 'fenmarch', requiresUpgrade: 'reinforced-wheels' },
+    { tile: { x: 29, y: 8 }, to: 'saltreach' },
+    { tile: { x: 21, y: 18 }, to: 'fenmarch' },
   ],
   signpost: { x: 13, y: 14 },
   fordUnlockId: 'ford-crossing-greybridge',
@@ -149,23 +149,6 @@ export const DEFAULT_REGION_ID = 'greybridge';
 /** Region for an id, falling back to the default region for unknown ids. */
 export function getRegion(id: string): Region {
   return REGIONS[id] ?? GREYBRIDGE_REGION;
-}
-
-/**
- * The upgrade a gateway is waiting on, or null when the courier may pass (#362).
- *
- * Returns the id rather than a boolean so the caller can name the missing part
- * in its refusal. A gateway with no requirement always returns null, which is
- * every return gateway and every gateway in a spoke region.
- */
-export function gatewayBlockedBy(
-  gateway: RegionGateway,
-  fittedUpgrades: ReadonlySet<string>,
-): string | null {
-  if (gateway.requiresUpgrade === undefined) {
-    return null;
-  }
-  return fittedUpgrades.has(gateway.requiresUpgrade) ? null : gateway.requiresUpgrade;
 }
 
 /**

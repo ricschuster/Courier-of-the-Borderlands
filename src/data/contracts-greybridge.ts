@@ -45,12 +45,11 @@ export const CONTRACTS_GREYBRIDGE: readonly Contract[] = [
     cargo: "the magistrate's writ",
     pickupId: 'greywater',
     destinationId: 'northcairn',
-    // Raised from 45 with #362's gate: this is the region's lowest-paying route,
-    // and the roads out now need the 50c Reinforced Wheels fitted. At 45 a
-    // courier down to nothing with only this contract left would finish it still
-    // 5c short of the gate, with no work remaining and no way on. Every
-    // Greybridge delivery now covers the gate on its own, which is what the
-    // region-system invariant test pins.
+    // Raised from 45 for #362's exit gate, so that the region's lowest-paying
+    // route still covered the 50c the roads out demanded. #434 removed that
+    // gate, so the reason is gone, but the value stays: 50c is now simply what
+    // this route pays, and dropping it back to 45 would be an unrelated economy
+    // change to make on its own evidence rather than as a side effect.
     reward: 50,
     reputation: 3,
     minReputation: 5,
