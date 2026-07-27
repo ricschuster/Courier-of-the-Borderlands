@@ -13,9 +13,11 @@ Each region is a typed data record with these fields:
 - `gateways` -- a list of gateway tiles, each pairing a tile at the map edge with the region id it leads to. A region may link to more than one neighbor.
 - `fordUnlockId` (optional) -- the unlock id for this region's own ford crossing, if it has one. Each ford is a separate unlock, so opening one region's ford does not open another's.
 
-Greybridge, the hub, is 30 columns by 22 rows (about three viewport-screens); the two spokes are Saltreach at 30x20 and Fenmarch at 32x22. The spokes were originally 20x11 (a third the hub's area), which inverted the difficulty curve because their shorter routes wore the wagon less; #151 enlarged them and spread the settlements off-road across rough terrain so later routes carry real travel-sink pressure. Maps larger than the viewport scroll with a following camera (see the camera notes in the handoffs). All regions reuse the shared terrain types defined in `src/data/terrain-types.ts`. Region-specific content (settlements, contracts, map layout) lives in separate data modules under `src/data/`.
+Greybridge is 30 columns by 22 rows (about three viewport-screens); Saltreach is 30x20, Fenmarch 32x22, and Ashmoor 38x28 (1064 tiles, about 1.5x Fenmarch, the size step `docs/design/10_open_world_expansion.md` asks of a new region). The spokes were originally 20x11 (a third the hub's area), which inverted the difficulty curve because their shorter routes wore the wagon less; #151 enlarged them and spread the settlements off-road across rough terrain so later routes carry real travel-sink pressure. Maps larger than the viewport scroll with a following camera (see the camera notes in the handoffs). All regions reuse the shared terrain types defined in `src/data/terrain-types.ts`. Region-specific content (settlements, contracts, map layout) lives in separate data modules under `src/data/`.
 
 Greybridge holds six settlements (Greywater the home town, Northcairn on the northern moor, Eastwatch across the river, Southmill and Mirewatch in the south-east, and Ironhollow in the south-west mountains) and five contracts. A river splits the region top to bottom, crossed by an open northern bridge, the main central bridge, and a southern ford that starts locked and opens as an unlockable shortcut toward the south-east. Terrain variety was added for the larger map: `hills` (northern moor, slower than plains) and `marsh` (south-east reeds, the slowest passable terrain).
+
+Ashmoor holds five settlements (Emberfast the home town on the old Ember Road, Cairnwatch and Windfall in the northern hills and burnt wood, Blackreed in the southern bog, and Sallowmere behind the tarn) and six contracts, none of them arc-gated. A water channel splits it down column 16, crossed by two open bridges and a locked ford between them; the ford is a shortcut between the region's halves, never the only way across, so both entrances stay open to a bare wagon. Its `wearMultiplier` is 2.0: arriving costs about 9% of a level-1 tank from either direction, but the southern bog will strand an unprepared courier, which is the Gothic gradient the expansion note asks for.
 
 ## Region registry
 
@@ -25,9 +27,21 @@ Regions are stored in a registry keyed by id:
 greybridge -> GreybridgeRegion
 saltreach  -> SaltreachRegion
 fenmarch   -> FenmarchRegion
+ashmoor    -> AshmoorRegion
 ```
 
-The regions form a hub and spokes. Greybridge is the hub and has two gateways, one to each spoke (Saltreach and Fenmarch). Each spoke has a single gateway leading back to Greybridge. The spokes do not connect directly to each other, so all travel passes through the hub.
+The regions form a **ring**, and used to form a hub with two dead-end spokes:
+
+```
+  Greybridge ------- Saltreach
+      |                  |
+      |                  |
+   Fenmarch --------- Ashmoor
+```
+
+Every region has exactly two gateways. Greybridge still reaches both of the old spokes, but Saltreach and Fenmarch each now carry a second gateway onward to Ashmoor, which links back to both. The point of the shape is that Ashmoor can be reached two ways (via either spoke), so route choice is a real decision rather than a single forced path; the two approaches differ in terrain and cost, not just length. Ashmoor's own two gateways sit 19 rows apart and open into different halves of its map, so which neighbour you arrive from changes the journey inside it as well. See `docs/design/10_open_world_expansion.md`.
+
+Ashmoor is optional content: it sits outside the Blockade mission spine in `src/data/missions.ts`, and nothing in the core arc requires entering it.
 
 The registry is a plain typed object. The active scene reads the current region id from global game state, looks it up in the registry, and uses the result to build the map, spawn the courier, and load settlements and contracts. Adding a new region means adding a data module and registering it; no scene logic changes are required.
 

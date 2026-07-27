@@ -116,6 +116,7 @@ const SURFACE_BY_TERRAIN: Readonly<Record<string, BedSurface>> = {
   'ford-greybridge': 'wet',
   'ford-saltreach': 'wet',
   'ford-fenmarch': 'wet',
+  'ford-ashmoor': 'wet',
 };
 
 /** The surface a terrain id rolls like. */

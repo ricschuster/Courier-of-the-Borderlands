@@ -31,6 +31,8 @@ export const FLAG_SEAFOG_GUIDED = 'enc_seafog_guided';
 export const FLAG_SEAFOG_ALONE = 'enc_seafog_alone';
 export const FLAG_FENGUIDE_HELPED = 'enc_fenguide_helped';
 export const FLAG_FENGUIDE_PASSED = 'enc_fenguide_passed';
+export const FLAG_EMBERWATCH_TENDED = 'enc_emberwatch_tended';
+export const FLAG_EMBERWATCH_LEFT = 'enc_emberwatch_left';
 
 // Greybridge: a courier broken down on the main road east of Greywater. Helping
 // costs nothing but a moment and earns goodwill and a first rumour of the birds;
@@ -186,6 +188,39 @@ const FENMARCH_FENGUIDE: Dialogue = {
   },
 };
 
+// Ashmoor: a roadside beacon on the old Ember Road, west of the north bridge,
+// gone out. Relighting it costs oil and buys nothing measurable; leaving it is
+// free and entirely reasonable. Sits on the row-4 road at (8,4), on the way in
+// from the Saltreach gateway.
+const ASHMOOR_EMBERWATCH: Dialogue = {
+  start: 'scene',
+  nodes: {
+    scene: {
+      id: 'scene',
+      speaker: 'Beacon-Keeper',
+      text: 'You will be the first wheels on this road in a month, so you may as well hear it from me: the fire is out. My oil ran out before my orders did, and Emberfast has none to send until someone carries it. There is nothing behind this beacon to guard any more. I light it anyway.',
+      choices: [
+        {
+          label: 'Give her oil from your own lamp.',
+          set: [FLAG_EMBERWATCH_TENDED],
+          next: 'tended',
+        },
+        {
+          label: 'You are carrying, not tending. Drive on.',
+          set: [FLAG_EMBERWATCH_LEFT],
+          next: END_DIALOGUE,
+        },
+      ],
+    },
+    tended: {
+      id: 'tended',
+      speaker: 'Beacon-Keeper',
+      text: 'That will hold three nights. You will think it wasted, and you may be right. But a lit road is a road somebody still owns, and the moment every fire on this moor goes dark is the moment the maps stop drawing it. Emberfast will hear you did this. They keep their own count up there.',
+      choices: [{ label: 'Keep it burning.', next: END_DIALOGUE }],
+    },
+  },
+};
+
 /** Every authored road encounter, in fire-check order within a region. */
 export const ENCOUNTERS: readonly RoadEncounter[] = [
   {
@@ -252,6 +287,17 @@ export const ENCOUNTERS: readonly RoadEncounter[] = [
     outcomes: {
       [FLAG_FENGUIDE_HELPED]: { coins: 5, reputationId: 'mossgate', reputation: 2 },
       [FLAG_FENGUIDE_PASSED]: {},
+    },
+  },
+  {
+    id: 'ashmoor-emberwatch',
+    title: 'The Beacon That Went Out',
+    regionId: 'ashmoor',
+    tile: { x: 8, y: 4 },
+    dialogue: ASHMOOR_EMBERWATCH,
+    outcomes: {
+      [FLAG_EMBERWATCH_TENDED]: { coins: -4, reputationId: 'emberfast', reputation: 2 },
+      [FLAG_EMBERWATCH_LEFT]: {},
     },
   },
 ];
