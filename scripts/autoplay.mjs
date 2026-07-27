@@ -382,6 +382,25 @@ try {
     if (s.atHome) {
       // Kit out at home first: spend coins and skill points, then re-read.
       if (await spendAtHome(page)) continue;
+      // Open the ford before working the board, not after (#444).
+      //
+      // It used to be the last thing done in a region, after the final delivery
+      // had already cleared it. The game shows the cleared panel the moment the
+      // last standing contract lands, and this driver screenshots that panel on
+      // the same frame, so every summary-<region>.png reported "Ford shortcut:
+      // not opened" on runs that opened the ford seconds later. The screenshots
+      // are this tool's headline artifact, so its most visible output was
+      // describing a run that did not happen.
+      //
+      // Doing it first fixes the artifact by making the claim true rather than
+      // by re-photographing it, and it is closer to how a person plays: the
+      // shortcut is worth having while there are still deliveries to run over
+      // it, which also means the region's routing actually exercises the ford.
+      if (s.signpost && !s.fordUnlocked) {
+        record(`driving to signpost to unlock ford in ${s.regionId}`);
+        await driveToTile(page, held, s.signpost.tileX, s.signpost.tileY);
+        continue;
+      }
       // Once the region's standing work is cleared, talk to the postmaster: this
       // is what sets the reveal flag (opening the hidden-road arc contract) and,
       // at Greywater with both spokes revealed, breaks the blockade. Key the talk
@@ -422,19 +441,13 @@ try {
           record(`  board slot ${slot} (${id}) ${outcome}; skipping it`);
         }
         if (accepted) continue;
-        // Nothing on this board can be taken. Fall through to the ford and
-        // gateway handling below so the region is finished and we move on,
-        // instead of coming straight back here next step.
+        // Nothing on this board can be taken. Fall through to the gateway
+        // handling below so the region is finished and we move on, instead of
+        // coming straight back here next step.
         record(`  no acceptable contract on the ${s.regionId} board`, {
           offered: s.availableContractIds,
           skipped: [...unacceptable],
         });
-      }
-      // Unlock the ford if this region has a signpost we haven't reached.
-      if (s.signpost && !s.fordUnlocked) {
-        record(`driving to signpost to unlock ford in ${s.regionId}`);
-        await driveToTile(page, held, s.signpost.tileX, s.signpost.tileY);
-        continue;
       }
       // Nothing left to do here: this region is done for now.
       doneRegions.add(s.regionId);
