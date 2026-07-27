@@ -994,11 +994,6 @@ export class MapScene extends Phaser.Scene {
     if (result.kind === 'not-stranded') {
       return;
     }
-    if (result.kind === 'refused') {
-      this.hud.showToast(result.help);
-      this.audio.repairRefused();
-      return;
-    }
     this.state.ledger = { ...this.state.ledger, coins: result.coins };
     const home = this.region.settlements[this.region.home];
     const homeTile = home?.tile ?? this.region.spawn;
@@ -1006,7 +1001,13 @@ export class MapScene extends Phaser.Scene {
     this.courier.sprite.setPosition(center.x, center.y);
     // A tow is not a drive, so it books no distance and earns no experience.
     this.tripTracker.syncTo(center.x, center.y);
-    this.hud.showToast('A passing carter tows you home. Pay to repair before you set out again.');
+    // Name the fare, because it is no longer fixed: the tow takes what the
+    // courier has, so a broke one still gets home (#432).
+    this.hud.showToast(
+      result.paid > 0
+        ? `A passing carter tows you home for ${result.paid}c. Pay to repair before you set out again.`
+        : 'A passing carter takes pity and tows you home. Pay to repair before you set out again.',
+    );
     this.refreshWallet();
     // The tow has already moved the wagon home; the shake reads as the breakdown
     // that put it there, which is the moment worth feeling.

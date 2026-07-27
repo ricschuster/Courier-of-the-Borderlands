@@ -326,20 +326,30 @@ export function lowConditionWarning(
 }
 
 export interface RescueResult {
-  readonly ok: boolean;
   readonly coins: number;
+  /** What the tow actually charged, which is capped by what the courier had. */
+  readonly paid: number;
 }
 
 /**
- * Pay to be returned to the last settlement while stranded. Charges the rescue
- * fee if affordable; does not itself repair the wagon (the player still pays to
- * repair on arrival), so it only buys back the slow limp, not the sink.
+ * Be returned to the last settlement while stranded, for whatever the courier
+ * can pay up to the full fee.
+ *
+ * Always available (#432). It used to refuse below `rescueCost`, which inverted
+ * the cost curve: the tow was unaffordable exactly when overreaching is most
+ * likely and most valuable, in the early game, and trivial later when nobody
+ * overreaches. A player who pushed too far paid for it with a long crawl, and
+ * learned not to push rather than to come back stronger. That is the opposite
+ * of the soft gate the world expansion depends on
+ * (docs/design/10_open_world_expansion.md).
+ *
+ * It still does not repair the wagon: the player pays to mend on arrival, so
+ * this buys back the crawl and not the sink. That, plus the steep limpSpeed, is
+ * what keeps "live stranded to dodge repair cost" closed.
  */
 export function rescue(coins: number, tuning: WagonTuning = DEFAULT_WAGON_TUNING): RescueResult {
-  if (coins < tuning.rescueCost) {
-    return { ok: false, coins };
-  }
-  return { ok: true, coins: coins - tuning.rescueCost };
+  const paid = Math.min(Math.max(0, coins), tuning.rescueCost);
+  return { coins: coins - paid, paid };
 }
 
 export interface RepairHelpInput {
@@ -351,34 +361,26 @@ export interface RepairHelpInput {
 }
 
 /**
- * Guidance for a courier whose repair or rescue press cannot pay for itself
- * (#317). The old copy misdirected a broke, stranded player: it quoted an
- * unaffordable price at a town, or told them to "limp to a settlement" while
- * they stood in one. This names the real exit instead. The limp is the intended
+ * Guidance for a courier whose repair press cannot pay for itself (#317). The
+ * old copy misdirected a broke player by quoting an unaffordable price and
+ * nothing else. This names the real exit instead: the limp is the intended
  * ladder (isStranded keeps the wagon crawling at limpSpeed), so a courier with
  * no coin is pointed at earning through a delivery, not at a wall.
  *
- * Two situations reach here:
- * - at a settlement, too broke for even one repair point (coins < costPerPercent)
- * - stranded in the open, unable to afford the tow (coins < rescueCost)
+ * Only one situation reaches here now: standing at a settlement, too broke for
+ * even one repair point (coins < costPerPercent). The other used to be a
+ * stranded courier who could not afford the tow, which #432 made impossible by
+ * charging the tow whatever they have. `atSettlement` stays on the shared input
+ * because wagonHintText still branches on it.
  */
 export function repairHelpText(input: RepairHelpInput): string {
-  const { atSettlement, condition, max, tuning } = input;
-  const stranded = isStranded(condition);
-  if (atSettlement) {
-    const cost = repairCost(condition, max, tuning);
-    const lead = `Too broke to repair (${cost}c full, ${tuning.costPerPercent}c/pt).`;
-    // Stranded here the wagon still crawls, so earning is reachable; merely worn
-    // it moves at full speed, so there is no crawl to reassure about.
-    const tail = stranded
-      ? ' The wagon still crawls: take a contract and deliver to earn coin.'
-      : ' Earn coin on a delivery, then repair here.';
-    return lead + tail;
-  }
-  // Off a settlement this only fires while stranded (the caller guards it), so
-  // the crawl is always available as the way out.
-  return (
-    `Stranded, and the ${tuning.rescueCost}c rescue is out of reach. ` +
-    'The wagon still crawls: limp to a town and deliver to earn coin.'
-  );
+  const { condition, max, tuning } = input;
+  const cost = repairCost(condition, max, tuning);
+  const lead = `Too broke to repair (${cost}c full, ${tuning.costPerPercent}c/pt).`;
+  // Stranded here the wagon still crawls, so earning is reachable; merely worn
+  // it moves at full speed, so there is no crawl to reassure about.
+  const tail = isStranded(condition)
+    ? ' The wagon still crawls: take a contract and deliver to earn coin.'
+    : ' Earn coin on a delivery, then repair here.';
+  return lead + tail;
 }

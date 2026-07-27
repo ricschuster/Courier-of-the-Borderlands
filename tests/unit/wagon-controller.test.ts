@@ -164,12 +164,27 @@ describe('WagonController', () => {
       expect(wagon.rescueWith(1000)).toEqual({ kind: 'not-stranded' });
     });
 
-    it('refuses when the coins cannot pay the tow', () => {
+    it('tows a penniless courier rather than refusing (#432)', () => {
       wagon.wear(wagon.condition());
       const result = wagon.rescueWith(0);
 
-      expect(result.kind).toBe('refused');
-      expect(result.kind === 'refused' && result.help.length).toBeGreaterThan(0);
+      expect(result.kind).toBe('towed');
+      if (result.kind === 'towed') {
+        expect(result.paid).toBe(0);
+        expect(result.coins).toBe(0);
+      }
+    });
+
+    it('charges a part-paying courier everything they have, and no more', () => {
+      wagon.wear(wagon.condition());
+      const purse = WAGON_TUNING.standard.rescueCost - 1;
+      const result = wagon.rescueWith(purse);
+
+      expect(result.kind).toBe('towed');
+      if (result.kind === 'towed') {
+        expect(result.paid).toBe(purse);
+        expect(result.coins).toBe(0);
+      }
     });
 
     // The exploit closure (#317 and the owner's "living stranded to dodge repair

@@ -287,16 +287,28 @@ describe('conditionFraction and isLowCondition', () => {
 });
 
 describe('rescue', () => {
-  it('charges the fee when affordable', () => {
+  it('charges the full fee when affordable', () => {
     const r = rescue(80);
-    expect(r.ok).toBe(true);
+    expect(r.paid).toBe(RESCUE_COST);
     expect(r.coins).toBe(80 - RESCUE_COST);
   });
 
-  it('refuses when too poor', () => {
+  it('charges what the courier has when that is less than the fee', () => {
+    // #432: refusing here inverted the cost curve, making the tow unaffordable
+    // exactly when overreaching is most likely and most valuable.
     const r = rescue(RESCUE_COST - 1);
-    expect(r.ok).toBe(false);
-    expect(r.coins).toBe(RESCUE_COST - 1);
+    expect(r.paid).toBe(RESCUE_COST - 1);
+    expect(r.coins).toBe(0);
+  });
+
+  it('tows a penniless courier for nothing rather than stranding them', () => {
+    expect(rescue(0)).toEqual({ coins: 0, paid: 0 });
+  });
+
+  it('never charges a negative fare or hands out coins', () => {
+    // A negative purse should not become a payout through the min().
+    expect(rescue(-10).paid).toBe(0);
+    expect(rescue(-10).coins).toBe(-10);
   });
 });
 
@@ -319,12 +331,13 @@ describe('repairHelpText', () => {
     expect(msg).toContain('repair here');
   });
 
-  it('stranded in the open names the limp ladder, not "limp to a settlement" while in one', () => {
+  it('never tells a stranded courier the tow is out of reach, because it cannot be', () => {
+    // #432 removed the only path that reached this text off a settlement. The
+    // help must not resurrect the old "rescue is out of reach" copy, which is
+    // now a lie: the tow charges what the courier has.
     const msg = repairHelpText({ ...base, atSettlement: false, condition: 0 });
-    expect(msg).toContain('rescue is out of reach');
-    expect(msg).toContain('still crawls');
-    expect(msg).toContain('limp to a town');
-    expect(msg).toContain(`${T.rescueCost}c`);
+    expect(msg).not.toContain('out of reach');
+    expect(msg).toContain('Too broke to repair');
   });
 });
 

@@ -69,9 +69,12 @@ export function wagonHintText(input: RepairHelpInput): string | null {
   // can otherwise spend most of the purse without warning (#320).
   const rate = tuning.costPerPercent;
   if (isStranded(condition)) {
+    // "up to", because the tow charges what the courier can pay rather than
+    // refusing below the full fee (#432). Quoting a flat price would read as
+    // unaffordable to exactly the broke player who can now always use it.
     return atSettlement
       ? `R: full repair ${cost}c (${rate}c/pt)`
-      : `R: pay ${tuning.rescueCost}c rescue (or limp to a town)`;
+      : `R: tow home, up to ${tuning.rescueCost}c`;
   }
   if (condition >= max) {
     return null;
