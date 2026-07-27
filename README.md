@@ -155,6 +155,19 @@ alongside the first, give it its own port:
 PREVIEW_PORT=4273 npx playwright test --project=chromium
 ```
 
+CI skips the browser suite when nothing in the change can reach the built
+bundle: a docs-only PR, or the release-please version bump. Ask whether your
+branch would skip it:
+
+```bash
+npm run ci:scope
+```
+
+It prints the changed files against `origin/main` and its verdict. The rule
+lives in `scripts/e2e-scope.mjs` and is unit-tested, because a wrong "skip" is
+silent: the suite would simply not run and the PR would go green. It denies by
+default, so anything it does not recognise runs the suite (#420).
+
 Lint the codebase:
 
 ```bash

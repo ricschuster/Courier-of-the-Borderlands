@@ -23,8 +23,9 @@ export default tseslint.config(
   },
   {
     // Plain-JS Node scripts (dev tooling) run under Node, not the browser, so
-    // give them the Node/runtime globals they use.
-    files: ['scripts/**/*.mjs'],
+    // give them the Node/runtime globals they use. Their tests are .mjs too, so
+    // they can import the module under test without a hand-written declaration.
+    files: ['scripts/**/*.mjs', 'tests/unit/**/*.mjs'],
     languageOptions: {
       globals: {
         process: 'readonly',

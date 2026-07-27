@@ -78,7 +78,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/unit/**/*.test.ts'],
+    // .mjs as well as .ts: the CI tooling in scripts/ is plain ESM so CI can run
+    // it with bare node, and tsconfig does not compile .mjs, so its tests match
+    // the module they cover rather than needing a hand-written declaration.
+    include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.mjs'],
     globals: false,
     coverage: {
       provider: 'v8',

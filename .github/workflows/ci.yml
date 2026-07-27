@@ -63,19 +63,44 @@ jobs:
     # The fast browser specs run on every PR and push. The full-arc playthrough
     # skips itself here (it is gated on RUN_ARC); the dedicated Arc workflow runs
     # it pre-merge on code-touching PRs, on merge to main, and nightly.
+    #
+    # This job is ~90% of a PR's blocking time (5m of a 5m30 run), so it skips
+    # its own expensive steps when nothing in the change can reach the bundle
+    # (#420). Note the shape: `e2e` is a REQUIRED status check, so the job has to
+    # keep running and reporting success. `paths-ignore`, or a `needs:` gate that
+    # skips the job, would leave the check with no conclusion and block the merge
+    # forever.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The scope check diffs against the base commit, which a shallow
+          # checkout does not have.
+          fetch-depth: 0
+
+      - name: Decide whether the bundle can have changed
+        id: scope
+        # Passed as env, not interpolated into the shell: the branch name is
+        # attacker-controllable and `${{ }}` in a run block is a script-injection
+        # hole. The rule itself is unit-tested and fails open (see the script).
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: node scripts/e2e-scope.mjs
 
       - uses: actions/setup-node@v7
+        if: steps.scope.outputs.run == 'true'
         with:
           node-version-file: '.nvmrc'
           cache: npm
 
       - run: npm ci
+        if: steps.scope.outputs.run == 'true'
 
       - name: Install Playwright browser
+        if: steps.scope.outputs.run == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Browser smoke test
+        if: steps.scope.outputs.run == 'true'
         run: npm run test:e2e
