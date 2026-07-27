@@ -168,6 +168,16 @@ lives in `scripts/e2e-scope.mjs` and is unit-tested, because a wrong "skip" is
 silent: the suite would simply not run and the PR would go green. It denies by
 default, so anything it does not recognise runs the suite (#420).
 
+When the suite does run, CI splits it across three runners (#422). The required
+`e2e` status check is a small aggregator job, because a matrix reports as
+`e2e (1)`, `e2e (2)`, ... and never as `e2e`. Changing the shard count means
+editing the matrix and the `--shard` flag in `.github/workflows/ci.yml`, and
+nothing else. To reproduce one shard locally:
+
+```bash
+npm run test:e2e -- --shard=2/3
+```
+
 Lint the codebase:
 
 ```bash

@@ -59,18 +59,12 @@ jobs:
       - name: Build
         run: npm run build
 
-  e2e:
-    # The fast browser specs run on every PR and push. The full-arc playthrough
-    # skips itself here (it is gated on RUN_ARC); the dedicated Arc workflow runs
-    # it pre-merge on code-touching PRs, on merge to main, and nightly.
-    #
-    # This job is ~90% of a PR's blocking time (5m of a 5m30 run), so it skips
-    # its own expensive steps when nothing in the change can reach the bundle
-    # (#420). Note the shape: `e2e` is a REQUIRED status check, so the job has to
-    # keep running and reporting success. `paths-ignore`, or a `needs:` gate that
-    # skips the job, would leave the check with no conclusion and block the merge
-    # forever.
+  # Asked once, so the shards below do not each redo a full-history checkout to
+  # answer the same question. Cheap: checkout plus one node call, no npm install.
+  scope:
     runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -88,19 +82,78 @@ jobs:
           HEAD_REF: ${{ github.head_ref || github.ref_name }}
         run: node scripts/e2e-scope.mjs
 
+  # The fast browser specs run on every PR and push. The full-arc playthrough
+  # skips itself here (it is gated on RUN_ARC); the dedicated Arc workflow runs
+  # it on merge to main and nightly.
+  #
+  # Sharded because this is the whole CI wait: 500 test-seconds of real-time
+  # driving that cannot be made faster, only spread (#422). Three runners of two
+  # workers rather than one runner of six: ubuntu-latest is 4 vCPU, and trap 4
+  # documents the arc flaking under CI load, so over-subscribing a canvas game
+  # would buy that flake for the whole suite.
+  e2e-shard:
+    needs: scope
+    if: needs.scope.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      # Let every shard report. Failing fast would hide whether a red run is one
+      # broken spec or a suite-wide breakage.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/setup-node@v7
-        if: steps.scope.outputs.run == 'true'
         with:
           node-version-file: '.nvmrc'
           cache: npm
 
       - run: npm ci
-        if: steps.scope.outputs.run == 'true'
+
+      # Sharding triples the fixed setup cost, and the browser download is the
+      # largest part of it (35s of a ~70s floor). Cached, that floor is what now
+      # limits how much a fourth shard could buy, so it is worth paying for here
+      # rather than in a follow-up.
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browser
-        if: steps.scope.outputs.run == 'true'
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+      # The browser cache does not carry the apt packages it needs, and those
+      # are not cacheable, so a cache hit still has to install them.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
       - name: Browser smoke test
-        if: steps.scope.outputs.run == 'true'
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+
+  # Owns the required status check. A matrix job reports as `e2e (1)`, `e2e (2)`,
+  # ... never as `e2e`, so sharding `e2e` directly would mean the required
+  # context never appears and every PR blocks forever. This aggregator keeps the
+  # name stable and shard-count-agnostic: changing the matrix above is a one-line
+  # edit, not a branch-protection edit.
+  #
+  # `if: always()` because it must also report when the shards were skipped for
+  # being out of scope. A skipped required check never reports a conclusion.
+  e2e:
+    needs: [scope, e2e-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Report the shard results
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          IN_SCOPE: ${{ needs.scope.outputs.run }}
+          # For a matrix, `result` is success only when every shard succeeded.
+          SHARDS: ${{ needs.e2e-shard.result }}
+        run: node scripts/e2e-verdict.mjs
