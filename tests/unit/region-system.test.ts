@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   REGIONS,
   getRegion,
-  gatewayBlockedBy,
   arrivalTile,
   resumeTile,
   settlementAtTileIn,
@@ -13,8 +12,6 @@ import {
 } from '../../src/systems/region-system';
 import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
-import { baseContracts } from '../../src/systems/contract-system';
-import { UPGRADES_GREYBRIDGE } from '../../src/data/upgrades-greybridge';
 
 describe('region-system', () => {
   it('registers greybridge, saltreach, and fenmarch', () => {
@@ -67,68 +64,28 @@ describe('region-system', () => {
     expect(toSalt?.tile).not.toEqual(toFen?.tile);
   });
 
-  // #362. The arc used to be completable having bought nothing at all, which
-  // contradicted the pillar that gold and upgrades matter from the early game.
-  // Both roads out of the hub now require the cheapest upgrade fitted.
-  describe('gatewayBlockedBy', () => {
-    const gated = { tile: { x: 0, y: 0 }, to: 'saltreach', requiresUpgrade: 'reinforced-wheels' };
-
-    it('names the missing upgrade so the refusal can tell the player what to buy', () => {
-      expect(gatewayBlockedBy(gated, new Set())).toBe('reinforced-wheels');
-      expect(gatewayBlockedBy(gated, new Set(['far-lantern']))).toBe('reinforced-wheels');
-    });
-
-    it('lets the courier through once it is fitted', () => {
-      expect(gatewayBlockedBy(gated, new Set(['reinforced-wheels']))).toBeNull();
-    });
-
-    it('never blocks a gateway with no requirement', () => {
-      const open = { tile: { x: 0, y: 0 }, to: 'greybridge' };
-      expect(gatewayBlockedBy(open, new Set())).toBeNull();
-    });
-
-    it('gates both roads out of the hub', () => {
-      for (const gateway of GREYBRIDGE_REGION.gateways) {
-        expect(gatewayBlockedBy(gateway, new Set())).toBe('reinforced-wheels');
-      }
-    });
-
-    // The soft-lock guard. A gate on the way *out* is safe because the player
-    // can always turn round and earn; a gate on the way *back* could strand a
-    // courier who travelled out and then spent down, with no way home and no
-    // shop in a spoke region.
-    it('never gates a return gateway, which could strand a courier in a spoke', () => {
-      for (const region of [SALTREACH_REGION, FENMARCH_REGION]) {
+  // #434. A gateway is access, and the rule is to gate shortcuts and never
+  // access: the map is open and the wilds do the gating
+  // (docs/design/10_open_world_expansion.md). This replaces the #362 spend-gate
+  // suite, which tested the exact behaviour now removed.
+  describe('gateways are never capability-gated', () => {
+    // The `requiresUpgrade` field is gone from RegionGateway, so the compiler is
+    // the first guard. This is the second, and it catches a gate reintroduced
+    // under any other name: a gateway is a tile and a destination, nothing else.
+    it('carries nothing but a tile and a destination, in every region', () => {
+      for (const region of Object.values(REGIONS)) {
         for (const gateway of region.gateways) {
           expect(
-            gateway.requiresUpgrade,
-            `${region.id} gateway to ${gateway.to} is gated, which can strand a courier`,
-          ).toBeUndefined();
+            Object.keys(gateway).sort(),
+            `${region.id}'s gateway to ${gateway.to} carries more than a tile and a destination, ` +
+              'which is how an exit lock comes back',
+          ).toEqual(['tile', 'to']);
         }
       }
     });
 
-    // The other half of the soft-lock guard. The gate must never cost more than
-    // a single delivery in the region that hosts it, so a player standing at a
-    // closed gateway with nothing fitted is always one contract away from
-    // opening it rather than facing a dead end.
-    it('costs no more than the smallest single delivery in its own region', () => {
-      for (const region of Object.values(REGIONS)) {
-        const gated = region.gateways.filter((g) => g.requiresUpgrade !== undefined);
-        if (gated.length === 0) {
-          continue;
-        }
-        const cheapestReward = Math.min(...baseContracts(region.contracts).map((c) => c.reward));
-        for (const gateway of gated) {
-          const upgrade = UPGRADES_GREYBRIDGE.find((u) => u.id === gateway.requiresUpgrade);
-          expect(upgrade, `${gateway.requiresUpgrade} is not a real upgrade id`).toBeDefined();
-          expect(
-            upgrade!.cost,
-            `${region.id}'s gate to ${gateway.to} costs ${upgrade!.cost}c but its cheapest ` +
-              `delivery pays ${cheapestReward}c, so a broke courier could be stranded`,
-          ).toBeLessThanOrEqual(cheapestReward);
-        }
-      }
+    it('leaves both roads out of the hub open to a courier with nothing fitted', () => {
+      expect(GREYBRIDGE_REGION.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'saltreach']);
     });
   });
 
