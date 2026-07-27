@@ -21,6 +21,19 @@ import type { SkillRanks } from '../../src/systems/skills';
 // across every real contract route in the game.
 //
 // Set SURVEY_REPORT=1 to print the table. The assertions run either way.
+//
+// These are the slowest tests in the unit suite by a wide margin: each one runs
+// a cost-aware router over every contract route in every region, and the pricing
+// test multiplies that by three Wayfinder ranks and every loadout. The work
+// grows linearly with the number of regions, so adding Ashmoor (#428) took the
+// pricing test past vitest's 5s default under `--coverage`, which roughly
+// octuples the run (2.6s instrumented against 0.3s bare, locally). Coverage only
+// runs in CI's `check` job, which is why it went green locally and red there.
+//
+// The timeouts below are explicit rather than global: these two tests are
+// genuinely long-running analysis, and the rest of the suite should keep the
+// tight default so a real hang still fails fast.
+const ROUTING_TIMEOUT_MS = 60_000;
 
 /** A late-game courier: everything fitted and the region's ford open. */
 const ALL_UPGRADES = new Set(UPGRADES_GREYBRIDGE.map((u) => u.id));
@@ -112,7 +125,7 @@ describe('the Wayfinder survey ring, priced over every real contract route', () 
         expect(benefit.withRing.reachedGoal, `${contractId} unreachable with ring`).toBe(true);
       }
     }
-  });
+  }, ROUTING_TIMEOUT_MS);
 
   it('prices the ring, and reports what it found', () => {
     const summary: string[] = [];
@@ -173,7 +186,7 @@ describe('the Wayfinder survey ring, priced over every real contract route', () 
     // zero is exactly what would settle #361 against it.
     expect(Number.isFinite(grandSaved)).toBe(true);
     expect(grandSaved).toBeGreaterThanOrEqual(0);
-  });
+  }, ROUTING_TIMEOUT_MS);
 
   // The measure's own guard. A tool that has only ever reported zero is
   // indistinguishable from a broken tool, so this pins the property that makes

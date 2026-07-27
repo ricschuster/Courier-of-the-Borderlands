@@ -42,6 +42,18 @@ export const RECONNECTED_NOTES: Readonly<Record<string, string>> = {
     'The old stones at Hollowfen stand a little less alone. The waiting, for now, has an answer.',
   fenholt:
     'Fenholt reads the cipher behind the mere and sends no reply. The next time you pass, fresh poles stand in the flats, as though a causeway were being remembered.',
+
+  // Ashmoor
+  emberfast:
+    'The black reed comes up the trail and Emberfast burns it, which is what it wanted the harvest for all along. The fire on the old road stands higher that night than it has in years.',
+  cairnwatch:
+    'The keepers add a stone for you at Cairnwatch, which is the only thanks they give anyone. The season count goes up by one for the first time in years.',
+  windfall:
+    'Windfall reads its orders twice and starts cutting. Smoke rises off the burnt wood again, and this time somebody put it there on purpose.',
+  blackreed:
+    'Blackreed does not move its camp this season. The poles go in deeper, which on this bog is the nearest thing to a promise.',
+  sallowmere:
+    'Sallowmere takes the letter across the tarn and, that night, sets a single lamp on the water where the causeway used to run. It is still burning when you look back.',
 };
 
 /** Payoff line for a reconnected settlement, or a generic line if none authored. */

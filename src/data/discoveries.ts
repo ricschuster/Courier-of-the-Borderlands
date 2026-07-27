@@ -40,6 +40,16 @@ export const DISCOVERIES: readonly Discovery[] = [
     cipherNote:
       'The fresh cuts are a relay mark: this was a station on a road the maps deny, and the mark says it is being opened again. The arrow of it points east, toward the blockade.',
   },
+  // Ashmoor: high on the northern moor, off every road and trail.
+  {
+    id: 'ashmoor-counted-stones',
+    regionId: 'ashmoor',
+    tile: { x: 9, y: 2 },
+    title: 'The Counted Stones',
+    note: 'A line of cairns runs north across the moor, and each one has a number cut into its base. The sequence skips. Where a stone should stand between eleven and thirteen there is only a cleared square of bare ground, swept recently and left empty.',
+    cipherNote:
+      'The numbers are not a count of stones. They are a count of stages on a road, and the missing one is the stage nobody is allowed to name. Twelve was here, and somebody took it away rather than let it be read.',
+  },
   // Fenmarch: an old milestone in the western hills, off the fen road.
   {
     id: 'fenmarch-hollow-milestone',

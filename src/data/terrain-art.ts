@@ -78,6 +78,7 @@ export const TERRAIN_ART: Readonly<Record<string, TerrainArt>> = {
   'ford-greybridge': { base: 467 },
   'ford-saltreach': { base: 467 },
   'ford-fenmarch': { base: 467 },
+  'ford-ashmoor': { base: 467 },
 };
 
 /** Atlas frames + flip for one tile, resolved from its terrain and coordinate. */

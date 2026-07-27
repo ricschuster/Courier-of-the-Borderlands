@@ -24,6 +24,11 @@ export const FLAG_FENMARCH_COST = 'fenmarch_cost';
 // are known. The immediate blockade over the borderland is broken; the larger
 // question of who commands it stays open. See docs/design/04_storyline.md.
 export const FLAG_BLOCKADE_BROKEN = 'blockade_broken';
+// Ashmoor's own thread, deliberately outside the Blockade spine. Ashmoor is
+// optional content (docs/design/10_open_world_expansion.md), so nothing here
+// gates a mission step and nothing in missions.ts reads this flag. It records
+// only that the courier has been told what the Ember Road was.
+export const FLAG_EMBER_ROAD_NAMED = 'ember_road_named';
 // Derived (never persisted): granted by the Cipher social skill while owned.
 // Gates dialogue lines that only a courier who can read carried secrets sees.
 export const FLAG_CIPHER = skillFlag('cipher');
@@ -277,11 +282,92 @@ const MOSSGATE_WARDEN: Dialogue = {
   },
 };
 
+// Ashmoor, the road that was removed. The Emberfast firekeeper is optional
+// content: this thread explains why a moor with a road network has no traffic,
+// and it deliberately resolves nothing about the Blockade. It pairs with the
+// 'ashmoor-counted-stones' discovery, where the twelfth cairn is missing.
+const EMBERFAST_FIREKEEPER: Dialogue = {
+  start: 'greeting',
+  nodes: {
+    greeting: {
+      id: 'greeting',
+      speaker: 'Emberfast Firekeeper',
+      text: 'Wheels. Actual wheels. Sit if you like, the fire is the one thing here we have never been short of. You will have come in off one road or the other, and you will have noticed there was nobody on it.',
+      textVariants: [
+        {
+          requires: { allOf: [FLAG_EMBER_ROAD_NAMED] },
+          text: 'Back again, and by the other road this time unless my ears have gone. You are the only traffic the Ember Road has. What do you need?',
+        },
+      ],
+      choices: [
+        { label: 'Whose road was this?', requires: { noneOf: [FLAG_EMBER_ROAD_NAMED] }, next: 'road' },
+        { label: 'Why keep the fire lit?', next: 'fire' },
+        { label: 'Any work here?', next: 'work' },
+        { label: 'I should keep moving.', next: END_DIALOGUE },
+      ],
+    },
+    road: {
+      id: 'road',
+      speaker: 'Emberfast Firekeeper',
+      text: 'Everyone\'s. That was rather the trouble with it. The Ember Road ran clean across this moor, coast to fen, and it did not pass through anybody\'s gate on the way. No tolls, no writs, no waiting on a season. You could put a letter on it at one end and have nobody at all read it before the other.',
+      choices: [
+        { label: 'So what happened to it?', set: [FLAG_EMBER_ROAD_NAMED], next: 'removed' },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+    removed: {
+      id: 'removed',
+      speaker: 'Emberfast Firekeeper',
+      text: 'Nothing happened to it. That is the part people cannot hold in their heads. Nobody dug it up. It was simply taken off the maps, one stage at a time, and a road that is on no map has no repairs, no keepers, and no reason for a sensible courier to be on it. The stones are still out there on the moor. Go and count them, if you have the legs.',
+      // The Cipher line is the explorer payoff (#183): a courier who can read
+      // carried secrets recognises the pattern from the ciphers they carry.
+      textVariants: [
+        {
+          requires: { allOf: [FLAG_CIPHER] },
+          text: 'Nothing happened to it. Nobody dug it up. It was taken off the maps one stage at a time, and a road on no map has no keepers and no repairs. You will know the hand that did it, I think. You have been carrying its work sealed in your own cart for months, and it uses the same notation for a road it is erasing as for a letter it is holding.',
+        },
+      ],
+      choices: [
+        { label: 'I have seen the stones. One is missing.', next: 'missing' },
+        { label: 'That is a long way to go to silence a road.', next: 'missing' },
+      ],
+    },
+    missing: {
+      id: 'missing',
+      speaker: 'Emberfast Firekeeper',
+      text: 'Twelve. It is always twelve that goes. Whoever does it is thorough and not clever: take the middle stage away and the road either side of it reads as two short dead ends that never met. I keep the fire so that when somebody finally comes looking, there is a light where the middle used to be.',
+      choices: [
+        { label: 'Then keep it burning.', next: END_DIALOGUE },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+    fire: {
+      id: 'fire',
+      speaker: 'Emberfast Firekeeper',
+      text: 'Habit, mostly. And because a lit waystation is the difference between a road nobody uses and a road nobody can use. The bog to the south takes a wagon a season, and the folk down at Blackreed steer by this fire when the reeds are high. Costs me oil. Cheap at the price.',
+      choices: [
+        { label: 'Any work here?', next: 'work' },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+    work: {
+      id: 'work',
+      speaker: 'Emberfast Firekeeper',
+      text: 'The board is by the fire, and it is fuller than it has any right to be. Cairnwatch wants its count checked, Windfall has orders a year late, and Blackreed has moved camp again and needs telling where the road now is. Mind the south half. The bog does not care how good your wagon is.',
+      choices: [
+        { label: 'I will take a look.', next: END_DIALOGUE },
+        { label: 'Ask something else.', next: 'greeting' },
+      ],
+    },
+  },
+};
+
 /** Authored conversations keyed by the settlement id whose NPC speaks them. */
 export const SETTLEMENT_DIALOGUES: Readonly<Record<string, Dialogue>> = {
   greywater: GREYWATER_POSTMASTER,
   tidewatch: TIDEWATCH_HARBORMASTER,
   mossgate: MOSSGATE_WARDEN,
+  emberfast: EMBERFAST_FIREKEEPER,
 };
 
 /** The conversation for a settlement, or undefined when no one there speaks yet. */

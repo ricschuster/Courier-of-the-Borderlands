@@ -21,6 +21,13 @@ import {
   FENMARCH_SPAWN,
   FENMARCH_HOME,
 } from '../data/region-fenmarch';
+import {
+  ASHMOOR_ROWS,
+  ASHMOOR_LEGEND,
+  ASHMOOR_SETTLEMENTS,
+  ASHMOOR_CONTRACTS,
+  ASHMOOR_SPAWN,
+} from '../data/region-ashmoor';
 
 export interface TileCoord {
   readonly x: number;
@@ -105,9 +112,16 @@ export const SALTREACH_REGION: Region = {
   contracts: SALTREACH_CONTRACTS,
   home: 'tidewatch',
   spawn: SALTREACH_SPAWN,
-  // A spoke off the Greybridge hub: its only gateway leads west, back to
-  // Greybridge.
-  gateways: [{ tile: { x: 0, y: 10 }, to: 'greybridge' }],
+  // No longer a dead-end spoke. West (0,10) leads back to the Greybridge hub;
+  // east (29,10) carries the coast road on to Ashmoor, which also connects to
+  // Fenmarch, so the world closes into a ring and a destination can be reached
+  // more than one way (docs/design/10_open_world_expansion.md). The east gateway
+  // sits at the plains end of the row-10 road, north of the Saltmere lagoon wall
+  // so it stays outside the sealed pocket.
+  gateways: [
+    { tile: { x: 0, y: 10 }, to: 'greybridge' },
+    { tile: { x: 29, y: 10 }, to: 'ashmoor' },
+  ],
   // Immediately west of the ford tile (11,15), matching the Greybridge convention.
   signpost: { x: 10, y: 15 },
   fordUnlockId: 'ford-crossing-saltreach',
@@ -122,9 +136,14 @@ export const FENMARCH_REGION: Region = {
   contracts: FENMARCH_CONTRACTS,
   home: FENMARCH_HOME,
   spawn: FENMARCH_SPAWN,
-  // A spoke off the Greybridge hub: its only gateway leads west, back to
-  // Greybridge.
-  gateways: [{ tile: { x: 0, y: 11 }, to: 'greybridge' }],
+  // No longer a dead-end spoke either. West (0,11) leads back to the Greybridge
+  // hub; east (31,11) carries the fen road on to Ashmoor, the other half of the
+  // ring. The east gateway sits at the plains end of the row-11 road, north of
+  // the Fenholt mere wall so it stays outside the sealed pocket.
+  gateways: [
+    { tile: { x: 0, y: 11 }, to: 'greybridge' },
+    { tile: { x: 31, y: 11 }, to: 'ashmoor' },
+  ],
   // Immediately west of the ford tile (12,16), matching the Greybridge convention.
   signpost: { x: 11, y: 16 },
   fordUnlockId: 'ford-crossing-fenmarch',
@@ -138,10 +157,57 @@ export const FENMARCH_REGION: Region = {
   wearMultiplier: 2.2,
 };
 
+export const ASHMOOR_REGION: Region = {
+  id: 'ashmoor',
+  name: 'Ashmoor',
+  rows: ASHMOOR_ROWS,
+  legend: ASHMOOR_LEGEND,
+  settlements: ASHMOOR_SETTLEMENTS,
+  contracts: ASHMOOR_CONTRACTS,
+  home: 'emberfast',
+  spawn: ASHMOOR_SPAWN,
+  // The region that closes the ring: it is the first with two gateways to two
+  // different neighbours, so Ashmoor can be reached from either spoke and the
+  // courier chooses which way round. They sit 19 rows apart, opening into the
+  // gentle northern half and the boggy southern half respectively.
+  gateways: [
+    { tile: { x: 0, y: 4 }, to: 'saltreach' },
+    { tile: { x: 0, y: 23 }, to: 'fenmarch' },
+  ],
+  // Immediately west of the ford tile (16,13), matching the convention in every
+  // other region.
+  signpost: { x: 15, y: 13 },
+  fordUnlockId: 'ford-crossing-ashmoor',
+  // Ashmoor is optional and enterable from either spoke, so it cannot assume a
+  // maxed wagon the way Fenmarch (2.2x) can. It still has to bite: the southern
+  // bog is the point of the place, and the expansion note's Gothic model wants a
+  // world that is enterable everywhere and survivable only in places, now that
+  // failure is cheap (#433).
+  //
+  // Measured against a bare wagon (no relief upgrades, no Off-road) and the
+  // 25-point level-1 tank, on standard. The harness was calibrated by
+  // reproducing the v43 figure for leaving the Greybridge hub (1.80) before any
+  // of these were believed:
+  //
+  //   either gateway -> Emberfast   2.3-2.4  (9-10% of the tank)  road all the way
+  //   Emberfast -> Cairnwatch      13.7      (55%)   north half
+  //   Emberfast -> Windfall        14.9      (60%)   north half
+  //   Emberfast -> Blackreed       23.2      (93%)   south half
+  //   Emberfast -> Sallowmere      49.8      (199%)  south half, the long way
+  //
+  // That is the shape the Gothic model asks for: arriving is nearly free from
+  // either direction, so nothing here is an exit lock, but a level-1 courier
+  // gets roughly one delivery out of the place before stranding, and the bog is
+  // flatly out of reach until the wagon grows or the mire crossing is bought.
+  // Playtest-gated, sitting between Saltreach (1x) and Fenmarch (2.2x).
+  wearMultiplier: 2.0,
+};
+
 export const REGIONS: Readonly<Record<string, Region>> = {
   greybridge: GREYBRIDGE_REGION,
   saltreach: SALTREACH_REGION,
   fenmarch: FENMARCH_REGION,
+  ashmoor: ASHMOOR_REGION,
 };
 
 export const DEFAULT_REGION_ID = 'greybridge';

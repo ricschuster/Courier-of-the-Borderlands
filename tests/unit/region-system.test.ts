@@ -14,8 +14,13 @@ import { createTileMap, getTerrainIdAt } from '../../src/systems/tile-map';
 import { isPassable } from '../../src/systems/terrain-system';
 
 describe('region-system', () => {
-  it('registers greybridge, saltreach, and fenmarch', () => {
-    expect(Object.keys(REGIONS).sort()).toEqual(['fenmarch', 'greybridge', 'saltreach']);
+  it('registers greybridge, saltreach, fenmarch, and ashmoor', () => {
+    expect(Object.keys(REGIONS).sort()).toEqual([
+      'ashmoor',
+      'fenmarch',
+      'greybridge',
+      'saltreach',
+    ]);
   });
 
   it('getRegion falls back to greybridge for unknown ids', () => {
@@ -42,15 +47,42 @@ describe('region-system', () => {
     }
   });
 
-  it('forms a hub: greybridge links to both spokes, each spoke links only back', () => {
-    const greybridge = REGIONS.greybridge;
-    const saltreach = REGIONS.saltreach;
-    const fenmarch = REGIONS.fenmarch;
-    // Greybridge is the hub: it reaches both other regions.
-    expect(greybridge?.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'saltreach']);
-    // The spokes each link only back to the hub, never directly to each other.
-    expect(saltreach?.gateways.map((g) => g.to)).toEqual(['greybridge']);
-    expect(fenmarch?.gateways.map((g) => g.to)).toEqual(['greybridge']);
+  // The world used to be a hub with two dead-end spokes, so every journey had
+  // exactly one route. Ashmoor closes it into a ring
+  // (docs/design/10_open_world_expansion.md): each region now links to two
+  // neighbours, and the point of the change is that a destination can be reached
+  // more than one way.
+  it('forms a ring: every region links to exactly two neighbours', () => {
+    expect(REGIONS.greybridge?.gateways.map((g) => g.to).sort()).toEqual([
+      'fenmarch',
+      'saltreach',
+    ]);
+    expect(REGIONS.saltreach?.gateways.map((g) => g.to).sort()).toEqual(['ashmoor', 'greybridge']);
+    expect(REGIONS.fenmarch?.gateways.map((g) => g.to).sort()).toEqual(['ashmoor', 'greybridge']);
+    expect(REGIONS.ashmoor?.gateways.map((g) => g.to).sort()).toEqual(['fenmarch', 'saltreach']);
+  });
+
+  // The property the ring exists for. A chain or a star would fail this: it is
+  // only true once some region is reachable by two different sequences of
+  // gateways, which is what makes route choice a real decision.
+  it('offers two distinct routes from greybridge to ashmoor', () => {
+    const routes: string[][] = [];
+    const walk = (at: string, path: readonly string[]): void => {
+      if (at === 'ashmoor') {
+        routes.push([...path, at]);
+        return;
+      }
+      for (const gateway of REGIONS[at]?.gateways ?? []) {
+        if (!path.includes(gateway.to)) walk(gateway.to, [...path, at]);
+      }
+    };
+    walk('greybridge', []);
+
+    expect(routes).toHaveLength(2);
+    expect(routes.map((r) => r.join('->')).sort()).toEqual([
+      'greybridge->fenmarch->ashmoor',
+      'greybridge->saltreach->ashmoor',
+    ]);
   });
 
   it('greybridge has two gateways, one to each spoke, on distinct tiles', () => {

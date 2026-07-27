@@ -151,10 +151,61 @@ once per new region.
    chain.
 5. Re-tune the travel sink against the new distances.
 
+## Region four: the calls (owner, 2026-07-27)
+
+Slice 4 above. Three questions were open; two are now answered and the third
+stands.
+
+### It closes a ring, it does not add a spoke
+
+The world today is not the chain this note first described. Both Saltreach and
+Fenmarch gateway only back to Greybridge (`region-system.ts`), so it is a hub
+with two dead-end spokes, and every journey has exactly one route.
+
+Region four attaches to **both spokes at once**, and to neither hub edge:
+
+```
+  Greybridge ------- Saltreach
+      |                  |
+      |                  |
+   Fenmarch ------- Region 4
+```
+
+That is the smallest change that makes route choice real, because it is the
+first time two ways to reach a place exist at all. The two ways are
+deliberately unlike each other: the Saltreach approach is coastal and crosses
+that region's tidal country, the Fenmarch approach is the rough one and carries
+Fenmarch's 2.2x wear multiplier. Same destination, different cost, which is the
+thing pillar 3 has been asking for.
+
+A third spoke off Greybridge was the cheaper option and was rejected: it makes
+the world wider without making a single decision harder, and it leaves the
+multi-gateway capability unused for another region.
+
+**Consequence to keep in view:** the two entrances are far apart on region
+four's map, so which door the courier comes in by changes the journey inside it
+as well as the journey to it. Placing both gateways on one edge would have
+thrown that away.
+
+### It is optional content inside the existing arc
+
+The Blockade spine is closed: Greybridge sets it up, the two spokes reveal
+method and cost, and a Greywater capstone resolves it (`missions.ts`). Region
+four does **not** enter that spine. Nothing in `missions.ts` changes, so no
+shipped, tested story can regress.
+
+It is reachable during the arc and required by none of it. This makes it the
+honest test the milestone wants: if optional content is not worth authoring,
+that shows up here cheaply, before it is a decision applied to six regions.
+
+### Its side content is all four kinds
+
+Contracts, discoveries, story threads, and encounters, rather than picking one.
+The point of slice 4 is to measure the authoring pipeline, and the pipeline is
+four content systems, not one. Doing a thin version of each says more about
+what scales than doing a thick version of one.
+
 ## Open questions
 
-- The exact web shape, and whether region four branches from Greybridge or
-  Saltreach.
-- Whether optional content should be contracts, discoveries, or story threads.
 - Whether terrain gets generated with settlements hand-placed, once authoring
   becomes the bottleneck.
