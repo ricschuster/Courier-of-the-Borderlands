@@ -10,6 +10,35 @@ From 0.1.0 onward this file is maintained automatically by
 Commit messages. Do not edit released sections by hand; write good commit
 messages instead. See `docs/decisions/0007-release-versioning.md`.
 
+## [0.10.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.9.0...courier-of-the-borderlands-v0.10.0) (2026-07-28)
+
+
+### Features
+
+* add Ashmoor, the region that closes the world into a ring ([#438](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/438)) ([53c1713](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/53c171307b24854bc30d9a0059bd348e15f0c22b))
+* let the tow take what the courier has, so failure is cheap ([#433](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/433)) ([92c5c9f](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/92c5c9f93e55d9d03102aeba4382cda31c1cf403)), closes [#432](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/432)
+* open both roads out of Greybridge ([#435](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/435)) ([c995f22](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c995f22a1e426f0bb50b1cffe6ac8dbef1d5e1fe)), closes [#434](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/434)
+* re-tune the travel sink so coins and points buy different things ([#447](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/447)) ([dcf5848](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/dcf5848455b06ce5f376c1fe5cab76cdada71e29))
+
+
+### Bug Fixes
+
+* autoplay was dropping keypresses, not being refused contracts ([#443](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/443)) ([c533ebf](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/c533ebfc01b4c6206d6e49fb4b1c7b027d9f9239)), closes [#440](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/440)
+* let Demanding limp at the standard rate ([#450](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/450)) ([70d2d52](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/70d2d526b099d4d0cd354dc2bf3f83b0f180cd09)), closes [#448](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/448)
+* make the survey ring legible, and let it name itself once ([#439](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/439)) ([803233e](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/803233e3d99c1bf2b1e09b1969541a688b4ddb55)), closes [#425](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/425)
+* open the ford before the region clears, so autoplay's screenshots are true ([#445](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/445)) ([2d82e29](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2d82e29e4c0fc7021ef0ff9841cea30cdf4c1094)), closes [#444](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/444)
+
+
+### Documentation
+
+* add 2026-07-26 handoff v43 ([#437](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/437)) ([2758302](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2758302e6cfc7b8614878f1a867d4f66e91aeae9))
+* add 2026-07-27 handoff v44 ([#442](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/442)) ([eb17432](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/eb1743250e49c297998506bb2c82e3d2f34332db))
+* add 2026-07-27 handoff v45 ([#446](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/446)) ([007c4ea](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/007c4ea0d66a9394e05541ef31adbd5f763ec225))
+* add 2026-07-28 handoff v46 ([#449](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/449)) ([d4941f6](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d4941f6f3e078a8255875550bbe573b80dc4d039))
+* add 2026-07-28 handoff v47 ([#451](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/451)) ([db48900](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/db489004e20922fff93b603b5f3016964a580e29))
+* set the direction for open world expansion ([#430](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/430)) ([d39543a](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/d39543ae4bce53aeb60df39e2eb608d183aef0b4)), closes [#428](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/428)
+* tell players there are four regions, not three ([#441](https://github.com/ricschuster/Courier-of-the-Borderlands/issues/441)) ([2802c4d](https://github.com/ricschuster/Courier-of-the-Borderlands/commit/2802c4dcd16ce7bcc2aa7e9fb1b417c36cc9fd83))
+
 ## [0.9.0](https://github.com/ricschuster/Courier-of-the-Borderlands/compare/courier-of-the-borderlands-v0.8.0...courier-of-the-borderlands-v0.9.0) (2026-07-27)
 
 
