@@ -171,6 +171,15 @@ function legsFor(regionId: string, b: Build): Leg[] {
 
 const REPORT = process.env.WEAR_REPORT === '1';
 
+// Each test routes every build over every leg of every region, which is fast
+// bare (~0.3s) and several times that under `--coverage`, whose instrumentation
+// roughly octuples this kind of work. That is what put the survey report past
+// vitest's 5s default in CI's `check` job while it stayed green locally, so
+// these carry explicit timeouts for the same reason: real long-running analysis
+// gets room, and the rest of the suite keeps the tight default so a genuine hang
+// still fails fast.
+const ROUTING_TIMEOUT_MS = 60_000;
+
 function report(lines: string[]): void {
   if (REPORT) console.log('\n' + lines.join('\n') + '\n');
 }
@@ -205,7 +214,7 @@ describe('travel-sink wear, priced over every home-to-settlement leg', () => {
       }
     }
     report(lines);
-  });
+  }, ROUTING_TIMEOUT_MS);
 
   it('makes the first region ask a level-1 courier for a purchase (#436)', () => {
     // The spend gate #362 opened and #434 reopened. It is not a lock: every
@@ -224,7 +233,7 @@ describe('travel-sink wear, priced over every home-to-settlement leg', () => {
     // round trip a level-1 tank can take.
     const kitted = legsFor('greybridge', BUILDS[2]!); // axle + treads, 150 coins
     expect(Math.max(...kitted.map((l) => l.wear)) / tank).toBeLessThan(0.25);
-  });
+  }, ROUTING_TIMEOUT_MS);
 
   it('prices what one more coin or one more skill point buys', () => {
     const lines: string[] = ['=== WHAT A PURCHASE BUYS (total wear over all legs, all regions) ==='];
@@ -267,5 +276,5 @@ describe('travel-sink wear, priced over every home-to-settlement leg', () => {
       totals.get('all relief')!,
       'three skill points still substitute for the relief upgrades',
     ).toBeLessThan(totals.get('off-road 3')!);
-  });
+  }, ROUTING_TIMEOUT_MS);
 });
