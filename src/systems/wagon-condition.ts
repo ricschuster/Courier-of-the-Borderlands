@@ -128,12 +128,26 @@ export const WAGON_TUNING: Record<Difficulty, WagonTuning> = {
   // The premium came off and the fragility stayed. Demanding is still 1.67x
   // wear on a 16-point tank, so the wagon breaks just as fast and needs the
   // shop just as often; it no longer also charges more each time it gets there.
+  //
+  // The limp premium came off the same way (#448, owner call 2026-07-28), and
+  // for the same reason one layer down. Slice 5's hub multiplier put Reedgrave
+  // at 167% of a Demanding starting tank, so stranding there is now the normal
+  // first lesson rather than an edge case, and at 0.1x recovery cost more real
+  // minutes than anything else in the game: the measured arc stopped finishing
+  // inside its 12-minute budget, spending most of it crawling. Demanding now
+  // limps at the standard 0.15x by inheriting it.
+  //
+  // This does not soften the preset. Wear, tank size and repair frequency are
+  // untouched, so the wagon breaks exactly as often; what changed is the price
+  // of the recovery, which is paid in the one currency the game cannot refund.
+  // Failure must be cheap for the soft gate to teach rather than punish
+  // (docs/design/10_open_world_expansion.md, #433), and Demanding is the preset
+  // where players fail most.
   demanding: {
     ...DEFAULT_WAGON_TUNING,
     wearBase: 0.1,
     wearCoef: 2.5,
     startingMaxCondition: 16,
-    limpSpeed: 0.1,
   },
 };
 
