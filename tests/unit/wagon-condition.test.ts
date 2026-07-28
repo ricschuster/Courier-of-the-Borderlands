@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   roughness,
   wearReliefFactor,
-  offRoadWearFactor,
   wearPerTile,
   applyWear,
   clampCondition,
@@ -31,7 +30,6 @@ import {
 // assertions read against its values rather than duplicating literals.
 const T = DEFAULT_WAGON_TUNING;
 const WEAR_RELIEF_FLOOR = T.wearReliefFloor;
-const OFFROAD_WEAR_FLOOR = T.offRoadWearFloor;
 const COST_PER_PERCENT = T.costPerPercent;
 const RESCUE_COST = T.rescueCost;
 const LIMP_SPEED = T.limpSpeed;
@@ -60,9 +58,11 @@ describe('wearReliefFactor', () => {
     expect(wearReliefFactor(0)).toBe(1);
   });
 
-  it('drops per relief upgrade', () => {
-    expect(wearReliefFactor(1)).toBeCloseTo(0.85, 5);
-    expect(wearReliefFactor(3)).toBeCloseTo(0.55, 5);
+  it('drops a quarter per relief upgrade', () => {
+    expect(wearReliefFactor(1)).toBeCloseTo(0.75, 5);
+    // All three relief upgrades (290 coins) leave 35% of the bare wear, which is
+    // the floor: coins are the strongest answer to the sink in the game (#412).
+    expect(wearReliefFactor(3)).toBeCloseTo(0.35, 5);
   });
 
   it('never falls below the floor no matter how many upgrades', () => {
@@ -70,43 +70,43 @@ describe('wearReliefFactor', () => {
   });
 });
 
-describe('offRoadWearFactor', () => {
-  it('is 1 at rank 0', () => {
-    expect(offRoadWearFactor(0)).toBe(1);
-  });
-
-  it('drops per rank and floors', () => {
-    expect(offRoadWearFactor(3)).toBeCloseTo(0.7, 5);
-    expect(offRoadWearFactor(9)).toBe(OFFROAD_WEAR_FLOOR);
-  });
-});
-
 describe('wearPerTile', () => {
   it('is a bare trickle on the road with no investment', () => {
     // Roads normalise to roughness 0, so only the base wear applies.
-    expect(wearPerTile(1.4, 0, 0)).toBeCloseTo(WEAR_BASE, 5);
+    expect(wearPerTile(1.4, 0)).toBeCloseTo(WEAR_BASE, 5);
   });
 
   it('is much higher on rough terrain', () => {
     // forest 0.55 -> roughness ~0.6071, so base + coef * roughness.
     const expected = WEAR_BASE + WEAR_COEF * roughness(0.55);
-    expect(wearPerTile(0.55, 0, 0)).toBeCloseTo(expected, 5);
-    expect(wearPerTile(0.55, 0, 0)).toBeGreaterThan(wearPerTile(1.4, 0, 0));
+    expect(wearPerTile(0.55, 0)).toBeCloseTo(expected, 5);
+    expect(wearPerTile(0.55, 0)).toBeGreaterThan(wearPerTile(1.4, 0));
   });
 
   it('is reduced but never zeroed by a fully invested wagon', () => {
-    const bare = wearPerTile(0.4, 0, 0); // deep-mire, no investment
-    const maxed = wearPerTile(0.4, 3, 3); // all relief upgrades + off-road rank 3
+    const bare = wearPerTile(0.4, 0); // deep-mire, no investment
+    const maxed = wearPerTile(0.4, 3); // all relief upgrades bought
     expect(maxed).toBeLessThan(bare);
-    // 0.55 relief * 0.7 off-road = 0.385 of the bare wear, still meaningful
-    expect(maxed).toBeCloseTo(bare * 0.55 * 0.7, 5);
+    // 0.35 of the bare wear, still meaningful: a maxed wagon wears less, never
+    // nothing (owner decision 5).
+    expect(maxed).toBeCloseTo(bare * 0.35, 5);
     expect(maxed).toBeGreaterThan(0);
+  });
+
+  it('is unchanged by the Off-road skill: durability is bought with coins (#412)', () => {
+    // The signature has no skill rank at all, so ranking Off-road cannot touch
+    // wear. Guarding the count-only dependence keeps a future "small" re-add of
+    // a skill term from quietly restoring the substitution slice 5 removed.
+    const noRelief = wearPerTile(0.4, 0);
+    const oneRelief = wearPerTile(0.4, 1);
+    expect(oneRelief).toBeLessThan(noRelief);
+    expect(oneRelief).toBeCloseTo(noRelief * 0.75, 5);
   });
 
   it('scales only the roughness term by the region wear multiplier (#186)', () => {
     // Rough terrain wears more under a >1 region multiplier.
-    const normal = wearPerTile(0.45, 0, 0, DEFAULT_WAGON_TUNING, 1);
-    const rough = wearPerTile(0.45, 0, 0, DEFAULT_WAGON_TUNING, 1.8);
+    const normal = wearPerTile(0.45, 0, DEFAULT_WAGON_TUNING, 1);
+    const rough = wearPerTile(0.45, 0, DEFAULT_WAGON_TUNING, 1.8);
     expect(rough).toBeGreaterThan(normal);
     // The extra is exactly the coef * roughness term scaled by (1.8 - 1).
     const extra = WEAR_COEF * roughness(0.45) * 0.8;
@@ -115,8 +115,10 @@ describe('wearPerTile', () => {
 
   it('leaves road wear untouched by the region multiplier (roughness 0)', () => {
     // Roads normalise to roughness 0, so the multiplier has nothing to scale:
-    // a rough region never makes the open road wear the wagon.
-    const road = wearPerTile(1.4, 0, 0, DEFAULT_WAGON_TUNING, 1.8);
+    // a rough region never makes the open road wear the wagon. This is what
+    // keeps Greybridge's 1.8x (#436) from being an exit lock: both roads out of
+    // the hub cost the same as they did at 1x.
+    const road = wearPerTile(1.4, 0, DEFAULT_WAGON_TUNING, 1.8);
     expect(road).toBeCloseTo(WEAR_BASE, 5);
   });
 });
@@ -349,8 +351,8 @@ describe('difficulty presets', () => {
   });
 
   it('demanding wears faster and starts with a smaller tank than standard', () => {
-    expect(wearPerTile(marsh, 0, 0, WAGON_TUNING.demanding)).toBeGreaterThan(
-      wearPerTile(marsh, 0, 0, WAGON_TUNING.standard),
+    expect(wearPerTile(marsh, 0, WAGON_TUNING.demanding)).toBeGreaterThan(
+      wearPerTile(marsh, 0, WAGON_TUNING.standard),
     );
     expect(WAGON_TUNING.demanding.startingMaxCondition).toBeLessThan(
       WAGON_TUNING.standard.startingMaxCondition,
@@ -370,8 +372,8 @@ describe('difficulty presets', () => {
   });
 
   it('relaxed wears slower and costs less than standard', () => {
-    expect(wearPerTile(marsh, 0, 0, WAGON_TUNING.relaxed)).toBeLessThan(
-      wearPerTile(marsh, 0, 0, WAGON_TUNING.standard),
+    expect(wearPerTile(marsh, 0, WAGON_TUNING.relaxed)).toBeLessThan(
+      wearPerTile(marsh, 0, WAGON_TUNING.standard),
     );
     expect(repairCost(0, 100, WAGON_TUNING.relaxed)).toBeLessThan(
       repairCost(0, 100, WAGON_TUNING.standard),

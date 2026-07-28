@@ -86,6 +86,13 @@ Terrain `deep-mire` requires `mire-crossing`; the base wagon is blocked, but
 Marsh Treads (coins) or Off-road rank 2 (skill points) opens it, and a longer
 passable route always exists.
 
+**Access is the only thing the two currencies share (2026-07-28, #412).** Two
+keys to one door is the mechanic and it stays. What went wrong is that Off-road
+also cut wagon wear, so the skill quietly bought the upgrade's *other* effect
+too, and three points came to be worth about 290 coins. Wear relief is now
+upgrade-only: points buy speed and access, coins buy durability. Keep any future
+skill effect on that side of the line, or the substitution comes back.
+
 A discovery gate reuses the existing fog + reveal radius: content that is only
 *found* once reveal (Wayfinder skill / lantern upgrades) has uncovered it,
 separate from the passability gate above. The pre-build pass (#111) reframed the

@@ -22,6 +22,7 @@
     "shot": "node scripts/shot.mjs",
     "autoplay": "node scripts/autoplay.mjs",
     "measure:survey": "SURVEY_REPORT=1 vitest run tests/unit/survey-benefit-regions.test.ts --disable-console-intercept",
+    "measure:wear": "WEAR_REPORT=1 vitest run tests/unit/wear-cost-regions.test.ts --disable-console-intercept",
     "setup": "npm ci && npx playwright install --with-deps chromium",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

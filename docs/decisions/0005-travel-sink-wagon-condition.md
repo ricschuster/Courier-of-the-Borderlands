@@ -64,6 +64,9 @@ roughness      = max(0, 1 - speedModifier / MAX_SPEED_MODIFIER)   // RAW terrain
 wearPerTile    = (BASE + WEAR_COEF * roughness) * wearReliefFactor * offRoadWearFactor
 ```
 
+(As shipped there is no `offRoadWearFactor` and the roughness term is scaled by
+the region's `wearMultiplier`. See the 2026-07-28 amendment below.)
+
 Where:
 
 - `MAX_SPEED_MODIFIER = 1.4` (the road/bridge value, so roads normalise to
@@ -295,9 +298,40 @@ These are the shipped starting values. Final feel remains playtest-gated: whethe
 a rough leg costs the right amount, and whether repair reads as a decision rather
 than a tax, needs a human run.
 
+## Amendment: durability is bought with coins only (2026-07-28, slice 5)
+
+Point 4 below gave the Off-road skill a wear factor as well as its speed and its
+two terrain crossings. Measured across every route in all four regions, that let
+**three skill points buy roughly 290 coins of relief upgrades** (Off-road rank 3
+cut total wear 53 percent; all three relief upgrades cut it 61 percent), which is
+the substitution #412 was opened against. No other skill pays twice like that.
+
+Resolved by removing the wear effect, not the crossings (owner call 2026-07-28):
+
+- `offRoadWearFactor` and its two tuning knobs are **gone**. Off-road keeps +10
+  percent speed per rank, the mire at rank 2, and the tidal flats at rank 3. Its
+  description never mentioned wear, so nothing advertised was taken away.
+- `WEAR_RELIEF_PER_UPGRADE` 0.15 -> **0.25**, `WEAR_RELIEF_FLOOR` 0.5 -> **0.35**.
+  At 0.15 no single purchase changed a decision. One relief upgrade is now a
+  legible quarter off, and all three (290 coins) cut wear 76 percent.
+
+Net: points buy speed and access, coins buy durability, and neither currency can
+be spent on the other's job. A fully invested wagon wears at 0.35 of base rather
+than 0.39, so the shipped floor is essentially unchanged; what changed is that it
+now has to be paid for in coins.
+
+`wearPerTile` lost its `offRoadRank` parameter rather than keeping a knob pinned
+at zero. A knob that is 0 in every preset is a path whose broken and correct
+behaviour are identical, which is exactly the shape that makes a green suite
+prove nothing (CLAUDE.md trap 1). Re-adding it is a git revert away.
+
+Measured by `npm run measure:wear` (`tests/unit/wear-cost-regions.test.ts`),
+which prices every home-to-settlement leg per build and now guards the result:
+Off-road rank 1 must leave the wear bill exactly where it was.
+
 ## Difficulty
 
-Every difficulty-tunable knob (wear rates, relief and Off-road floors, repair
+Every difficulty-tunable knob (wear rates, the relief floor, repair
 price, rescue cost, limp speed) lives in a `WagonTuning` profile rather than a
 bare constant, and the pure functions take a profile argument (defaulting to
 standard). `WAGON_TUNING` ships three presets (`relaxed`, `standard`,
@@ -335,9 +369,9 @@ presets are illustrative starting points, not yet balanced by playtest.
 | `MAX_SPEED_MODIFIER` | 1.4 | Normalises roads to roughness 0 |
 | `BASE` | 0.06 | Baseline wear per tile, even on roads |
 | `WEAR_COEF` | 1.5 | Wear per tile at maximum roughness |
-| `offRoadWearFactor` per Off-road rank | 1 - 0.10 x rank (floor 0.6) | Skill reduces wear |
-| `WEAR_RELIEF_PER_UPGRADE` | 0.15 | Wear cut per relief upgrade owned |
-| `WEAR_RELIEF_FLOOR` | 0.5 | Minimum wear multiplier from upgrades |
+| `WEAR_RELIEF_PER_UPGRADE` | 0.25 | Wear cut per relief upgrade owned |
+| `WEAR_RELIEF_FLOOR` | 0.35 | Minimum wear multiplier from upgrades |
+| `Region.wearMultiplier` | 1.8 hub, 1 Saltreach, 2 Ashmoor, 2.2 Fenmarch | Scales the roughness term per region |
 | `COST_PER_PERCENT` | 5 gold | Repair cost per missing percent (primary knob) |
 | Full repair (0 to 100) | 500 gold | Derived from `COST_PER_PERCENT` |
 | `LIMP_SPEED` | 0.15x | Movement multiplier at 0 condition (steep, anti-exploit) |

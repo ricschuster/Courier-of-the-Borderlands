@@ -149,7 +149,56 @@ once per new region.
 3. Make the survey ring legible (#425).
 4. Region four as a deliberate test of the pipeline, in a web rather than a
    chain.
-5. Re-tune the travel sink against the new distances.
+5. Re-tune the travel sink against the new distances. DONE 2026-07-28, below.
+
+## Slice 5: the calls (owner, 2026-07-28)
+
+Slice 5 settled #436 and #412 together, because they are one question asked
+twice: what a coin is worth against a skill point in the travel sink. Doing them
+separately would have meant tuning twice.
+
+Measured first, three ways. The arc run (`travel-sink-measure`, standard) reached
+the capstone with **0 strands, 1319 coins in hand after buying every upgrade in
+the game (640c)**, and a full wagon. A new static report
+(`npm run measure:wear`) priced every home-to-settlement leg per build, which is
+what the arc run cannot do: it plays one build.
+
+### Early spend pressure lives in the hub (#436)
+
+At `wearMultiplier` 1, a bare level-1 wagon could clear the whole Greybridge
+region on its 25-point tank, worst leg 40 percent of it one way. Nothing had to
+be bought, which is the hole #362 was opened against and #434 knowingly reopened.
+
+**Greybridge goes to 1.8x.** Roads are roughness 0 and wear nothing at any
+multiplier, so both roads out of the hub cost exactly what they did and this is
+not the exit lock #434 removed wearing a different hat. The two off-road spurs
+carry the pressure instead: Reedgrave 64 percent of the level-1 tank one way,
+Mirewatch 23 percent. The courier who drives into the reeds on a bare wagon
+cannot get back without repairing, and the Sprung Axle is what fixes that. The
+wilds ask; no signpost refuses.
+
+### The two currencies stop overlapping (#412)
+
+Off-road's wear cut meant three skill points bought about 290 coins of relief
+upgrades on top of 30 percent speed and both terrain crossings. **The wear cut is
+gone; the crossings stay.** Relief upgrades get steeper to fill the gap (0.15 ->
+0.25 per upgrade, floor 0.5 -> 0.35).
+
+So points buy speed and access, coins buy durability. Total wear over every leg
+in the world: all relief (290c) -75 percent, Off-road rank 3 (3 points) -32
+percent, and Off-road rank 1 now exactly 0. Nothing shipped was removed: the
+skill's own description never mentioned wear, `tidal-route.spec` and
+`mire-route.spec` still pass unchanged, and no save needs migrating.
+
+This was chosen over pricing ranks 2 and 3 at two points each, which would have
+touched the skill panel and every save's point maths, and over taking the
+crossings away, which would have closed a route for players who bought into it.
+
+### What is not settled
+
+The faucet. Ending an arc 1319 coins up is a reward-side question, not a sink-side
+one, and repair price stays at 5c/pt so a playtest can attribute the change above.
+If coins are still not scarce, that is the next single lever.
 
 ## Region four: the calls (owner, 2026-07-27)
 

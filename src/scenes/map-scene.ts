@@ -757,14 +757,13 @@ export class MapScene extends Phaser.Scene {
     const velocity = computeVelocity(input, speed);
 
     // Wear per tile is computed off the RAW terrain roughness, so relief upgrades
-    // and Off-road cut it through their own weaker floored factors (ADR 0005).
-    // The wear modifier is separate from movement speed so a trail can drive like
-    // a path yet wear like the rough ground it crosses (#176).
+    // cut it through their own floored factor (ADR 0005). The wear modifier is
+    // separate from movement speed so a trail can drive like a path yet wear like
+    // the rough ground it crosses (#176).
     const rawWearModifier = terrainId === undefined ? 1 : getWearSpeedModifier(terrainId);
     const wearRate = wearPerTile(
       rawWearModifier,
       countReliefUpgrades(this.state.upgrades, UPGRADES_GREYBRIDGE),
-      rankOf(this.skills, 'off-road'),
       this.wagon.tuning(),
       this.region.wearMultiplier ?? 1,
     );
