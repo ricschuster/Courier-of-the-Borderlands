@@ -101,6 +101,20 @@ export const GREYBRIDGE_REGION: Region = {
   ],
   signpost: { x: 13, y: 14 },
   fordUnlockId: 'ford-crossing-greybridge',
+  // The hub is where the early game happens, so this is where early spend
+  // pressure has to live (#436, slice 5). Removing the exit lock in #434 left
+  // the hole #362 was opened against: measured at 1x, a bare level-1 wagon
+  // could clear the whole region on a 25-point tank with its worst leg costing
+  // 40% of it, so nothing had to be bought.
+  //
+  // At 1.8x the roads are untouched (roughness 0 wears nothing regardless), so
+  // leaving is still free and this is not an exit lock by another name. The two
+  // off-road spurs carry it instead: Reedgrave costs 64% of the level-1 tank
+  // one way and Mirewatch 23%, so the courier who goes into the reeds arrives
+  // with a third of a wagon and has to pay to get home. The Sprung Axle (60c)
+  // takes Reedgrave to 48% and the Marsh Treads with it to 19%: the wilds ask
+  // for the purchase, no signpost refuses anyone.
+  wearMultiplier: 1.8,
 };
 
 export const SALTREACH_REGION: Region = {

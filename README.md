@@ -258,6 +258,23 @@ report on. Read
 only reaches past the walked fog for a courier who has *not* bought the reveal
 upgrades.
 
+### Pricing the travel sink
+
+```bash
+npm run measure:wear
+```
+
+Prices every home-to-settlement leg in every region against a set of builds, and
+reports what a coin and a skill point each buy in wear. Built for slice 5 of the
+world expansion, which had to settle two questions a scripted arc cannot answer:
+whether the first region's wilds create real spend pressure (#436), and whether a
+skill point substitutes for coins (#412).
+
+It is the static counterpart to `travel-sink-measure`, so it is fast, deterministic,
+and prices builds no scripted arc would ever play (a bare level-1 wagon walking
+into Fenmarch). Both caveats push the same way, so read the numbers as a floor:
+routes are time-optimal with full map knowledge, and a leg is one way.
+
 ## Project structure
 
 ```text

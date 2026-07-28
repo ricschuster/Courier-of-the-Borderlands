@@ -3,9 +3,15 @@
 // testable. The scene owns the live condition value and calls these helpers.
 //
 // Wear is computed off RAW terrain roughness (not the relief-adjusted speed
-// modifier), so relief upgrades and the Off-road skill reduce wear through their
-// own separate, weaker floored factors. This keeps the sink's teeth on a fully
-// upgraded wagon (owner decision 5): a maxed wagon wears less, never nothing.
+// modifier), so relief upgrades reduce wear through their own separate, floored
+// factor. This keeps the sink's teeth on a fully upgraded wagon (owner decision
+// 5): a maxed wagon wears less, never nothing.
+//
+// Durability is bought with COINS ONLY (#412, slice 5). The Off-road skill used
+// to cut wear as well, which meant three skill points bought roughly 290 coins
+// of relief upgrades on top of their speed and their two terrain crossings. Now
+// points buy speed and access, coins buy durability, and the two progression
+// currencies stop being interchangeable. See docs/decisions/0005.
 //
 // Every difficulty-tunable knob lives in a WagonTuning profile rather than a bare
 // constant, so a future difficulty selector just picks a preset and threads it
@@ -30,8 +36,6 @@ export interface WagonTuning {
   readonly wearCoef: number; // extra per-tile wear at maximum roughness
   readonly wearReliefPerUpgrade: number; // wear cut per owned relief upgrade
   readonly wearReliefFloor: number; // minimum wear multiplier from upgrades
-  readonly offRoadWearPerRank: number; // wear cut per Off-road rank
-  readonly offRoadWearFloor: number; // minimum wear multiplier from Off-road
   readonly costPerPercent: number; // gold to repair one missing condition point
   readonly rescueCost: number; // gold to be towed home while stranded
   readonly limpSpeed: number; // movement multiplier while stranded at 0
@@ -46,14 +50,19 @@ export interface WagonTuning {
  * The standard profile. Wear rates were raised after a measured full-arc run
  * (2026-07-11): at 0.02/0.5 a whole arc wore only ~52 points, far too light on
  * this small road-connected map, so a rough leg now visibly costs condition.
+ *
+ * Relief per upgrade was raised from 0.15 to 0.25 (floor 0.5 to 0.35) in slice
+ * 5. At 0.15 no single purchase changed a decision: the Sprung Axle cut total
+ * wear across the world by 15%, which a player cannot feel. At 0.25 one relief
+ * upgrade is a legible quarter off, and all three (290 coins) cut wear 76%,
+ * which makes the full kit the strongest answer to the sink in the game and
+ * gives coins a job that skill points cannot do (#436, #412).
  */
 export const DEFAULT_WAGON_TUNING: WagonTuning = {
   wearBase: 0.06,
   wearCoef: 1.5,
-  wearReliefPerUpgrade: 0.15,
-  wearReliefFloor: 0.5,
-  offRoadWearPerRank: 0.1,
-  offRoadWearFloor: 0.6,
+  wearReliefPerUpgrade: 0.25,
+  wearReliefFloor: 0.35,
   costPerPercent: 5,
   rescueCost: 50,
   // A hard crawl (a fifth of normal), so sitting at 0 condition is not a viable
@@ -155,37 +164,29 @@ export function wearReliefFactor(
   return Math.max(tuning.wearReliefFloor, raw);
 }
 
-/** Wear multiplier from the Off-road skill rank, floored so it never reaches 0. */
-export function offRoadWearFactor(
-  offRoadRank: number,
-  tuning: WagonTuning = DEFAULT_WAGON_TUNING,
-): number {
-  const raw = 1 - tuning.offRoadWearPerRank * Math.max(0, offRoadRank);
-  return Math.max(tuning.offRoadWearFloor, raw);
-}
-
 /**
  * Condition points lost per tile travelled on the given terrain, after relief.
  * `rawSpeedModifier` is the terrain's own modifier (not relief-adjusted).
+ *
+ * Relief upgrades are the only thing that reduces this. The Off-road skill rank
+ * used to as well and no longer does (#412): see the module header.
  *
  * `regionWearMultiplier` scales only the roughness-dependent term, so a rougher
  * region (Fenmarch, #186) wears the wagon harder off-road without touching the
  * flat road-wear base: roads stay at roughness 0 and wear nothing regardless.
  * This is the lever for the late-game curve inversion, where a big tank plus
- * maxed relief/off-road otherwise soak up a whole region's wear.
+ * maxed relief otherwise soaks up a whole region's wear, and (since slice 5) for
+ * the early-game pressure that makes the first purchase matter.
  */
 export function wearPerTile(
   rawSpeedModifier: number,
   reliefUpgradeCount: number,
-  offRoadRank: number,
   tuning: WagonTuning = DEFAULT_WAGON_TUNING,
   regionWearMultiplier = 1,
 ): number {
   const base =
     tuning.wearBase + tuning.wearCoef * roughness(rawSpeedModifier) * regionWearMultiplier;
-  return (
-    base * wearReliefFactor(reliefUpgradeCount, tuning) * offRoadWearFactor(offRoadRank, tuning)
-  );
+  return base * wearReliefFactor(reliefUpgradeCount, tuning);
 }
 
 /** Apply a wear amount to a condition value, clamped to [0, 100]. */
