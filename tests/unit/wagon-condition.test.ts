@@ -371,6 +371,25 @@ describe('difficulty presets', () => {
     );
   });
 
+  it('lets demanding limp at the standard rate, so failure is not paid in minutes', () => {
+    // #448: the same shape as the repair premium above, one layer down. Slice 5
+    // made stranding the normal first lesson on this preset, and at 0.1x the
+    // recovery crawl cost more real time than anything else in the game. The
+    // fragility is unchanged (wear and tank below); only the price of recovery
+    // moved, because failure must be cheap for the soft gate to teach.
+    expect(WAGON_TUNING.demanding.limpSpeed).toBe(WAGON_TUNING.standard.limpSpeed);
+    expect(limpMultiplier(0, WAGON_TUNING.demanding)).toBe(
+      limpMultiplier(0, WAGON_TUNING.standard),
+    );
+    // Still the hard preset: it breaks just as fast, on a smaller tank.
+    expect(wearPerTile(marsh, 0, WAGON_TUNING.demanding)).toBeGreaterThan(
+      wearPerTile(marsh, 0, WAGON_TUNING.standard),
+    );
+    expect(WAGON_TUNING.demanding.startingMaxCondition).toBeLessThan(
+      WAGON_TUNING.standard.startingMaxCondition,
+    );
+  });
+
   it('relaxed wears slower and costs less than standard', () => {
     expect(wearPerTile(marsh, 0, WAGON_TUNING.relaxed)).toBeLessThan(
       wearPerTile(marsh, 0, WAGON_TUNING.standard),
