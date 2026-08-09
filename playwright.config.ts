@@ -27,14 +27,18 @@ export default defineConfig({
       testIgnore: /full-arc\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
-    // The full-arc playthrough is a single ~4-minute test. At the default
-    // retries: 2 a flake costs three full runs (~16 min), so it gets its own
-    // lower retry budget: one retry is enough to ride out a transient hiccup
-    // without paying for a third pass. A genuine soft-lock still fails.
+    // The full-arc playthrough is a single ~7-minute test, and it does not
+    // retry. The retry was there to ride out a transient hiccup, but Playwright
+    // reruns on the same runner, so it inherits the load that caused the
+    // failure: when #107 re-fired on main both attempts failed (the second
+    // wedged at a different leg), while the same commit passed first try on a
+    // fresh runner. A retry that shares the cause cannot rescue the run, and it
+    // doubles the cost of a real one, so the budget goes into the per-test
+    // timeout instead (see full-arc.spec.ts).
     {
       name: 'arc',
       testMatch: /full-arc\.spec\.ts/,
-      retries: process.env.CI ? 1 : 0,
+      retries: 0,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

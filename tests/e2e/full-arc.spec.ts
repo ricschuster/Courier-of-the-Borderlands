@@ -151,7 +151,16 @@ arcTest('drives the whole arc to the blockade-broken capstone', async ({ page })
   // ~3m locally, but a loaded CI runner (or a busy dev machine) throttles the
   // frame loop and slows the drive, so give generous headroom over the clean
   // time to keep this a signal about the game, not about runner load.
-  test.setTimeout(720_000);
+  //
+  // Size this as a ratio against the clean CI time, not as an absolute: the
+  // budget only holds if it outgrows the arc. It did not. At #107 the arc ran
+  // 4m02s against 480_000 (2.0x headroom); by the time Fenmarch, Saltreach and
+  // Ashmoor had landed it ran 7.3m against 720_000, and 1.64x was no longer
+  // enough to absorb a loaded runner (#107 re-fired on main, twice on one
+  // commit, while the same commit passed clean on a second runner).
+  // 1_080_000 puts a 7.3m arc back at 2.5x. If a future region pushes the clean
+  // time past ~7.2m, raise this again to hold the ratio.
+  test.setTimeout(1_080_000);
 
   const errors = collectErrors(page);
   // Turbo doubles the wagon speed (test-only) so ~20 deliveries at real driving
